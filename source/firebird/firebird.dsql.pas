@@ -43,11 +43,13 @@ type
     procedure GetShort(aValue: pointer; out aIsNull: boolean);
     procedure GetString(aValue: pointer; out aIsNull: boolean);
     procedure GetTime(aValue: pointer; out aIsNull: boolean);
+    procedure GetTimeStamp(aValue: pointer; out aIsNull: boolean);
     function IsNullable: boolean;
     procedure Prepare;
     procedure SetBCD(const aValue: pointer; const aScale: integer; const aIsNull:
         boolean);
-    procedure SetDate(const aValue: pointer; const aIsNull: boolean);
+    procedure SetDate(const aValue: pointer; const aLength: Integer; const aIsNull:
+        boolean);
     procedure SetDouble(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetInteger(const aValue: pointer; const aIsNull: boolean);
@@ -55,6 +57,7 @@ type
     procedure SetString(const aValue: pointer; const aLength: word; const aIsNull:
         boolean);
     procedure SetTime(const aValue: pointer; const aIsNull: boolean);
+    procedure SetTimeStamp(const aValue: pointer; const aIsNull: boolean);
   public
     property aliasname: TIB_Identifier read Get_aliasname;
     property aliasname_length: smallint read Get_aliasname_length;
@@ -151,7 +154,7 @@ type
 
 implementation
 
-uses SysUtils, FMTBcd;
+uses SysUtils, FMTBcd, SqlTimSt;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdClient; const aPtr:
     pointer);
@@ -201,18 +204,28 @@ procedure TXSQLVAR.GetDate(aValue: pointer; out aIsNull: boolean);
 var T: tm;
     Yr, Mn, Dy: word;
     D: ISC_DATE;
+    G: ISC_TIMESTAMP;
     S: TTimeStamp;
     C: TDateTime;
     E: integer;
 begin
-  Assert(FPrepared and CheckType(SQL_TYPE_DATE));
+  Assert(FPrepared);
   aIsNull := IsNull;
   if not aIsNull then begin
-    Move(sqldata^, D, sqllen);
-    FClient.isc_decode_sql_date(@D, @T);
-    C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
-    E := DateTimeToTimeStamp(C).Date;
-    Move(E, aValue^, sqllen);
+    if CheckType(SQL_TYPE_DATE) then begin
+      Move(sqldata^, D, sqllen);
+      FClient.isc_decode_sql_date(@D, @T);
+      C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
+      E := DateTimeToTimeStamp(C).Date;
+      Move(E, aValue^, sqllen);
+    end else if CheckType(SQL_TIMESTAMP) then begin
+      Move(sqldata^, G, sqllen);
+      FClient.isc_decode_timestamp(@G, @T);
+      C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
+      E := DateTimeToTimeStamp(C).Date;
+      Move(E, aValue^, sqllen);
+    end else
+      Assert(False);
   end;
 end;
 
@@ -289,11 +302,45 @@ begin
 end;
 
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
+var T: tm;
+    Yr, Mn, Dy: word;
+    D: ISC_TIME;
+    S: TTimeStamp;
+    C: TDateTime;
+    E: integer;
 begin
   Assert(FPrepared and CheckType(SQL_TYPE_TIME));
   aIsNull := IsNull;
-  if not aIsNull then
-    Move(FXSQLVar.sqldata^, aValue^, sqllen);
+  if not aIsNull then begin
+    Move(sqldata^, D, sqllen);
+    FClient.isc_decode_sql_time(@D, @T);
+    C := EncodeTime(T.tm_hour, T.tm_min, T.tm_sec, 0);
+    E := DateTimeToTimeStamp(C).Time;
+    Move(E, aValue^, sqllen);
+  end;
+end;
+
+procedure TXSQLVAR.GetTimeStamp(aValue: pointer; out aIsNull: boolean);
+var T: tm;
+    Yr, Mn, Dy: word;
+    D: ISC_TIMESTAMP;
+    S: TSQLTimeStamp;
+    C: TDateTime;
+    E: integer;
+begin
+  Assert(FPrepared and CheckType(SQL_TIMESTAMP));
+  aIsNull := IsNull;
+  if not aIsNull then begin
+    Move(sqldata^, D, sqllen);
+    FClient.isc_decode_timestamp(@D, @T);
+    S.Year := T.tm_year + 1900;
+    S.Month := T.tm_mon + 1;
+    S.Day := T.tm_mday;
+    S.Hour := T.tm_hour;
+    S.Minute := T.tm_min;
+    S.Second := T.tm_sec;
+    Move(S, aValue^, SizeOf(S));
+  end;
 end;
 
 function TXSQLVAR.Get_aliasname: TIB_Identifier;
@@ -416,14 +463,17 @@ begin
     Assert(False);
 end;
 
-procedure TXSQLVAR.SetDate(const aValue: pointer; const aIsNull: boolean);
+procedure TXSQLVAR.SetDate(const aValue: pointer; const aLength: Integer; const
+    aIsNull: boolean);
 var T: tm;
     Yr, Mn, Dy: word;
     D: ISC_DATE;
+    E: ISC_TIMESTAMP;
     S: TTimeStamp;
 begin
   IsNull := aIsNull;
-  Assert(CheckType(SQL_TYPE_DATE));
+  Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP));
+  Assert(aLength = 4);
 
   S.Time := 0;
   S.Date := PInteger(aValue)^;
@@ -436,8 +486,14 @@ begin
     tm_mon := Mn - 1;
     tm_year := Yr - 1900;
   end;
-  FClient.isc_encode_sql_date(@T, @D);
-  Move(D, sqldata^, sqllen)
+
+  if CheckType(SQL_TYPE_DATE) then begin
+    FClient.isc_encode_sql_date(@T, @D);
+    Move(D, sqldata^, sqllen);
+  end else begin
+    FClient.isc_encode_timestamp(@T, @E);
+    Move(E, sqldata^, sqllen);
+  end;
 end;
 
 procedure TXSQLVAR.SetDouble(const aValue: pointer; const aLength: Integer;
@@ -510,10 +566,50 @@ begin
 end;
 
 procedure TXSQLVAR.SetTime(const aValue: pointer; const aIsNull: boolean);
+var T: tm;
+    iHour, iMinute, iSecond, iMSec: word;
+    D: ISC_TIME;
+    S: TTimeStamp;
 begin
   IsNull := aIsNull;
   Assert(CheckType(SQL_TYPE_TIME));
-  Move(aValue^, sqldata^, sqllen)
+
+  S.Time := PInteger(aValue)^;
+  S.Date := 1;
+  DecodeTime(TimeStampToDateTime(S), iHour, iMinute, iSecond, iMSec);
+  with T do begin
+    tm_sec := iSecond;
+    tm_min := iMinute;
+    tm_hour := iHour;
+    tm_mday := 0;
+    tm_mon := 0;
+    tm_year := 0;
+  end;
+  FClient.isc_encode_sql_time(@T, @D);
+  Move(D, sqldata^, sqllen)
+end;
+
+procedure TXSQLVAR.SetTimeStamp(const aValue: pointer;
+  const aIsNull: boolean);
+var T: tm;
+    iHour, iMinute, iSecond, iMSec: word;
+    D: ISC_TIMESTAMP;
+    S: PSQLTimeStamp;
+begin
+  IsNull := aIsNull;
+  Assert(CheckType(SQL_TIMESTAMP));
+
+  S := PSQLTimeStamp(aValue);
+  with T do begin
+    tm_sec := S^.Second;
+    tm_min := S^.Minute;
+    tm_hour := S^.Hour;
+    tm_mday := S^.Day;
+    tm_mon := S^.Month - 1;
+    tm_year := S^.Year - 1900;
+  end;
+  FClient.isc_encode_timestamp(@T, @D);
+  Move(D, sqldata^, sqllen)
 end;
 
 procedure TXSQLVAR.Set_sqldata(Value: Pointer);

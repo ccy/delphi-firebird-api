@@ -42,6 +42,7 @@ type
         pisc_tr_handle): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
     procedure isc_decode_sql_time(a: PISC_TIME; b: PISC_LONG);
+    procedure isc_decode_timestamp(a: PISC_TIMESTAMP; b: PISC_LONG);
     function isc_detach_database(status: pstatus_vector; db_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
     function isc_dsql_allocate_statement(status: pstatus_vector; db_handle:
@@ -73,6 +74,7 @@ type
         pchar): ISC_STATUS; stdcall;
     procedure isc_encode_sql_date(a: pointer; b: PISC_DATE);
     procedure isc_encode_sql_time(a: pointer; b: PISC_TIME);
+    procedure isc_encode_timestamp(a: pointer; b: PISC_TIMESTAMP);
     function isc_interprete(buffer: PChar; status: ppstatus_vector): ISC_STATUS;
         stdcall;
     function isc_rollback_transaction(status: pstatus_vector; tr_handle:
@@ -96,6 +98,7 @@ type
     Fisc_commit_transaction: Tisc_commit_transaction;
     Fisc_decode_sql_date: Tisc_decode_sql_date;
     Fisc_decode_sql_time: Tisc_decode_sql_time;
+    Fisc_decode_timestamp: Tisc_decode_timestamp;
     Fisc_detach_database: Tisc_detach_database;
     Fisc_dsql_allocate_statement: Tisc_dsql_allocate_statement;
     Fisc_dsql_alloc_statement2: Tisc_dsql_alloc_statement2;
@@ -110,6 +113,7 @@ type
     Fisc_dsql_sql_info: Tisc_dsql_sql_info;
     Fisc_encode_sql_date: Tisc_encode_sql_date;
     Fisc_encode_sql_time: Tisc_encode_sql_time;
+    Fisc_encode_timestamp: Tisc_encode_timestamp;
     Fisc_interprete: Tisc_interprete;
     Fisc_rollback_transaction: Tisc_rollback_transaction;
     Fisc_sqlcode: Tisc_sqlcode;
@@ -123,6 +127,7 @@ type
         pisc_tr_handle): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
     procedure isc_decode_sql_time(a: PISC_TIME; b: PISC_LONG);
+    procedure isc_decode_timestamp(a: PISC_TIMESTAMP; b: PISC_LONG);
     function isc_detach_database(status: pstatus_vector; db_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
     function isc_dsql_allocate_statement(status: pstatus_vector; db_handle:
@@ -154,6 +159,7 @@ type
         pchar): ISC_STATUS; stdcall;
     procedure isc_encode_sql_date(a: pointer; b: PISC_DATE);
     procedure isc_encode_sql_time(a: pointer; b: PISC_TIME);
+    procedure isc_encode_timestamp(a: pointer; b: PISC_TIMESTAMP);
     function isc_interprete(buffer: PChar; status: ppstatus_vector): ISC_STATUS;
         stdcall;
     function isc_rollback_transaction(status: pstatus_vector; tr_handle:
@@ -313,6 +319,12 @@ begin
   Call(@Fisc_decode_sql_time, [a, b]);
 end;
 
+procedure TFirebirdClient.isc_decode_timestamp(a: PISC_TIMESTAMP;
+  b: PISC_LONG);
+begin
+  Call(@Fisc_decode_timestamp, [a, b]);
+end;
+
 function TFirebirdClient.isc_detach_database(status: pstatus_vector;
   db_handle: pisc_db_handle): ISC_STATUS;
 begin
@@ -402,6 +414,12 @@ begin
   Call(@Fisc_encode_sql_time, [a, b]);
 end;
 
+procedure TFirebirdClient.isc_encode_timestamp(a: pointer;
+  b: PISC_TIMESTAMP);
+begin
+  Call(@Fisc_encode_timestamp, [a, b]);
+end;
+
 function TFirebirdClient.isc_interprete(buffer: PChar;
   status: ppstatus_vector): ISC_STATUS;
 begin
@@ -445,7 +463,8 @@ begin
   Fisc_attach_database         := GetProc(aHandle, 'isc_attach_database');
   Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
   Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
-  Fisc_decode_sql_time         := GetProc(ahandle, 'isc_decode_sql_time');
+  Fisc_decode_sql_time         := GetProc(aHandle, 'isc_decode_sql_time');
+  Fisc_decode_timestamp        := GetProc(aHandle, 'isc_decode_timestamp');
   Fisc_detach_database         := GetProc(aHandle, 'isc_detach_database');
   Fisc_dsql_allocate_statement := GetProc(aHandle, 'isc_dsql_allocate_statement');
   Fisc_dsql_alloc_statement2   := GetProc(aHandle, 'isc_dsql_alloc_statement2');
@@ -460,6 +479,7 @@ begin
   Fisc_dsql_sql_info           := GetProc(aHandle, 'isc_dsql_sql_info');
   Fisc_encode_sql_date         := GetProc(aHandle, 'isc_encode_sql_date');
   Fisc_encode_sql_time         := GetProc(aHandle, 'isc_encode_sql_time');
+  Fisc_encode_timestamp        := GetProc(aHandle, 'isc_encode_timestamp');
   Fisc_interprete              := GetProc(aHandle, 'isc_interprete');
   Fisc_rollback_transaction    := GetProc(aHandle, 'isc_rollback_transaction');
   Fisc_sqlcode                 := GetProc(aHandle, 'isc_sqlcode');
