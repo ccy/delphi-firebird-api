@@ -154,7 +154,7 @@ type
 
 implementation
 
-uses SysUtils, FMTBcd, SqlTimSt;
+uses SysUtils, FMTBcd, SqlTimSt, Math;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdClient; const aPtr:
     pointer);
@@ -500,6 +500,10 @@ procedure TXSQLVAR.SetDouble(const aValue: pointer; const aLength: Integer;
     const aIsNull: boolean);
 var S: Single;
     D: Double;
+    iScaling: integer;
+    i: integer;
+    iValue: INT64;
+    iDec: INT64;
 begin
   IsNull := aIsNull;
   if CheckType(SQL_FLOAT) then begin
@@ -513,16 +517,39 @@ begin
     Assert(aLength = 8);
     D := PDouble(aValue)^;
     Move(D, sqldata^, sqllen);
+  end else if CheckType(SQL_INT64) then begin
+    Assert(aLength = 8);
+
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    D := PDouble(aValue)^;
+    iValue := Trunc(D);
+    iDec := Trunc(SimpleRoundTo((D - iValue) * iScaling, 0));
+    iValue := iValue * iScaling + iDec;
+
+    Move(iValue, sqldata^, sqllen);
   end else
     Assert(False);
 end;
 
 procedure TXSQLVAR.SetInteger(const aValue: pointer; const aIsNull: boolean);
+var i, iScaling: integer;
+    iValue: INT64;
 begin
   IsNull := aIsNull;
   if CheckType(SQL_LONG) then
     Move(aValue^, sqldata^, sqllen)
-  else
+  else if CheckType(SQL_INT64) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    iValue := PInteger(aValue)^;
+    iValue := iValue * iScaling;
+    Move(iValue, sqldata^, sqllen);
+  end else
     Assert(False);
 end;
 
@@ -536,11 +563,21 @@ begin
 end;
 
 procedure TXSQLVAR.SetShort(const aValue: pointer; const aIsNull: boolean);
+var i, iScaling: integer;
+    iValue: INT64;
 begin
   IsNull := aIsNull;
   if CheckType(SQL_SHORT) then
     Move(aValue^, sqldata^, sqllen)
-  else
+  else if CheckType(SQL_INT64) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    iValue := PSmallInt(aValue)^;
+    iValue := iValue * iScaling;
+    Move(iValue, sqldata^, sqllen);
+  end else
     Assert(False);
 end;
 
@@ -715,7 +752,6 @@ begin
   inherited Create;
   FClient := aClientLibrary;
   FState := S_INACTIVE;
-//  FEOF := False;
 end;
 
 { TFirebird_DSQL }
