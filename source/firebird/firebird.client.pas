@@ -240,7 +240,31 @@ type
     function GetError(const aFirebirdClient: IFirebirdClient): IFirebirdError;
     function GetLastError: IFirebirdError;
     function GetpValue: pstatus_vector;
+  end;
+
+  IFirebirdTransaction = interface(IInterface)
+  ['{9BC18924-3D12-42F2-9A0A-9FE05FE6FB73}']
+    function Active: boolean;
+    function Start(aStatusVector: IStatusVector): ISC_STATUS;
+    function Commit(const aStatusVector: IStatusVector): ISC_STATUS;
+    function Rollback(const aStatusVector: IStatusVector): ISC_STATUS;
+    function TransactionHandle: pisc_tr_handle;
+  end;
+
+  TFirebirdTransaction = class(TInterfacedObject, IFirebirdTransaction)
+  private
+    FClient: IFirebirdClient;
+    FTransactionHandle: isc_tr_handle;
+    FTransParam: isc_teb;
+  protected
+    function Active: boolean;
+    function Start(aStatusVector: IStatusVector): ISC_STATUS;
+    function Commit(const aStatusVector: IStatusVector): ISC_STATUS;
+    function Rollback(const aStatusVector: IStatusVector): ISC_STATUS;
+    function TransactionHandle: pisc_tr_handle;
   public
+    constructor Create(const aFirebirdClient: IFirebirdClient; const aDBHandle:
+        pisc_db_handle);
   end;
 
   TFirebirdClientFactory = class abstract
@@ -652,6 +676,54 @@ var W: WideString;
 begin
   W := FMessage;
   lstrcpyW(aMsg, PWideChar(W));
+end;
+
+constructor TFirebirdTransaction.Create(const aFirebirdClient: IFirebirdClient;
+    const aDBHandle: pisc_db_handle);
+var tpb: AnsiString;
+begin
+  inherited Create;
+  FClient := aFirebirdClient;
+  
+  tpb := char(isc_tpb_version3) + char(isc_tpb_write) + char(isc_tpb_read_committed) +
+         char(isc_tpb_no_rec_version) + char(isc_tpb_nowait);
+
+  FTransactionHandle := 0;
+  FTransParam.db_ptr := aDBHandle;
+  FTransParam.tpb_len := Length(tpb);
+  FTransParam.tpb_ptr := PAnsiChar(tpb);
+end;
+
+function TFirebirdTransaction.Active: boolean;
+begin
+  Result := FTransactionHandle <> nil;
+end;
+
+function TFirebirdTransaction.Commit(const aStatusVector: IStatusVector):
+    ISC_STATUS;
+begin
+  Assert(Active);
+  Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
+  Assert(not Active);
+end;
+
+function TFirebirdTransaction.Rollback(const aStatusVector: IStatusVector):
+    ISC_STATUS;
+begin
+  Assert(Active);
+  Result := FClient.isc_rollback_transaction(aStatusVector.pValue, TransactionHandle);
+  Assert(not Active);
+end;
+
+function TFirebirdTransaction.Start(aStatusVector: IStatusVector): ISC_STATUS;
+begin
+  Assert(not Active);
+  Result := FClient.isc_start_multiple(aStatusVector.pValue, TransactionHandle, 1, @FTransParam);
+end;
+
+function TFirebirdTransaction.TransactionHandle: pisc_tr_handle;
+begin
+  Result := @FTransactionHandle;
 end;
 
 end.

@@ -132,9 +132,9 @@ type
     FSQLDA_Out: TXSQLDA;
     FState: DSQLState;
     FStatementHandle: isc_stmt_handle;
-    FTransactionHandle: isc_tr_handle;
+    FTransaction: IFirebirdTransaction;
+    FTransactionActive: boolean;
     function StatementHandle: pisc_stmt_handle;
-    function TransactionHandle: pisc_tr_handle;
   protected
     function Close(const aStatusVector: IStatusVector): Integer;
     function Execute(const aStatusVector: IStatusVector): Integer;
@@ -148,7 +148,8 @@ type
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
   public
-    constructor Create(const aClientLibrary: IFirebirdClient);
+    constructor Create(const aClientLibrary: IFirebirdClient; const aTransaction:
+        IFirebirdTransaction);
     procedure BeforeDestruction; override;
   end;
 
@@ -747,10 +748,12 @@ begin
   end;
 end;
 
-constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdClient);
+constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdClient; const
+    aTransaction: IFirebirdTransaction);
 begin
   inherited Create;
   FClient := aClientLibrary;
+  FTransaction := aTransaction;
   FState := S_INACTIVE;
 end;
 
@@ -777,7 +780,7 @@ begin
     X := nil;
 
   Assert(FState = S_PREPARED);
-  FClient.isc_dsql_execute(aStatusVector.pValue, TransactionHandle, StatementHandle, FSQLDA_Out.Version, X);
+  FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FSQLDA_Out.Version, X);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   FState := S_EXECUTED;
 end;
@@ -834,11 +837,6 @@ begin
   Result := @FStatementHandle;
 end;
 
-function TFirebird_DSQL.TransactionHandle: pisc_tr_handle;
-begin
-  Result := @FTransactionHandle;
-end;
-
 function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
 var i: ISC_STATUS;
 begin
@@ -855,8 +853,10 @@ begin
 //  end;
   {$endregion}
 
-  FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
+  if not FTransactionActive then begin
+    FTransaction.Commit(aStatusvector);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+  end;
 
   FClient.isc_dsql_free_statement(aStatusVector.pValue, StatementHandle, DSQL_drop);
   if aStatusVector.CheckError(FClient, Result) then Exit;
@@ -875,18 +875,11 @@ begin
   FClient.isc_dsql_allocate_statement(aStatusVector.pValue, aDBHandle, StatementHandle);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
-  {$region 'Start Transaction'}
-  tpb := char(isc_tpb_version3) + char(isc_tpb_write) + char(isc_tpb_read_committed) +
-         char(isc_tpb_no_rec_version) + char(isc_tpb_nowait);
 
-  FTransactionHandle := nil;
-  teb.db_ptr := aDBHandle;
-  teb.tpb_len := Length(tpb);
-  teb.tpb_ptr := PAnsiChar(tpb);
-
-  FClient.isc_start_multiple(aStatusVector.pValue, TransactionHandle, 1, @teb);
+  FTransactionActive := FTransaction.Active;
+  if not FTransactionActive then
+    FTransaction.Start(aStatusVector);
   if aStatusVector.CheckError(FClient, Result) then Exit;
-  {$endregion}
   FState := S_OPENED;
 end;
 
@@ -897,7 +890,7 @@ begin
 
   {$region 'prepare'}
   FSQLDA_Out := TXSQLDA.Create(FClient);
-  FClient.isc_dsql_prepare(aStatusVector.pValue, TransactionHandle, StatementHandle, Length(aSQL), pAnsiChar(aSQL), aSQLDialect, FSQLDA_Out.XSQLDA);
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), pAnsiChar(aSQL), aSQLDialect, FSQLDA_Out.XSQLDA);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
   {$region 'describe'}
