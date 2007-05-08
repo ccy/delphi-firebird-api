@@ -522,6 +522,7 @@ var B: PBcd;
     S: string;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   if CheckType(SQL_INT64) then begin
     B := aValue;
     iScaling := 1;
@@ -580,6 +581,7 @@ var T: tm;
     S: TTimeStamp;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP));
   Assert(aLength = 4);
 
@@ -614,6 +616,7 @@ var S: Single;
     iDec: INT64;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   if CheckType(SQL_FLOAT) then begin
     Assert((aLength = 4) or (aLength = 8));
     if aLength = 8 then
@@ -647,6 +650,7 @@ var i, iScaling: integer;
     iValue: INT64;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   if CheckType(SQL_LONG) then
     Move(aValue^, sqldata^, sqllen)
   else if CheckType(SQL_INT64) then begin
@@ -664,9 +668,11 @@ end;
 procedure TXSQLVAR.SetIsNull(const Value: boolean);
 begin
   Assert(FPrepared);
-  if Value then
+  if Value then begin
+    if not IsNullable then
+      FXSQLVAR.sqltype := FXSQLVAR.sqltype + 1;
     sqlind^ := -1
-  else
+  end else
     sqlind^ := 0;
 end;
 
@@ -675,6 +681,7 @@ var i, iScaling: integer;
     iValue: INT64;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   if CheckType(SQL_SHORT) then
     Move(aValue^, sqldata^, sqllen)
   else if CheckType(SQL_INT64) then begin
@@ -697,6 +704,7 @@ var p: PChar;
     B: TBcd;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
     p := sqldata;
     Move(aLength, p^, 2);
@@ -729,6 +737,7 @@ var T: tm;
     S: TTimeStamp;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   Assert(CheckType(SQL_TYPE_TIME));
 
   S.Time := PInteger(aValue)^;
@@ -753,6 +762,7 @@ var T: tm;
     S: PSQLTimeStamp;
 begin
   IsNull := aIsNull;
+  if aIsNull then Exit;
   Assert(CheckType(SQL_TIMESTAMP));
 
   S := PSQLTimeStamp(aValue);
@@ -978,22 +988,14 @@ end;
 
 function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
 begin
-  Assert((FState = S_EXECUTED) or (FState = S_EOF));
-
-  {$region 'Fetch incomplete rows'}
-//  if FStatementType = isc_info_sql_stmt_select then begin
-//    while not FEOF do begin
-//      i := Fetch(aStatusVector);
-//      if i <> 0 then Break;
-//    end;
-//    if (i <> 100) then
-//      if aStatusVector.CheckError(FClient, Result) then Exit;
-//  end;
-  {$endregion}
-
   if not FTransactionActive then begin
-    FTransaction.Commit(aStatusvector);
-    if aStatusVector.CheckError(FClient, Result) then Exit;
+    if (FState = S_EXECUTED) or (FState = S_EOF) then begin
+      FTransaction.Commit(aStatusvector);
+      if aStatusVector.CheckError(FClient, Result) then Exit;
+    end else begin
+      FTransaction.Rollback(aStatusvector);
+      if aStatusVector.CheckError(FClient, Result) then Exit;
+    end;
   end;
 
   FClient.isc_dsql_free_statement(aStatusVector.pValue, StatementHandle, DSQL_drop);
