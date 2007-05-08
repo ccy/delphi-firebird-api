@@ -36,6 +36,12 @@ type
     procedure BeforeDestruction; override;
     function CheckType(const aExpectedType: smallint): boolean;
     procedure GetBCD(aValue: pointer; out aIsNull: boolean);
+    function GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
+        pisc_db_handle; const aTransaction: IFirebirdTransaction; aValue: pointer;
+        out aIsNull: boolean): ISC_STATUS;
+    function GetBlobSize(const aStatusVector: IStatusVector; const aDBHandle:
+        pisc_db_handle; const aTransaction: IFirebirdTransaction; out aBlobSize:
+        longword; out aIsNull: boolean): ISC_STATUS;
     procedure GetDate(aValue: pointer; out aIsNull: boolean);
     procedure GetDouble(aValue: pointer; out aIsNull: boolean);
     procedure GetInteger(aValue: pointer; out aIsNull: boolean);
@@ -48,6 +54,9 @@ type
     procedure Prepare;
     procedure SetBCD(const aValue: pointer; const aScale: integer; const aIsNull:
         boolean);
+    function SetBlob(const aStatusVector: IStatusVector; const aDBHandle:
+        pisc_db_handle; const aTransaction: IFirebirdTransaction; const aValue:
+        pointer; const aLength: Integer; const aIsNull: boolean): ISC_STATUS;
     procedure SetDate(const aValue: pointer; const aLength: Integer; const aIsNull:
         boolean);
     procedure SetDouble(const aValue: pointer; const aLength: Integer; const
@@ -119,15 +128,17 @@ type
         pisc_db_handle): Integer;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+    function Transaction: IFirebirdTransaction;
     property i_SQLDA: TXSQLDA read Geti_SQLDA;
     property o_SQLDA: TXSQLDA read Geto_SQLDA;
   end;
 
   TFirebird_DSQL = class(TInterfacedObject, IFirebird_DSQL)
   strict private
-    type DSQLState = (S_INACTIVE, S_OPENED, S_PREPARED, S_EXECUTED, S_CLOSED);
+    type DSQLState = (S_INACTIVE, S_OPENED, S_PREPARED, S_EXECUTED, S_EOF, S_CLOSED);
   private
     FClient: IFirebirdClient;
+    FFetchCount: Cardinal;
     FSQLDA_In: TXSQLDA;
     FSQLDA_Out: TXSQLDA;
     FState: DSQLState;
@@ -147,6 +158,7 @@ type
         pisc_db_handle): Integer;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+    function Transaction: IFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdClient; const aTransaction:
         IFirebirdTransaction);
@@ -201,12 +213,75 @@ begin
   end;
 end;
 
+function TXSQLVAR.GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
+    pisc_db_handle; const aTransaction: IFirebirdTransaction; aValue: pointer;
+    out aIsNull: boolean): ISC_STATUS;
+var hBlob: isc_blob_handle;
+    BlobID: ISC_QUAD;
+    iLen: word;
+    B: array[0..65534] of char;
+    iResult: ISC_STATUS;
+    p: PChar;
+begin
+  Assert(FPrepared);
+  Assert(CheckType(SQL_BLOB));
+
+  hBlob := nil;
+  Move(sqldata^, BlobID, sqllen);
+
+  FClient.isc_open_blob2(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID, 0, nil);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+  aIsNull := (BlobID.isc_quad_high = 0) and (BlobID.isc_quad_low = 0);
+
+  if not aIsNull then begin
+    p := aValue;
+    repeat
+      iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, SizeOf(B), B);
+      if aStatusVector.CheckError(FClient, Result) then Exit;
+      Move(B, p^, iLen);
+      p := p + iLen;
+    until iResult = isc_segstr_eof;
+
+    FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+  end;
+end;
+
+function TXSQLVAR.GetBlobSize(const aStatusVector: IStatusVector; const
+    aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction; out
+    aBlobSize: longword; out aIsNull: boolean): ISC_STATUS;
+var hBlob: isc_blob_handle;
+    BlobID: ISC_QUAD;
+    C: byte;
+    R: array[0..19] of char;
+    iLen: word;
+begin
+  Assert(FPrepared);
+  Assert(CheckType(SQL_BLOB));
+  C := isc_info_blob_total_length;
+  hBlob := nil;
+  Move(sqldata^, BlobID, sqllen);
+
+  FClient.isc_open_blob2(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID, 0, nil);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  FClient.isc_blob_info(aStatusVector.pValue, @hBlob, SizeOf(C), @C, SizeOf(R), R);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  Assert(byte(R[0]) = C);
+  iLen := FClient.isc_vax_integer(@R[1], 2);
+  aBlobSize := FClient.isc_vax_integer(@R[3], iLen);
+
+  FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  aIsNull := aBlobSize = 0;
+end;
+
 procedure TXSQLVAR.GetDate(aValue: pointer; out aIsNull: boolean);
 var T: tm;
-    Yr, Mn, Dy: word;
     D: ISC_DATE;
     G: ISC_TIMESTAMP;
-    S: TTimeStamp;
     C: TDateTime;
     E: integer;
 begin
@@ -304,9 +379,7 @@ end;
 
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
 var T: tm;
-    Yr, Mn, Dy: word;
     D: ISC_TIME;
-    S: TTimeStamp;
     C: TDateTime;
     E: integer;
 begin
@@ -323,11 +396,8 @@ end;
 
 procedure TXSQLVAR.GetTimeStamp(aValue: pointer; out aIsNull: boolean);
 var T: tm;
-    Yr, Mn, Dy: word;
     D: ISC_TIMESTAMP;
     S: TSQLTimeStamp;
-    C: TDateTime;
-    E: integer;
 begin
   Assert(FPrepared and CheckType(SQL_TIMESTAMP));
   aIsNull := IsNull;
@@ -340,6 +410,7 @@ begin
     S.Hour := T.tm_hour;
     S.Minute := T.tm_min;
     S.Second := T.tm_sec;
+    S.Fractions := 0;
     Move(S, aValue^, SizeOf(S));
   end;
 end;
@@ -464,6 +535,42 @@ begin
     Assert(False);
 end;
 
+function TXSQLVAR.SetBlob(const aStatusVector: IStatusVector; const aDBHandle:
+    pisc_db_handle; const aTransaction: IFirebirdTransaction; const aValue:
+    pointer; const aLength: Integer; const aIsNull: boolean): ISC_STATUS;
+var hBlob: isc_blob_handle;
+    BlobID: ISC_QUAD;
+    wLen: word;
+    iCurPos: integer;
+    p: PChar;
+begin
+  IsNull := aIsNull;
+  Assert(CheckType(SQL_BLOB));
+  Assert(SizeOf(BlobID) = sqllen);
+
+  hBlob := nil;
+  BlobID.isc_quad_high := 0;
+  BlobID.isc_quad_low := 0;
+  FClient.isc_create_blob2(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID, 0, nil);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  iCurPos := 0;
+  wLen := 65535;
+  p := aValue;
+  while iCurPos < aLength do begin
+    if iCurPos + wLen > aLength then
+      wLen := aLength - iCurPos;
+    FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, PChar(@p[iCurPos]));
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+    Inc(iCurPos, wLen);
+  end;
+
+  FClient.isc_close_blob(aStatusvector.pValue, @hBlob);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  Move(BlobID, sqldata^, sqllen);
+end;
+
 procedure TXSQLVAR.SetDate(const aValue: pointer; const aLength: Integer; const
     aIsNull: boolean);
 var T: tm;
@@ -585,6 +692,9 @@ end;
 procedure TXSQLVAR.SetString(const aValue: pointer; const aLength: word; const
     aIsNull: boolean);
 var p: PChar;
+    iSmallInt: Smallint;
+    iLong: Integer;
+    B: TBcd;
 begin
   IsNull := aIsNull;
   if CheckType(SQL_VARYING) then begin
@@ -599,6 +709,15 @@ begin
     FillChar(p^, sqllen - aLength, 32);
     P := P + sqllen - aLength;
     P^ := #0;
+  end else if CheckType(SQL_SHORT) then begin
+    iSmallInt := StrToInt(string(PChar(aValue)));
+    SetShort(@iSmallInt, aIsNull);
+  end else if CheckType(SQL_LONG) then begin
+    iLong := StrToInt(string(PChar(aValue)));
+    SetInteger(@iLong, aIsNull);
+  end else if CheckType(SQL_INT64) then begin
+    B := StrToBcd(string(PChar(aValue)));
+    SetBCD(@B, 0, aIsNull);
   end else
     Assert(False);
 end;
@@ -630,7 +749,6 @@ end;
 procedure TXSQLVAR.SetTimeStamp(const aValue: pointer;
   const aIsNull: boolean);
 var T: tm;
-    iHour, iMinute, iSecond, iMSec: word;
     D: ISC_TIMESTAMP;
     S: PSQLTimeStamp;
 begin
@@ -770,9 +888,6 @@ end;
 
 function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): Integer;
 var X: PXSQLDA;
-    result_buffer: array[0..10] of Char;
-    info_request: char;
-    stmt_len: integer;
 begin
   if Assigned(FSQLDA_In) then
     X := FSQLDA_In.XSQLDA
@@ -780,15 +895,30 @@ begin
     X := nil;
 
   Assert(FState = S_PREPARED);
-  FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FSQLDA_Out.Version, X);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FSQLDA_Out.Version, X);
+  if Result = isc_no_cur_rec then begin
+    FState := S_EOF;
+    aStatusVector.pValue[1] := 0;
+    Result := 0;
+    Exit;
+  end else if aStatusVector.CheckError(FClient, Result) then
+    Exit;
+
   FState := S_EXECUTED;
+  FFetchCount := 0;
 end;
 
 function TFirebird_DSQL.Fetch(const aStatusVector: IStatusVector): ISC_STATUS;
 begin
-  Assert(FState = S_EXECUTED);
-  Result := FClient.isc_dsql_fetch(aStatusVector.pValue, StatementHandle, FSQLDA_Out.Version, FSQLDA_Out.XSQLDA);
+  if FState = S_EXECUTED then begin
+    Result := FClient.isc_dsql_fetch(aStatusVector.pValue, StatementHandle, FSQLDA_Out.Version, FSQLDA_Out.XSQLDA);
+    if (Result = 0) or (Result = 100) then
+      FFetchCount := FFetchCount + 1;
+  end else if FState = S_EOF then
+    Result := 100
+  else
+    Assert(False);
 end;
 
 function TFirebird_DSQL.Geti_SQLDA: TXSQLDA;
@@ -808,26 +938,30 @@ var result_buffer: array[0..64] of Char;
     stmt_len: word;
     StmtType: integer;
 begin
-  aRowsAffected := 0;
+  if FState = S_CLOSED then
+    aRowsAffected := FFetchCount
+  else begin
+    aRowsAffected := 0;
 
-  info_request := Char(isc_info_sql_stmt_type);
-  FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), result_buffer);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
+    info_request := Char(isc_info_sql_stmt_type);
+    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), result_buffer);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  if (result_buffer[0] = Char(isc_info_sql_stmt_type)) then begin
-    stmt_len := FClient.isc_vax_integer(@result_buffer[1], 2);
-    StmtType := FClient.isc_vax_integer(@result_buffer[3], stmt_len);
-  end;
+    if (result_buffer[0] = Char(isc_info_sql_stmt_type)) then begin
+      stmt_len := FClient.isc_vax_integer(@result_buffer[1], 2);
+      StmtType := FClient.isc_vax_integer(@result_buffer[3], stmt_len);
+    end;
 
-  info_request := Char(isc_info_sql_records);
-  FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), result_buffer);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
+    info_request := Char(isc_info_sql_records);
+    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), result_buffer);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  if (result_buffer[0] = Char(isc_info_sql_records)) then begin
-    case StmtType of
-      isc_info_sql_stmt_insert: aRowsAffected := FClient.isc_vax_integer(@result_buffer[27], 4);
-      isc_info_sql_stmt_update: aRowsAffected := FClient.isc_vax_integer(@result_buffer[6], 4);
-      isc_info_sql_stmt_delete: aRowsAffected := FClient.isc_vax_integer(@result_buffer[13], 4);
+    if (result_buffer[0] = Char(isc_info_sql_records)) then begin
+      case StmtType of
+        isc_info_sql_stmt_insert: aRowsAffected := FClient.isc_vax_integer(@result_buffer[27], 4);
+        isc_info_sql_stmt_update: aRowsAffected := FClient.isc_vax_integer(@result_buffer[6], 4);
+        isc_info_sql_stmt_delete: aRowsAffected := FClient.isc_vax_integer(@result_buffer[13], 4);
+      end;
     end;
   end;
 end;
@@ -837,10 +971,14 @@ begin
   Result := @FStatementHandle;
 end;
 
-function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
-var i: ISC_STATUS;
+function TFirebird_DSQL.Transaction: IFirebirdTransaction;
 begin
-  Assert(FState = S_EXECUTED);
+  Result := FTransaction;
+end;
+
+function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
+begin
+  Assert((FState = S_EXECUTED) or (FState = S_EOF));
 
   {$region 'Fetch incomplete rows'}
 //  if FStatementType = isc_info_sql_stmt_select then begin
@@ -866,8 +1004,6 @@ end;
 
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
     aDBHandle: pisc_db_handle): Integer;
-var tpb: AnsiString;
-    teb: isc_teb;
 begin
   Assert(FState = S_INACTIVE);
   {$region 'Allocate Statement'}

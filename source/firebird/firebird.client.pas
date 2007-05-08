@@ -38,8 +38,15 @@ type
     function isc_attach_database(status: pstatus_vector; db_name_len: short;
         db_name: pchar; db_handle: pisc_db_handle; parm_buffer_len: short;
         parm_buffer: pchar): ISC_STATUS; stdcall;
+    function isc_blob_info(status: pstatus_vector; BLOB_HANDLE: pisc_blob_handle;
+        ItemBufLen: short; ItemBuffer: pchar; ResultBufLen: short; ResultBuffer:
+        pchar): ISC_STATUS; stdcall;
+    function isc_close_blob(status: pstatus_vector; blob_handle: pisc_blob_handle): ISC_STATUS; stdcall;
     function isc_commit_transaction(status: pstatus_vector; tr_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
+    function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
+        tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
+        blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
     procedure isc_decode_sql_time(a: PISC_TIME; b: PISC_LONG);
     procedure isc_decode_timestamp(a: PISC_TIMESTAMP; b: PISC_LONG);
@@ -75,24 +82,20 @@ type
     procedure isc_encode_sql_date(a: pointer; b: PISC_DATE);
     procedure isc_encode_sql_time(a: pointer; b: PISC_TIME);
     procedure isc_encode_timestamp(a: pointer; b: PISC_TIMESTAMP);
+    function isc_get_segment(status: pstatus_vector; a: pisc_blob_handle;
+        b: pword; c: word; d: pchar): ISC_STATUS; stdcall;
     function isc_interprete(buffer: PChar; status: ppstatus_vector): ISC_STATUS;
         stdcall;
+    function isc_open_blob2(status: pstatus_vector; a: pisc_db_handle; b: pisc_tr_handle;
+        c: pisc_blob_handle; d: PISC_QUAD; e: short; g: pchar): ISC_STATUS; stdcall;
+    function isc_put_segment( status: pstatus_vector; a: pisc_blob_handle; b: word;
+        c: pchar): ISC_STATUS; stdcall;
     function isc_rollback_transaction(status: pstatus_vector; tr_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
     function isc_sqlcode(status: PISC_STATUS): ISC_LONG; stdcall;
     function isc_start_multiple(status: pstatus_vector; tr_handle: pisc_tr_handle;
         db_handle_count: short; teb_vector_address: pointer): ISC_STATUS; stdcall;
     function isc_vax_integer(a: pchar; b: short): ISC_LONG; stdcall;
-    function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
-        tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
-        blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
-    function isc_put_segment( status: pstatus_vector; a: pisc_blob_handle; b: word;
-        c: pchar): ISC_STATUS; stdcall;
-    function isc_close_blob(status: pstatus_vector; blob_handle: pisc_blob_handle): ISC_STATUS; stdcall;
-    function isc_open_blob2(status: pstatus_vector; a: pisc_db_handle; b: pisc_tr_handle;
-        c: pisc_blob_handle; d: PISC_QUAD; e: short; g: pchar): ISC_STATUS; stdcall;
-    function isc_get_segment(status: pstatus_vector; a: pisc_blob_handle;
-        b: pword; c: word; d: pchar): ISC_STATUS; stdcall;
     procedure Setup(const aHandle: THandle);
   end;
 
@@ -105,7 +108,10 @@ type
     function GetProc(const aHandle: THandle; const aProcName: PAnsiChar): pointer;
   private
     Fisc_attach_database: Tisc_attach_database;
+    Fisc_blob_info: Tisc_blob_info;
+    Fisc_close_blob: Tisc_close_blob;
     Fisc_commit_transaction: Tisc_commit_transaction;
+    Fisc_create_blob2: Tisc_create_blob2;
     Fisc_decode_sql_date: Tisc_decode_sql_date;
     Fisc_decode_sql_time: Tisc_decode_sql_time;
     Fisc_decode_timestamp: Tisc_decode_timestamp;
@@ -124,22 +130,27 @@ type
     Fisc_encode_sql_date: Tisc_encode_sql_date;
     Fisc_encode_sql_time: Tisc_encode_sql_time;
     Fisc_encode_timestamp: Tisc_encode_timestamp;
+    Fisc_get_segment: Tisc_get_segment;
     Fisc_interprete: Tisc_interprete;
+    Fisc_open_blob2: Tisc_open_blob2;
+    Fisc_put_segment: Tisc_put_segment;
     Fisc_rollback_transaction: Tisc_rollback_transaction;
     Fisc_sqlcode: Tisc_sqlcode;
     Fisc_start_multiple: Tisc_start_multiple;
     Fisc_vax_integer: Tisc_vax_integer;
-    Fisc_create_blob2: Tisc_create_blob2;
-    Fisc_put_segment: Tisc_put_segment;
-    Fisc_close_blob: Tisc_close_blob;
-    Fisc_open_blob2: Tisc_open_blob2;
-    Fisc_get_segment: Tisc_get_segment;
   protected
     function isc_attach_database(status: pstatus_vector; db_name_len: short;
         db_name: pchar; db_handle: pisc_db_handle; parm_buffer_len: short;
         parm_buffer: pchar): ISC_STATUS; stdcall;
+    function isc_blob_info(status: pstatus_vector; BLOB_HANDLE: pisc_blob_handle;
+        ItemBufLen: short; ItemBuffer: pchar; ResultBufLen: short; ResultBuffer:
+        pchar): ISC_STATUS; stdcall;
+    function isc_close_blob(status: pstatus_vector; blob_handle: pisc_blob_handle): ISC_STATUS; stdcall;
     function isc_commit_transaction(status: pstatus_vector; tr_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
+    function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
+        tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
+        blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
     procedure isc_decode_sql_time(a: PISC_TIME; b: PISC_LONG);
     procedure isc_decode_timestamp(a: PISC_TIMESTAMP; b: PISC_LONG);
@@ -175,24 +186,20 @@ type
     procedure isc_encode_sql_date(a: pointer; b: PISC_DATE);
     procedure isc_encode_sql_time(a: pointer; b: PISC_TIME);
     procedure isc_encode_timestamp(a: pointer; b: PISC_TIMESTAMP);
+    function isc_get_segment(status: pstatus_vector; a: pisc_blob_handle;
+        b: pword; c: word; d: pchar): ISC_STATUS; stdcall;
     function isc_interprete(buffer: PChar; status: ppstatus_vector): ISC_STATUS;
         stdcall;
+    function isc_open_blob2(status: pstatus_vector; a: pisc_db_handle; b: pisc_tr_handle;
+        c: pisc_blob_handle; d: PISC_QUAD; e: short; g: pchar): ISC_STATUS; stdcall;
+    function isc_put_segment( status: pstatus_vector; a: pisc_blob_handle; b: word;
+        c: pchar): ISC_STATUS; stdcall;
     function isc_rollback_transaction(status: pstatus_vector; tr_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
     function isc_sqlcode(status: PISC_STATUS): ISC_LONG; stdcall;
     function isc_start_multiple(status: pstatus_vector; tr_handle: pisc_tr_handle;
         db_handle_count: short; teb_vector_address: pointer): ISC_STATUS; stdcall;
     function isc_vax_integer(a: pchar; b: short): ISC_LONG; stdcall;
-    function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
-        tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
-        blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
-    function isc_put_segment( status: pstatus_vector; a: pisc_blob_handle; b: word;
-        c: pchar): ISC_STATUS; stdcall;
-    function isc_close_blob(status: pstatus_vector; blob_handle: pisc_blob_handle): ISC_STATUS; stdcall;
-    function isc_open_blob2(status: pstatus_vector; a: pisc_db_handle; b: pisc_tr_handle;
-        c: pisc_blob_handle; d: PISC_QUAD; e: short; g: pchar): ISC_STATUS; stdcall;
-    function isc_get_segment(status: pstatus_vector; a: pisc_blob_handle;
-        b: pword; c: word; d: pchar): ISC_STATUS; stdcall;
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
     procedure Setup(const aHandle: THandle);
   public
@@ -256,6 +263,7 @@ type
     FClient: IFirebirdClient;
     FTransactionHandle: isc_tr_handle;
     FTransParam: isc_teb;
+    FTransactionLevel: integer;
   protected
     function Active: boolean;
     function Start(aStatusVector: IStatusVector): ISC_STATUS;
@@ -350,6 +358,13 @@ function TFirebirdClient.isc_attach_database(status: pstatus_vector;
   parm_buffer_len: short; parm_buffer: pchar): ISC_STATUS;
 begin
   Result := Call(@Fisc_attach_database, [status, db_name_len, db_name, db_handle, parm_buffer_len, parm_buffer]);
+end;
+
+function TFirebirdClient.isc_blob_info(status: pstatus_vector;
+  BLOB_HANDLE: pisc_blob_handle; ItemBufLen: short; ItemBuffer: pchar;
+  ResultBufLen: short; ResultBuffer: pchar): ISC_STATUS;
+begin
+  Result := Call(@FIsc_blob_info, [status, BLOB_HANDLE, ItemBufLen, ItemBuffer, ResultBufLen, ResultBuffer]);
 end;
 
 function TFirebirdClient.isc_close_blob(status: pstatus_vector;
@@ -477,16 +492,16 @@ begin
   Call(@Fisc_encode_sql_time, [a, b]);
 end;
 
-function TFirebirdClient.isc_get_segment(status: pstatus_vector;
-  a: pisc_blob_handle; b: pword; c: word; d: pchar): ISC_STATUS;
-begin
-  Result := Call(@Fisc_get_segment, [status, a, b, c, d]);
-end;
-
 procedure TFirebirdClient.isc_encode_timestamp(a: pointer;
   b: PISC_TIMESTAMP);
 begin
   Call(@Fisc_encode_timestamp, [a, b]);
+end;
+
+function TFirebirdClient.isc_get_segment(status: pstatus_vector;
+  a: pisc_blob_handle; b: pword; c: word; d: pchar): ISC_STATUS;
+begin
+  Result := Call(@Fisc_get_segment, [status, a, b, c, d]);
 end;
 
 function TFirebirdClient.isc_interprete(buffer: PChar;
@@ -543,7 +558,10 @@ end;
 procedure TFirebirdClient.Setup(const aHandle: THandle);
 begin
   Fisc_attach_database         := GetProc(aHandle, 'isc_attach_database');
+  Fisc_blob_info               := GetProc(aHandle, 'isc_blob_info');
+  Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
   Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
+  Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
   Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
   Fisc_decode_sql_time         := GetProc(aHandle, 'isc_decode_sql_time');
   Fisc_decode_timestamp        := GetProc(aHandle, 'isc_decode_timestamp');
@@ -562,16 +580,14 @@ begin
   Fisc_encode_sql_date         := GetProc(aHandle, 'isc_encode_sql_date');
   Fisc_encode_sql_time         := GetProc(aHandle, 'isc_encode_sql_time');
   Fisc_encode_timestamp        := GetProc(aHandle, 'isc_encode_timestamp');
+  Fisc_get_segment             := GetProc(aHandle, 'isc_get_segment');
   Fisc_interprete              := GetProc(aHandle, 'isc_interprete');
+  Fisc_open_blob2              := GetProc(aHandle, 'isc_open_blob2');
+  Fisc_put_segment             := GetProc(aHandle, 'isc_put_segment');
   Fisc_rollback_transaction    := GetProc(aHandle, 'isc_rollback_transaction');
   Fisc_sqlcode                 := GetProc(aHandle, 'isc_sqlcode');
   Fisc_start_multiple          := GetProc(aHandle, 'isc_start_multiple');
   Fisc_vax_integer             := GetProc(aHandle, 'isc_vax_integer');
-  Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
-  Fisc_put_segment             := GetProc(aHandle, 'isc_put_segment');
-  Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
-  Fisc_open_blob2              := GetProc(aHandle, 'isc_open_blob2');
-  Fisc_get_segment             := GetProc(aHandle, 'isc_get_segment');
 end;
 
 class function TFirebirdClientFactory.New(
@@ -684,7 +700,7 @@ var tpb: AnsiString;
 begin
   inherited Create;
   FClient := aFirebirdClient;
-  
+
   tpb := char(isc_tpb_version3) + char(isc_tpb_write) + char(isc_tpb_read_committed) +
          char(isc_tpb_no_rec_version) + char(isc_tpb_nowait);
 
@@ -692,6 +708,8 @@ begin
   FTransParam.db_ptr := aDBHandle;
   FTransParam.tpb_len := Length(tpb);
   FTransParam.tpb_ptr := PAnsiChar(tpb);
+
+  FTransactionLevel := 0;
 end;
 
 function TFirebirdTransaction.Active: boolean;
@@ -702,23 +720,32 @@ end;
 function TFirebirdTransaction.Commit(const aStatusVector: IStatusVector):
     ISC_STATUS;
 begin
-  Assert(Active);
-  Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
-  Assert(not Active);
+  Dec(FTransactionLevel);
+  Assert(FTransactionLevel >= 0);
+  if FTransactionLevel = 0 then begin
+    Assert(Active);
+    Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
+    Assert(not Active);
+  end;
 end;
 
 function TFirebirdTransaction.Rollback(const aStatusVector: IStatusVector):
     ISC_STATUS;
 begin
-  Assert(Active);
-  Result := FClient.isc_rollback_transaction(aStatusVector.pValue, TransactionHandle);
-  Assert(not Active);
+  Dec(FTransactionLevel);
+  Assert(FTransactionLevel >= 0);
+  if FTransactionLevel = 0 then begin
+    Assert(Active);
+    Result := FClient.isc_rollback_transaction(aStatusVector.pValue, TransactionHandle);
+    Assert(not Active);
+  end;
 end;
 
 function TFirebirdTransaction.Start(aStatusVector: IStatusVector): ISC_STATUS;
 begin
-  Assert(not Active);
-  Result := FClient.isc_start_multiple(aStatusVector.pValue, TransactionHandle, 1, @FTransParam);
+  if FTransactionLevel = 0 then
+    Result := FClient.isc_start_multiple(aStatusVector.pValue, TransactionHandle, 1, @FTransParam);
+  Inc(FTransactionLevel);
 end;
 
 function TFirebirdTransaction.TransactionHandle: pisc_tr_handle;
