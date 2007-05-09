@@ -61,8 +61,10 @@ type
         boolean);
     procedure SetDouble(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
-    procedure SetInteger(const aValue: pointer; const aIsNull: boolean);
-    procedure SetShort(const aValue: pointer; const aIsNull: boolean);
+    procedure SetInteger(const aValue: pointer; const aLength: Integer; const
+        aIsNull: boolean);
+    procedure SetShort(const aValue: pointer; const aLength: Integer; const
+        aIsNull: boolean);
     procedure SetString(const aValue: pointer; const aLength: word; const aIsNull:
         boolean);
     procedure SetTime(const aValue: pointer; const aIsNull: boolean);
@@ -645,15 +647,21 @@ begin
     Assert(False);
 end;
 
-procedure TXSQLVAR.SetInteger(const aValue: pointer; const aIsNull: boolean);
+procedure TXSQLVAR.SetInteger(const aValue: pointer; const aLength: Integer;
+    const aIsNull: boolean);
 var i, iScaling: integer;
+    iSmallInt: Smallint;
     iValue: INT64;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_LONG) then
     Move(aValue^, sqldata^, sqllen)
-  else if CheckType(SQL_INT64) then begin
+  else if CheckType(SQL_SHORT) then begin
+    Assert(aLength = 4);
+    iSmallInt := PInteger(aValue)^;
+    Move(iSmallInt, sqldata^, sqllen)
+  end else if CheckType(SQL_INT64) then begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
@@ -676,15 +684,21 @@ begin
     sqlind^ := 0;
 end;
 
-procedure TXSQLVAR.SetShort(const aValue: pointer; const aIsNull: boolean);
+procedure TXSQLVAR.SetShort(const aValue: pointer; const aLength: Integer;
+    const aIsNull: boolean);
 var i, iScaling: integer;
+    iLong: integer;
     iValue: INT64;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_SHORT) then
     Move(aValue^, sqldata^, sqllen)
-  else if CheckType(SQL_INT64) then begin
+  else if CheckType(SQL_LONG) then begin
+    Assert(aLength = 2);
+    iLong := PSmallInt(aValue)^;
+    Move(iLong, sqldata^, sqllen);
+  end else if CheckType(SQL_INT64) then begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
@@ -719,10 +733,10 @@ begin
     P^ := #0;
   end else if CheckType(SQL_SHORT) then begin
     iSmallInt := StrToInt(string(PChar(aValue)));
-    SetShort(@iSmallInt, aIsNull);
+    SetShort(@iSmallInt, SizeOf(iSmallInt), aIsNull);
   end else if CheckType(SQL_LONG) then begin
     iLong := StrToInt(string(PChar(aValue)));
-    SetInteger(@iLong, aIsNull);
+    SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else if CheckType(SQL_INT64) then begin
     B := StrToBcd(string(PChar(aValue)));
     SetBCD(@B, 0, aIsNull);
