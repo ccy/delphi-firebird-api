@@ -201,9 +201,10 @@ var B: PBCD;
     i: integer;
     iScaling: Int64;
 begin
-  Assert(FPrepared and CheckType(SQL_INT64));
+  Assert(FPrepared);
   aIsNull := IsNull;
-  if not aIsNull then begin
+  if aIsNull then Exit;
+  if CheckType(SQL_INT64) then begin
     B := aValue;
     S := IntToStr(PInt64(sqldata)^);
     B^ := StrToBcd(S);
@@ -212,7 +213,26 @@ begin
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
     BcdDivide(B^, iScaling, B^);
-  end;
+  end else if CheckType(SQL_LONG) then begin
+    B := aValue;
+    S := IntToStr(PInteger(sqldata)^);
+    B^ := StrToBcd(S);
+
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+    BcdDivide(B^, iScaling, B^);
+  end else if CheckType(SQL_SHORT) then begin
+    B := aValue;
+    S := IntToStr(PSmallInt(sqldata)^);
+    B^ := StrToBcd(S);
+
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+    BcdDivide(B^, iScaling, B^);
+  end else
+    Assert(False);
 end;
 
 function TXSQLVAR.GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
@@ -289,22 +309,22 @@ var T: tm;
 begin
   Assert(FPrepared);
   aIsNull := IsNull;
-  if not aIsNull then begin
-    if CheckType(SQL_TYPE_DATE) then begin
-      Move(sqldata^, D, sqllen);
-      FClient.isc_decode_sql_date(@D, @T);
-      C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
-      E := DateTimeToTimeStamp(C).Date;
-      Move(E, aValue^, sqllen);
-    end else if CheckType(SQL_TIMESTAMP) then begin
-      Move(sqldata^, G, sqllen);
-      FClient.isc_decode_timestamp(@G, @T);
-      C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
-      E := DateTimeToTimeStamp(C).Date;
-      Move(E, aValue^, sqllen);
-    end else
-      Assert(False);
-  end;
+  if aIsNull then Exit;
+
+  if CheckType(SQL_TYPE_DATE) then begin
+    Move(sqldata^, D, sqllen);
+    FClient.isc_decode_sql_date(@D, @T);
+    C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
+    E := DateTimeToTimeStamp(C).Date;
+    Move(E, aValue^, sqllen);
+  end else if CheckType(SQL_TIMESTAMP) then begin
+    Move(sqldata^, G, sqllen);
+    FClient.isc_decode_timestamp(@G, @T);
+    C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
+    E := DateTimeToTimeStamp(C).Date;
+    Move(E, aValue^, sqllen);
+  end else
+    Assert(False);
 end;
 
 procedure TXSQLVAR.GetDouble(aValue: pointer; out aIsNull: boolean);
@@ -312,18 +332,18 @@ var d: double;
 begin
   Assert(FPrepared);
   aIsNull := IsNull;
-  if not aIsNull then begin
-    if CheckType(SQL_FLOAT) then begin
-      Assert(sqllen = SizeOf(Single));
-      d := PSingle(sqldata)^;
-      Move(d, aValue^, SizeOf(Double));
-    end else if CheckType(SQL_DOUBLE) then begin
-      Assert(sqllen = SizeOf(Double));
-      d := PDouble(sqldata)^;
-      Move(d, aValue^, SizeOf(Double));
-    end else
-      Assert(False);
-  end;
+  if aIsNull then Exit;
+
+  if CheckType(SQL_FLOAT) then begin
+    Assert(sqllen = SizeOf(Single));
+    d := PSingle(sqldata)^;
+    Move(d, aValue^, SizeOf(Double));
+  end else if CheckType(SQL_DOUBLE) then begin
+    Assert(sqllen = SizeOf(Double));
+    d := PDouble(sqldata)^;
+    Move(d, aValue^, SizeOf(Double));
+  end else
+    Assert(False);
 end;
 
 procedure TXSQLVAR.GetInteger(aValue: pointer; out aIsNull: boolean);
@@ -361,22 +381,22 @@ var c: PChar;
 begin
   Assert(FPrepared);
   aIsNull := IsNull;
-  if not aIsNull then begin
-    if CheckType(SQL_TEXT) then begin
-      Move(FXSQLVar.sqldata^, aValue^, sqllen);
-      c := aValue;
-      c := c + sqllen;
-      c^ := #0;
-    end else if CheckType(SQL_VARYING) then begin
-      Move(FXSQLVar.sqldata^, iLen, 2);
-      c := PChar(FXSQLVar.sqldata) + 2;
-      Move(c^, aValue^, iLen);
-      c := aValue;
-      c := c + iLen;
-      c^ := #0;
-    end else
-      Assert(False);
-  end;
+  if aIsNull then Exit;
+
+  if CheckType(SQL_TEXT) then begin
+    Move(FXSQLVar.sqldata^, aValue^, sqllen);
+    c := aValue;
+    c := c + sqllen;
+    c^ := #0;
+  end else if CheckType(SQL_VARYING) then begin
+    Move(FXSQLVar.sqldata^, iLen, 2);
+    c := PChar(FXSQLVar.sqldata) + 2;
+    Move(c^, aValue^, iLen);
+    c := aValue;
+    c := c + iLen;
+    c^ := #0;
+  end else
+    Assert(False);
 end;
 
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
@@ -520,7 +540,9 @@ procedure TXSQLVAR.SetBCD(const aValue: pointer; const aScale: integer; const
 var B: PBcd;
     i: integer;
     iScaling: INT64;
-    iValue: INT64;
+    iBigInt: INT64;
+    iLong: integer;
+    iShort: Smallint;
     S: string;
 begin
   IsNull := aIsNull;
@@ -532,8 +554,26 @@ begin
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
-    iValue := StrToInt64(S);
-    Move(iValue, sqldata^, sqllen)
+    iBigInt := StrToInt64(S);
+    Move(iBigInt, sqldata^, sqllen)
+  end else if CheckType(SQL_LONG) then begin
+    B := aValue;
+    iScaling := 1;
+    for i := 1 to aScale do
+      iScaling := iScaling * 10;
+    BcdMultiply(B^, IntToStr(iScaling), B^);
+    S := BcdToStr(B^);
+    iLong := StrToInt(S);
+    Move(iLong, sqldata^, sqllen)
+  end else if CheckType(SQL_SHORT) then begin
+    B := aValue;
+    iScaling := 1;
+    for i := 1 to aScale do
+      iScaling := iScaling * 10;
+    BcdMultiply(B^, IntToStr(iScaling), B^);
+    S := BcdToStr(B^);
+    iShort:= StrToInt(S);
+    Move(iShort, sqldata^, sqllen)
   end else
     Assert(False);
 end;
