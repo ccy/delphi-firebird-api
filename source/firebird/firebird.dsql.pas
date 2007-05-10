@@ -52,8 +52,7 @@ type
     procedure GetTimeStamp(aValue: pointer; out aIsNull: boolean);
     function IsNullable: boolean;
     procedure Prepare;
-    procedure SetBCD(const aValue: pointer; const aScale: integer; const aIsNull:
-        boolean);
+    procedure SetBCD(const aValue: pointer; const aIsNull: boolean);
     function SetBlob(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: IFirebirdTransaction; const aValue:
         pointer; const aLength: Integer; const aIsNull: boolean): ISC_STATUS;
@@ -536,8 +535,7 @@ begin
   FPrepared := True;
 end;
 
-procedure TXSQLVAR.SetBCD(const aValue: pointer; const aScale: integer; const
-    aIsNull: boolean);
+procedure TXSQLVAR.SetBCD(const aValue: pointer; const aIsNull: boolean);
 var B: PBcd;
     i: integer;
     iScaling: INT64;
@@ -551,7 +549,7 @@ begin
   if CheckType(SQL_INT64) then begin
     B := aValue;
     iScaling := 1;
-    for i := 1 to aScale do
+    for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
@@ -560,7 +558,7 @@ begin
   end else if CheckType(SQL_LONG) then begin
     B := aValue;
     iScaling := 1;
-    for i := 1 to aScale do
+    for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
@@ -569,7 +567,7 @@ begin
   end else if CheckType(SQL_SHORT) then begin
     B := aValue;
     iScaling := 1;
-    for i := 1 to aScale do
+    for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
@@ -780,7 +778,7 @@ begin
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else if CheckType(SQL_INT64) then begin
     B := StrToBcd(string(PChar(aValue)));
-    SetBCD(@B, 0, aIsNull);
+    SetBCD(@B, aIsNull);
   end else
     Assert(False);
 end;
