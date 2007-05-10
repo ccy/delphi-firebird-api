@@ -906,7 +906,7 @@ end;
 procedure TXSQLDA.Prepare;
 var i: integer;
 begin
-  Assert(sqln = sqld);
+  Assert(sqln >= sqld);
   for i := 0 to FVars.Count - 1 do
     TXSQLVAR(FVars[i]).Prepare;
 end;
@@ -1089,9 +1089,9 @@ begin
   if FSQLDA_Out.sqld > FSQLDA_Out.sqln then begin
     FSQLDA_Out.Count := FSQLDA_Out.sqld;
     FClient.isc_dsql_describe(aStatusVector.pValue, StatementHandle, FSQLDA_Out.Version, FSQLDA_Out.XSQLDA);
-    FSQLDA_Out.Prepare;
     if aStatusVector.CheckError(FClient, Result) then Exit;
   end;
+  FSQLDA_Out.Prepare;
   {$endregion}
   {$region 'describe bind'}
   if aParamCount > 0 then begin

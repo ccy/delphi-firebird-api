@@ -336,6 +336,7 @@ begin
     mov  [Result],eax;
   end;
 
+  {$Message 'Implement option to enable the debug notification'} 
   if True then begin
     i := FProcs.IndexOfObject(aProc);
     Assert(i <> -1);
