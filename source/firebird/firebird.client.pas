@@ -815,7 +815,7 @@ end;
 function TFirebirdTransactionPool.Add: IFirebirdTransaction;
 var T: TTransactionDesc;
 begin
-  T.TransactionID := 1;
+  T.TransactionID := 0;
   T.IsolationLevel := xilREADCOMMITTED;
   Result := Add(T);
 end;
