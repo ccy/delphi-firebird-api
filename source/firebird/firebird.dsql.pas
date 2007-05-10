@@ -127,7 +127,7 @@ type
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle): Integer;
+        pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
     function Transaction: IFirebirdTransaction;
@@ -145,8 +145,9 @@ type
     FSQLDA_Out: TXSQLDA;
     FState: DSQLState;
     FStatementHandle: isc_stmt_handle;
+    FTransactionPool: TFirebirdTransactionPool;
+    FManageTransaction: boolean;
     FTransaction: IFirebirdTransaction;
-    FTransactionActive: boolean;
     function StatementHandle: pisc_stmt_handle;
   protected
     function Close(const aStatusVector: IStatusVector): Integer;
@@ -157,13 +158,13 @@ type
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle): Integer;
+        pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
     function Transaction: IFirebirdTransaction;
   public
-    constructor Create(const aClientLibrary: IFirebirdClient; const aTransaction:
-        IFirebirdTransaction);
+    constructor Create(const aClientLibrary: IFirebirdClient; const
+        aTransactionPool: TFirebirdTransactionPool);
     procedure BeforeDestruction; override;
   end;
 
@@ -931,11 +932,11 @@ begin
 end;
 
 constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdClient; const
-    aTransaction: IFirebirdTransaction);
+    aTransactionPool: TFirebirdTransactionPool);
 begin
   inherited Create;
   FClient := aClientLibrary;
-  FTransaction := aTransaction;
+  FTransactionPool := aTransactionPool;
   FState := S_INACTIVE;
 end;
 
@@ -1042,12 +1043,14 @@ end;
 
 function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
 begin
-  if not FTransactionActive then begin
+  if FManageTransaction then begin
     if (FState = S_EXECUTED) or (FState = S_EOF) then begin
-      FTransaction.Commit(aStatusvector);
+      FTransactionPool.Commit(aStatusVector, FTransaction.ID);
+      FTransaction := nil;
       if aStatusVector.CheckError(FClient, Result) then Exit;
     end else begin
-      FTransaction.Rollback(aStatusvector);
+      FTransactionPool.RollBack(aStatusVector, FTransaction.ID);
+      FTransaction := nil;
       if aStatusVector.CheckError(FClient, Result) then Exit;
     end;
   end;
@@ -1059,7 +1062,8 @@ begin
 end;
 
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
-    aDBHandle: pisc_db_handle): Integer;
+    aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction):
+    Integer;
 begin
   Assert(FState = S_INACTIVE);
   {$region 'Allocate Statement'}
@@ -1068,9 +1072,13 @@ begin
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
 
-  FTransactionActive := FTransaction.Active;
-  if not FTransactionActive then
+  FTransaction := aTransaction;
+  if FTransaction = nil then FTransaction := FTransactionPool.CurrentTransaction;
+  FManageTransaction := FTransaction = nil;
+  if FManageTransaction then begin
+    FTransaction := FTransactionPool.Add;
     FTransaction.Start(aStatusVector);
+  end;
   if aStatusVector.CheckError(FClient, Result) then Exit;
   FState := S_OPENED;
 end;

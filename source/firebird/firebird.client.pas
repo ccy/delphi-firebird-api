@@ -2,7 +2,7 @@ unit firebird.client;
 
 interface
 
-uses Windows, IB_Header, Classes;
+uses Windows, IB_Header, SysUtils, Classes, DBXpress;
 
 type
   {$region 'Firebird Client: Debugger'}
@@ -249,13 +249,17 @@ type
     function GetpValue: pstatus_vector;
   end;
 
+  ETransactionExist = Exception;
+
   IFirebirdTransaction = interface(IInterface)
   ['{9BC18924-3D12-42F2-9A0A-9FE05FE6FB73}']
     function Active: boolean;
+    function GetID: LongWord;
     function Start(aStatusVector: IStatusVector): ISC_STATUS;
     function Commit(const aStatusVector: IStatusVector): ISC_STATUS;
     function Rollback(const aStatusVector: IStatusVector): ISC_STATUS;
     function TransactionHandle: pisc_tr_handle;
+    property ID: LongWord read GetID;
   end;
 
   TFirebirdTransaction = class(TInterfacedObject, IFirebirdTransaction)
@@ -263,16 +267,39 @@ type
     FClient: IFirebirdClient;
     FTransactionHandle: isc_tr_handle;
     FTransParam: isc_teb;
-    FTransactionLevel: integer;
+    FTransDesc: TTransactionDesc;
   protected
     function Active: boolean;
     function Start(aStatusVector: IStatusVector): ISC_STATUS;
     function Commit(const aStatusVector: IStatusVector): ISC_STATUS;
+    function GetID: LongWord;
     function Rollback(const aStatusVector: IStatusVector): ISC_STATUS;
     function TransactionHandle: pisc_tr_handle;
   public
     constructor Create(const aFirebirdClient: IFirebirdClient; const aDBHandle:
+        pisc_db_handle; const aTransDesc: TTransactionDesc);
+  end;
+
+  TFirebirdTransactionPool = class(TObject)
+  private
+    FDBHandle: pisc_db_handle;
+    FFirebirdClient: IFirebirdClient;
+    FItems: IInterfaceList;
+    function Get2(const aTransID: LongWord; out aIndex: integer): IFirebirdTransaction;
+  public
+    constructor Create(const aFirebirdClient: IFirebirdClient; const aDBHandle:
         pisc_db_handle);
+    function Add: IFirebirdTransaction; overload;
+    function Add(const aTransDesc: TTransactionDesc): IFirebirdTransaction; overload;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
+    function Commit(const aStatusVector: IStatusVector; const aTransID: LongWord):
+        ISC_STATUS;
+    function Count: integer;
+    function CurrentTransaction: IFirebirdTransaction;
+    function Get(const aTransID: LongWord): IFirebirdTransaction;
+    function RollBack(const aStatusVector: IStatusVector; const aTransID:
+        LongWord): ISC_STATUS;
   end;
 
   TFirebirdClientFactory = class abstract
@@ -282,7 +309,7 @@ type
 
 implementation
 
-uses SysUtils, firebird.client.debug;
+uses firebird.client.debug;
 
 procedure TFirebirdClient.AfterConstruction;
 begin
@@ -696,21 +723,35 @@ begin
 end;
 
 constructor TFirebirdTransaction.Create(const aFirebirdClient: IFirebirdClient;
-    const aDBHandle: pisc_db_handle);
+    const aDBHandle: pisc_db_handle; const aTransDesc: TTransactionDesc);
 var tpb: AnsiString;
+    b: byte;
 begin
   inherited Create;
   FClient := aFirebirdClient;
 
-  tpb := char(isc_tpb_version3) + char(isc_tpb_write) + char(isc_tpb_read_committed) +
-         char(isc_tpb_no_rec_version) + char(isc_tpb_nowait);
+  FTransDesc := aTransDesc;
+
+  tpb := char(isc_tpb_version3) + char(isc_tpb_write);
+  case aTransDesc.IsolationLevel of
+    xilREADCOMMITTED:  b := isc_tpb_read_committed;
+    xilREPEATABLEREAD: b := 0;
+    xilDIRTYREAD:      b := isc_tpb_read_committed;
+    xilCUSTOM:         b := isc_tpb_read_committed;
+  end;
+  if b <> 0 then
+    tpb := tpb + char(b);
+  tpb := tpb + char(isc_tpb_no_rec_version) + char(isc_tpb_nowait);
 
   FTransactionHandle := 0;
   FTransParam.db_ptr := aDBHandle;
   FTransParam.tpb_len := Length(tpb);
   FTransParam.tpb_ptr := PAnsiChar(tpb);
+end;
 
-  FTransactionLevel := 0;
+function TFirebirdTransaction.GetID: LongWord;
+begin
+  Result := FTransDesc.TransactionID;
 end;
 
 function TFirebirdTransaction.Active: boolean;
@@ -721,37 +762,137 @@ end;
 function TFirebirdTransaction.Commit(const aStatusVector: IStatusVector):
     ISC_STATUS;
 begin
-  Dec(FTransactionLevel);
-  Assert(FTransactionLevel >= 0);
-  if FTransactionLevel = 0 then begin
-    Assert(Active);
-    Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
-    Assert(not Active);
-  end;
+  Assert(Active);
+  Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
+  Assert(not Active);
 end;
 
 function TFirebirdTransaction.Rollback(const aStatusVector: IStatusVector):
     ISC_STATUS;
 begin
-  Dec(FTransactionLevel);
-  Assert(FTransactionLevel >= 0);
-  if FTransactionLevel = 0 then begin
-    Assert(Active);
-    Result := FClient.isc_rollback_transaction(aStatusVector.pValue, TransactionHandle);
-    Assert(not Active);
-  end;
+  Assert(Active);
+  Result := FClient.isc_rollback_transaction(aStatusVector.pValue, TransactionHandle);
+  Assert(not Active);
 end;
 
 function TFirebirdTransaction.Start(aStatusVector: IStatusVector): ISC_STATUS;
 begin
-  if FTransactionLevel = 0 then
-    Result := FClient.isc_start_multiple(aStatusVector.pValue, TransactionHandle, 1, @FTransParam);
-  Inc(FTransactionLevel);
+  Assert(not Active);
+  Result := FClient.isc_start_multiple(aStatusVector.pValue, TransactionHandle, 1, @FTransParam);
 end;
 
 function TFirebirdTransaction.TransactionHandle: pisc_tr_handle;
 begin
   Result := @FTransactionHandle;
+end;
+
+constructor TFirebirdTransactionPool.Create(
+  const aFirebirdClient: IFirebirdClient; const aDBHandle: pisc_db_handle);
+begin
+  inherited Create;
+  FFirebirdClient := aFirebirdClient;
+  FDBHandle := aDBHandle;
+end;
+
+function TFirebirdTransactionPool.CurrentTransaction: IFirebirdTransaction;
+begin
+  if Count > 0 then
+    Result := FItems[Count - 1] as IFirebirdTransaction
+  else
+    Result := nil;
+end;
+
+function TFirebirdTransactionPool.Add(
+  const aTransDesc: TTransactionDesc): IFirebirdTransaction;
+begin
+  if Assigned(Get(aTransDesc.TransactionID)) then
+    raise ETransactionExist.CreateFmt('Transaction ID %d already exist', [aTransDesc.TransactionID]);
+
+  Result := TFirebirdTransaction.Create(FFirebirdClient, FDBHandle, aTransDesc);
+  FItems.Add(Result);
+end;
+
+function TFirebirdTransactionPool.Add: IFirebirdTransaction;
+var T: TTransactionDesc;
+begin
+  T.TransactionID := 1;
+  T.IsolationLevel := xilREADCOMMITTED;
+  Result := Add(T);
+end;
+
+procedure TFirebirdTransactionPool.AfterConstruction;
+begin
+  inherited;
+  FItems := TInterfaceList.Create;
+end;
+
+procedure TFirebirdTransactionPool.BeforeDestruction;
+var i: integer;
+    S: IStatusVector;
+    N: IFirebirdTransaction;
+begin
+  inherited;
+  if Count > 0 then begin
+    S := TStatusVector.Create;
+    for i := Count - 1 downto 0 do begin
+      N := FItems[i] as IFirebirdTransaction;
+      N.Rollback(S);
+      FItems.Delete(i);
+      N := nil;
+    end;
+  end;
+end;
+
+function TFirebirdTransactionPool.Commit(const aStatusVector: IStatusVector;
+    const aTransID: LongWord): ISC_STATUS;
+var i: integer;
+    T: IFirebirdTransaction;
+begin
+  T := Get2(aTransID, i);
+  Assert(T <> nil);
+  Result := T.Commit(aStatusVector);
+  FItems.Delete(i);
+end;
+
+function TFirebirdTransactionPool.Count: integer;
+begin
+  Result := FItems.Count;
+end;
+
+function TFirebirdTransactionPool.Get(const aTransID: LongWord):
+    IFirebirdTransaction;
+var i: integer;
+begin
+  Result := Get2(aTransID, i);
+end;
+
+function TFirebirdTransactionPool.Get2(const aTransID: LongWord;
+  out aIndex: integer): IFirebirdTransaction;
+var i: integer;
+    N: IFirebirdTransaction;
+begin
+  aIndex := -1;
+
+  Result := nil;
+  for i := 0 to Count - 1 do begin
+    N := FItems[i] as IFirebirdTransaction;
+    if N.ID = aTransID then begin
+      Result := N;
+      aIndex := i;
+      Break;
+    end;
+  end;
+end;
+
+function TFirebirdTransactionPool.RollBack(const aStatusVector: IStatusVector;
+    const aTransID: LongWord): ISC_STATUS;
+var i: integer;
+    T: IFirebirdTransaction;
+begin
+  T := Get2(aTransID, i);
+  Assert(T <> nil);
+  Result := T.Rollback(aStatusVector);
+  FItems.Delete(i);
 end;
 
 end.
