@@ -14,6 +14,8 @@ type
   IFirebirdClientDebugger = interface(IInterface)
   ['{F9E55F0A-3843-44B3-AA64-5D2EC8211B94}']
     procedure Add(const aListener: IFirebirdClientDebuggerListener);
+    function HasListener: boolean;
+    procedure Remove(const aListener: IFirebirdClientDebuggerListener);
     procedure Notify(const aDebugStr: string);
   end;
 
@@ -29,6 +31,8 @@ type
     function GetDebuggerListener: IInterfaceList;
   protected
     procedure Add(const aListener: IFirebirdClientDebuggerListener);
+    function HasListener: boolean;
+    procedure Remove(const aListener: IFirebirdClientDebuggerListener);
     procedure Notify(const aDebugStr: string);
   end;
   {$endregion}
@@ -363,8 +367,7 @@ begin
     mov  [Result],eax;
   end;
 
-  {$Message 'Implement option to enable the debug notification'} 
-  if True then begin
+  if FDebugger.HasListener then begin
     i := FProcs.IndexOfObject(aProc);
     Assert(i <> -1);
     sDebug := PAnsiChar(FDebugFactory.Get(FProcs[i], aProc, aParams, Result));
@@ -690,11 +693,24 @@ begin
   Result := FDebuggerListener;
 end;
 
+function TFirebirdClientDebugger.HasListener: boolean;
+begin
+  Result := GetDebuggerListener.Count > 0;
+end;
+
 procedure TFirebirdClientDebugger.Notify(const aDebugStr: string);
 var i: integer;
 begin
   for i := 0 to GetDebuggerListener.Count - 1 do
     (GetDebuggerListener[i] as IFirebirdClientDebuggerListener).Update(aDebugStr);
+end;
+
+procedure TFirebirdClientDebugger.Remove(
+  const aListener: IFirebirdClientDebuggerListener);
+var i: integer;
+begin
+  i := GetDebuggerListener.IndexOf(aListener);
+  GetDebuggerListener.Delete(i);
 end;
 
 { TFirebirdError }
