@@ -136,7 +136,7 @@ type
 
   TFirebird_DSQL = class(TInterfacedObject, IFirebird_DSQL)
   strict private
-    type DSQLState = (S_INACTIVE, S_OPENED, S_PREPARED, S_EXECUTED, S_EOF, S_CLOSED);
+    type DSQLState = (S_INACTIVE, S_OPENED, S_PREPARED, S_EXECUTED, S_EOF);
   private
     FClient: IFirebirdClient;
     FFetchCount: Cardinal;
@@ -148,6 +148,12 @@ type
     FManageTransaction: boolean;
     FTransaction: IFirebirdTransaction;
     function StatementHandle: pisc_stmt_handle;
+  private
+    FLast_DBHandle: pisc_db_handle;
+    FLast_Transaction: IFirebirdTransaction;
+    FLast_SQL: string;
+    FLast_SQLDialect: word;
+    FLast_ParamCount: integer;
   protected
     function Close(const aStatusVector: IStatusVector): Integer;
     function Execute(const aStatusVector: IStatusVector): Integer;
@@ -553,6 +559,9 @@ begin
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
+    i := Pos('.', S);
+    if i > 0 then
+      SetLength(S, i - 1);
     iBigInt := StrToInt64(S);
     Move(iBigInt, sqldata^, sqllen)
   end else if CheckType(SQL_LONG) then begin
@@ -943,7 +952,7 @@ end;
 procedure TFirebird_DSQL.BeforeDestruction;
 begin
   inherited;
-  Assert(FState = S_CLOSED);
+  Assert(FState = S_INACTIVE);
 
   if Assigned(FSQLDA_In) then FSQLDA_In.Free;
   FSQLDA_Out.Free;
@@ -952,6 +961,14 @@ end;
 function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): Integer;
 var X: PXSQLDA;
 begin
+  if FState = S_INACTIVE then begin
+    Open(aStatusVector, FLast_DBHandle, FLast_Transaction);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+
+    Prepare(aStatusVector, FLast_SQL, FLast_SQLDialect, FLast_ParamCount);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+  end;
+
   if Assigned(FSQLDA_In) then
     X := FSQLDA_In.XSQLDA
   else
@@ -1001,7 +1018,7 @@ var result_buffer: array[0..64] of Char;
     stmt_len: word;
     StmtType: integer;
 begin
-  if FState = S_CLOSED then
+  if FState = S_INACTIVE then
     aRowsAffected := FFetchCount
   else begin
     aRowsAffected := 0;
@@ -1056,7 +1073,7 @@ begin
   FClient.isc_dsql_free_statement(aStatusVector.pValue, StatementHandle, DSQL_drop);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  FState := S_CLOSED;
+  FState := S_INACTIVE;
 end;
 
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
@@ -1064,6 +1081,10 @@ function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
     Integer;
 begin
   Assert(FState = S_INACTIVE);
+
+  FLast_DBHandle := aDBHandle;
+  FLast_Transaction := aTransaction;
+
   {$region 'Allocate Statement'}
   FStatementHandle := nil;
   FClient.isc_dsql_allocate_statement(aStatusVector.pValue, aDBHandle, StatementHandle);
@@ -1086,6 +1107,10 @@ function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
 begin
   Assert(FState = S_OPENED);
 
+  FLast_SQL := aSQL;
+  FLast_SQLDialect := aSQLDialect;
+  FLast_ParamCount := aParamCount;
+
   {$region 'prepare'}
   FSQLDA_Out := TXSQLDA.Create(FClient);
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), pAnsiChar(aSQL), aSQLDialect, FSQLDA_Out.XSQLDA);
@@ -1100,7 +1125,7 @@ begin
   FSQLDA_Out.Prepare;
   {$endregion}
   {$region 'describe bind'}
-  if aParamCount > 0 then begin
+  if (aParamCount > 0) and (FSQLDA_In = nil) then begin
     FSQLDA_In := TXSQLDA.Create(FClient, aParamCount);
     FClient.isc_dsql_describe_bind(aStatusVector.pValue, StatementHandle, FSQLDA_In.Version, FSQLDA_In.XSQLDA);
     if aStatusVector.CheckError(FClient, Result) then Exit;

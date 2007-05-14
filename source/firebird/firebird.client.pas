@@ -748,7 +748,7 @@ begin
 
   FTransDesc := aTransDesc;
 
-  tpb := char(isc_tpb_version3) + char(isc_tpb_write);
+  tpb := char(isc_tpb_version3) + char(isc_tpb_concurrency) + char(isc_tpb_write);
   case aTransDesc.IsolationLevel of
     xilREADCOMMITTED:  b := isc_tpb_read_committed;
     xilREPEATABLEREAD: b := 0;
@@ -757,7 +757,7 @@ begin
   end;
   if b <> 0 then
     tpb := tpb + char(b);
-  tpb := tpb + char(isc_tpb_no_rec_version) + char(isc_tpb_nowait);
+  tpb := tpb + char(isc_tpb_rec_version) + char(isc_tpb_nowait);
 
   FTransactionHandle := 0;
   FTransParam.db_ptr := aDBHandle;
@@ -778,9 +778,10 @@ end;
 function TFirebirdTransaction.Commit(const aStatusVector: IStatusVector):
     ISC_STATUS;
 begin
-  Assert(Active);
-  Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle);
-  Assert(not Active);
+  if Active then
+    Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle)
+  else
+    Result := DBXERR_NONE;
 end;
 
 function TFirebirdTransaction.Rollback(const aStatusVector: IStatusVector):
