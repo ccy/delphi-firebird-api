@@ -105,7 +105,6 @@ type
     constructor Create(const aLibrary: IFirebirdClient; const aVarCount: Integer =
         0);
     procedure BeforeDestruction; override;
-    function Clone: TXSQLDA;
     procedure Prepare;
     property Count: integer read GetCount write SetCount;
   public
@@ -877,12 +876,6 @@ begin
     TXSQLVar(FVars[i]).Free;
   FVars.Clear;
   FreeMem(FXSQLDA);
-end;
-
-function TXSQLDA.Clone: TXSQLDA;
-begin
-  Result := TXSQLDA.Create(FClient, Count);
-  Move(FXSQLDA^, Result.XSQLDA^, XSQLDA_LENGTH(Count));
 end;
 
 function TXSQLDA.GetCount: integer;
