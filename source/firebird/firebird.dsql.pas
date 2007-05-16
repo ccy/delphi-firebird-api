@@ -245,7 +245,6 @@ function TXSQLVAR.GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
 var hBlob: isc_blob_handle;
     BlobID: ISC_QUAD;
     iLen: word;
-    B: array[0..65534] of char;
     iBufSize: integer;
     iResult: ISC_STATUS;
     p: PChar;
@@ -262,7 +261,7 @@ begin
 
   if not aIsNull then begin
     p := aValue;
-    iBufSize := SizeOf(B);
+    iBufSize := 65535;
     repeat
       iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, p);
       if iResult = 0 then
@@ -636,10 +635,15 @@ begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP));
-  Assert(aLength = 4);
 
-  S.Time := 0;
-  S.Date := PInteger(aValue)^;
+  if aLength = 4 then begin
+    S.Time := 0;
+    S.Date := PInteger(aValue)^;
+  end else if aLength = 8 then
+    S := MSecsToTimeStamp(PDouble(aValue)^)
+  else
+    Assert(False);
+
   DecodeDate(TimeStampToDateTime(S), Yr, Mn, Dy);
   with T do begin
     tm_sec := 0;
@@ -767,6 +771,8 @@ var p: PChar;
     iSmallInt: Smallint;
     iLong: Integer;
     B: TBcd;
+    D: double;
+    V: variant;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -789,7 +795,11 @@ begin
     iLong := StrToInt(string(PChar(aValue)));
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else if CheckType(SQL_INT64) then begin
-    B := StrToBcd(string(PChar(aValue)));
+    if not TryStrToBcd(string(PChar(aValue)), B) then begin
+      D := StrToFloat(string(PChar(aValue)));
+      V := VarFMTBcdCreate(D, 19, -sqlscale);
+      B := VarToBcd(V);
+    end;
     SetBCD(@B, aIsNull);
   end else
     Assert(False);
