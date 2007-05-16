@@ -189,8 +189,8 @@ procedure TXSQLVAR.BeforeDestruction;
 begin
   inherited;
   if FPrepared then begin
-    FreeMem(sqlind);
-    FreeMem(sqldata);
+    FreeMem(FXSQLVAR^.sqlind);
+    FreeMem(FXSQLVAR^.sqldata);
   end;
 end;
 
@@ -246,6 +246,7 @@ var hBlob: isc_blob_handle;
     BlobID: ISC_QUAD;
     iLen: word;
     B: array[0..65534] of char;
+    iBufSize: integer;
     iResult: ISC_STATUS;
     p: PChar;
 begin
@@ -261,16 +262,20 @@ begin
 
   if not aIsNull then begin
     p := aValue;
+    iBufSize := SizeOf(B);
     repeat
-      iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, SizeOf(B), B);
-      if aStatusVector.CheckError(FClient, Result) then Exit;
-      Move(B, p^, iLen);
-      p := p + iLen;
-    until iResult = isc_segstr_eof;
-
-    FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
-    if aStatusVector.CheckError(FClient, Result) then Exit;
+      iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, p);
+      if iResult = 0 then
+        p := p + iLen
+      else if iResult <> isc_segstr_eof then
+        if aStatusVector.CheckError(FClient, Result) then Exit
+      else
+        Break;
+    until iLen < iBufSize;
   end;
+  
+  FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
 end;
 
 function TXSQLVAR.GetBlobSize(const aStatusVector: IStatusVector; const
@@ -531,9 +536,9 @@ begin
   else if iType = SQL_TEXT then
     Inc(FSize, 1);
 
-  GetMem(FXSQLVAR.sqldata, FSize);
+  GetMem(FXSQLVAR^.sqldata, FSize);
 
-  GetMem(FXSQLVAR.sqlind, sizeof(smallint));
+  GetMem(FXSQLVAR^.sqlind, sizeof(smallint));
   sqlind^ := 0;
 
   FPrepared := True;
