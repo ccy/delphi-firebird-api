@@ -189,8 +189,7 @@ procedure TXSQLVAR.BeforeDestruction;
 begin
   inherited;
   if FPrepared then begin
-    if sqltype and 1 = 1 then
-      FreeMem(sqlind);
+    FreeMem(sqlind);
     FreeMem(sqldata);
   end;
 end;
