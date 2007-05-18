@@ -9,7 +9,7 @@ type
   strict private
     FPrepared: boolean;
     FXSQLVAR: PXSQLVAR;
-    FClient: IFirebirdClient;
+    FClient: IFirebirdLibrary;
   private
     FSize: smallint;
     function GetSize: smallint;
@@ -32,7 +32,7 @@ type
     procedure Set_sqldata(Value: Pointer);
     procedure Set_sqltype(Value: smallint);
   public
-    constructor Create(const aLibrary: IFirebirdClient; const aPtr: pointer);
+    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer);
     procedure BeforeDestruction; override;
     function CheckType(const aExpectedType: smallint): boolean;
     procedure GetBCD(aValue: pointer; out aIsNull: boolean);
@@ -91,7 +91,7 @@ type
   strict private
     FVars: TList;
     FXSQLDA: PXSQLDA;
-    FClient: IFirebirdClient;
+    FClient: IFirebirdLibrary;
     procedure Clear;
   private
     function GetVars(Index: Integer): TXSQLVAR;
@@ -102,7 +102,7 @@ type
     function GetCount: integer; inline;
     procedure SetCount(const aValue: integer);
   public
-    constructor Create(const aLibrary: IFirebirdClient; const aVarCount: Integer =
+    constructor Create(const aLibrary: IFirebirdLibrary; const aVarCount: Integer =
         0);
     procedure BeforeDestruction; override;
     procedure Prepare;
@@ -137,7 +137,7 @@ type
   strict private
     type DSQLState = (S_INACTIVE, S_OPENED, S_PREPARED, S_EXECUTED, S_EOF);
   private
-    FClient: IFirebirdClient;
+    FClient: IFirebirdLibrary;
     FFetchCount: Cardinal;
     FSQLDA_In: TXSQLDA;
     FSQLDA_Out: TXSQLDA;
@@ -167,7 +167,7 @@ type
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
     function Transaction: IFirebirdTransaction;
   public
-    constructor Create(const aClientLibrary: IFirebirdClient; const
+    constructor Create(const aClientLibrary: IFirebirdLibrary; const
         aTransactionPool: TFirebirdTransactionPool);
     procedure BeforeDestruction; override;
   end;
@@ -176,7 +176,7 @@ implementation
 
 uses SysUtils, FMTBcd, SqlTimSt, Math;
 
-constructor TXSQLVAR.Create(const aLibrary: IFirebirdClient; const aPtr:
+constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer);
 begin
   inherited Create;
@@ -865,7 +865,7 @@ begin
   FXSQLVAR.sqltype := Value;
 end;
 
-constructor TXSQLDA.Create(const aLibrary: IFirebirdClient; const aVarCount:
+constructor TXSQLDA.Create(const aLibrary: IFirebirdLibrary; const aVarCount:
     Integer = 0);
 begin
   inherited Create;
@@ -945,7 +945,7 @@ begin
   end;
 end;
 
-constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdClient; const
+constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdLibrary; const
     aTransactionPool: TFirebirdTransactionPool);
 begin
   inherited Create;

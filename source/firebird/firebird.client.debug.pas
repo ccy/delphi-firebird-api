@@ -5,7 +5,7 @@ interface
 uses firebird.client;
 
 type
-  TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdClientDebugFactory)
+  TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdLibraryDebugFactory)
   protected
     function Get(const aProcName: string; const aProc: pointer; const aParams:
         array of const; const aResult: longint): string;
