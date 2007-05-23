@@ -92,6 +92,8 @@ type
         b: pword; c: word; d: pchar): ISC_STATUS; stdcall;
     function isc_interprete(buffer: PChar; status: ppstatus_vector): ISC_STATUS;
         stdcall;
+    function isc_open_blob(status: pstatus_vector; a: pisc_db_handle; b:
+        pisc_tr_handle; c: pisc_blob_handle; d: PISC_QUAD): ISC_STATUS; stdcall;
     function isc_open_blob2(status: pstatus_vector; a: pisc_db_handle; b: pisc_tr_handle;
         c: pisc_blob_handle; d: PISC_QUAD; e: short; g: pchar): ISC_STATUS; stdcall;
     function isc_put_segment( status: pstatus_vector; a: pisc_blob_handle; b: word;
@@ -151,6 +153,7 @@ type
     Fisc_encode_timestamp: Tisc_encode_timestamp;
     Fisc_get_segment: Tisc_get_segment;
     Fisc_interprete: Tisc_interprete;
+    Fisc_open_blob: Tisc_open_blob;
     Fisc_open_blob2: Tisc_open_blob2;
     Fisc_put_segment: Tisc_put_segment;
     Fisc_rollback_transaction: Tisc_rollback_transaction;
@@ -215,6 +218,8 @@ type
         b: pword; c: word; d: pchar): ISC_STATUS; stdcall;
     function isc_interprete(buffer: PChar; status: ppstatus_vector): ISC_STATUS;
         stdcall;
+    function isc_open_blob(status: pstatus_vector; a: pisc_db_handle; b:
+        pisc_tr_handle; c: pisc_blob_handle; d: PISC_QUAD): ISC_STATUS; stdcall;
     function isc_open_blob2(status: pstatus_vector; a: pisc_db_handle; b: pisc_tr_handle;
         c: pisc_blob_handle; d: PISC_QUAD; e: short; g: pchar): ISC_STATUS; stdcall;
     function isc_put_segment( status: pstatus_vector; a: pisc_blob_handle; b: word;
@@ -595,6 +600,13 @@ begin
   Result := Call(@Fisc_interprete, [buffer, status]);
 end;
 
+function TFirebirdLibrary.isc_open_blob(status: pstatus_vector;
+  a: pisc_db_handle; b: pisc_tr_handle; c: pisc_blob_handle;
+  d: PISC_QUAD): ISC_STATUS;
+begin
+  Result := Call(@Fisc_open_blob, [status, a, b, c, d]);
+end;
+
 function TFirebirdLibrary.isc_open_blob2(status: pstatus_vector;
   a: pisc_db_handle; b: pisc_tr_handle; c: pisc_blob_handle; d: PISC_QUAD;
   e: short; g: pchar): ISC_STATUS;
@@ -696,6 +708,7 @@ begin
   Fisc_encode_timestamp        := GetProc(aHandle, 'isc_encode_timestamp');
   Fisc_get_segment             := GetProc(aHandle, 'isc_get_segment');
   Fisc_interprete              := GetProc(aHandle, 'isc_interprete');
+  Fisc_open_blob               := GetProc(aHandle, 'isc_open_blob');
   Fisc_open_blob2              := GetProc(aHandle, 'isc_open_blob2');
   Fisc_put_segment             := GetProc(aHandle, 'isc_put_segment');
   Fisc_rollback_transaction    := GetProc(aHandle, 'isc_rollback_transaction');
