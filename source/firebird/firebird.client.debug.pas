@@ -14,51 +14,53 @@ type
         const aParams: array of const; const aResult: longint): string;
     function isc_blob_info(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
-    function isc_create_blob2(const aProcName: string; const aProc: pointer; const
-        aParams: array of const; const aResult: longint): string;
     function isc_close_blob(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_commit_transaction(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
+    function isc_create_blob2(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
     function isc_decode_sql_date(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
     function isc_decode_sql_time(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
-    function isc_encode_sql_time(const aProcName: string; const aProc: pointer;
-        const aParams: array of const; const aResult: longint): string;
     function isc_decode_timestamp(const aProcName: string; const aProc: pointer;
-        const aParams: array of const; const aResult: longint): string;
-    function isc_encode_timestamp(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
     function isc_detach_database(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
     function isc_dsql_allocate_statement(const aProcName: string; const aProc:
         pointer; const aParams: array of const; const aResult: longint): string;
-    function isc_dsql_describe(const aProcName: string; const aProc: pointer; const
-        aParams: array of const; const aResult: longint): string;
     function isc_dsql_alloc_statement2(const aProcName: string; const aProc:
         pointer; const aParams: array of const; const aResult: longint): string;
+    function isc_dsql_describe(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
     function isc_dsql_describe_bind(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
-    function isc_dsql_execute_immediate(const aProcName: string; const aProc:
-        pointer; const aParams: array of const; const aResult: longint): string;
     function isc_dsql_execute(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
+    function isc_dsql_execute_immediate(const aProcName: string; const aProc:
+        pointer; const aParams: array of const; const aResult: longint): string;
     function isc_dsql_fetch(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_dsql_free_statement(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
-    function isc_dsql_sql_info(const aProcName: string; const aProc: pointer; const
-        aParams: array of const; const aResult: longint): string;
     function isc_dsql_prepare(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
+    function isc_dsql_sql_info(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_encode_sql_date(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
+    function isc_encode_sql_time(const aProcName: string; const aProc: pointer;
+        const aParams: array of const; const aResult: longint): string;
+    function isc_encode_timestamp(const aProcName: string; const aProc: pointer;
+        const aParams: array of const; const aResult: longint): string;
     function isc_get_segment(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
-    function isc_put_segment(const aProcName: string; const aProc: pointer; const
+    function isc_open_blob(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_open_blob2(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
+    function isc_put_segment(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_rollback_transaction(const aProcName: string; const aProc:
         pointer; const aParams: array of const; const aResult: longint): string;
@@ -111,20 +113,14 @@ function TFirebirdClientDebugFactory.isc_blob_info(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
 var P: ^Pointer;
+    Buf: PChar;
+    i: integer;
 begin
   P := aParams[1].VPointer;
-  Result := Format('%s blob_handle: %d ItemBufLen: %d ResultBufLen: %d', [aProcName, integer(P^), aParams[2].vInteger, aParams[5].vInteger]);
-end;
-
-function TFirebirdClientDebugFactory.isc_create_blob2(const aProcName: string;
-    const aProc: pointer; const aParams: array of const; const aResult:
-    longint): string;
-var P1, P2, P3: ^Pointer;
-begin
-  P1 := aParams[1].VPointer;
-  P2 := aParams[2].VPointer;
-  P3 := aParams[3].VPointer;
-  Result := Format('%s db_handle: %d tr_handle: %d blob_handle: %d', [aProcName, integer(P1^), integer(P2^), integer(P3^)]);
+  Buf := aParams[5].VPChar;
+  Result := Format('%s blob_handle: %d ItemBufLen: %d ResultBufLen: %d ResultBuf: ', [aProcName, integer(P^), aParams[2].vInteger, aParams[4].vInteger]);
+  for i := 0 to aParams[4].vInteger - 1 do
+    Result := Result + IntToHex(Byte((Buf + i)^), 2) + ' ';
 end;
 
 function TFirebirdClientDebugFactory.isc_close_blob(const aProcName: string;
@@ -143,6 +139,17 @@ var P: ^Pointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s tr_handle: %d', [aProcName, integer(P^)]);
+end;
+
+function TFirebirdClientDebugFactory.isc_create_blob2(const aProcName: string;
+    const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var P1, P2, P3: ^Pointer;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+  P3 := aParams[3].VPointer;
+  Result := Format('%s db_handle: %d tr_handle: %d blob_handle: %d', [aProcName, integer(P1^), integer(P2^), integer(P3^)]);
 end;
 
 function TFirebirdClientDebugFactory.isc_decode_sql_date(const aProcName:
@@ -167,34 +174,12 @@ begin
               [aProcName, P.tm_hour, P.tm_min, P.tm_sec, P.tm_isdst]);
 end;
 
-function TFirebirdClientDebugFactory.isc_encode_sql_time(const aProcName:
-    string; const aProc: pointer; const aParams: array of const; const aResult:
-    longint): string;
-var P: ^tm;
-begin
-  P := aParams[0].VPointer;
-  Result := Format(
-              '%s hour: %d min: %d sec: %d isdst: %d',
-              [aProcName, P.tm_hour, P.tm_min, P.tm_sec, P.tm_isdst]);
-end;
-
 function TFirebirdClientDebugFactory.isc_decode_timestamp(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
 var P: ^tm;
 begin
   P := aParams[1].VPointer;
-  Result := Format(
-              '%s year: %d mon: %d mday: %d yday: %d weekday: %d hour: %d min: %d sec: %d isdst: %d',
-              [aProcName, P.tm_year + 1900, P.tm_mon + 1, P.tm_mday, P.tm_yday, P.tm_wday, P.tm_hour, P.tm_min, P.tm_sec, P.tm_isdst]);
-end;
-
-function TFirebirdClientDebugFactory.isc_encode_timestamp(const aProcName:
-    string; const aProc: pointer; const aParams: array of const; const aResult:
-    longint): string;
-var P: ^tm;
-begin
-  P := aParams[0].VPointer;
   Result := Format(
               '%s year: %d mon: %d mday: %d yday: %d weekday: %d hour: %d min: %d sec: %d isdst: %d',
               [aProcName, P.tm_year + 1900, P.tm_mon + 1, P.tm_mday, P.tm_yday, P.tm_wday, P.tm_hour, P.tm_min, P.tm_sec, P.tm_isdst]);
@@ -219,6 +204,16 @@ begin
   Result := Format('%s db_handle: %d statement handle: %d', [aProcName, integer(P1^), integer(P2^)]);
 end;
 
+function TFirebirdClientDebugFactory.isc_dsql_alloc_statement2(const aProcName:
+    string; const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var P1, P2: ^Pointer;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+  Result := Format('%s db_handle: %d statement handle: %d', [aProcName, integer(P1^), integer(P2^)]);
+end;
+
 function TFirebirdClientDebugFactory.isc_dsql_describe(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
@@ -230,16 +225,6 @@ begin
   Result := Format(
               '%s statement handle: %d dialect: %d version: %d sqln: %d sqld: %d',
               [aProcName, integer(P1^), aParams[2].vInteger, P2.Version, P2.sqln, P2.sqld]);
-end;
-
-function TFirebirdClientDebugFactory.isc_dsql_alloc_statement2(const aProcName:
-    string; const aProc: pointer; const aParams: array of const; const aResult:
-    longint): string;
-var P1, P2: ^Pointer;
-begin
-  P1 := aParams[1].VPointer;
-  P2 := aParams[2].VPointer;
-  Result := Format('%s db_handle: %d statement handle: %d', [aProcName, integer(P1^), integer(P2^)]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_describe_bind(const aProcName:
@@ -255,17 +240,6 @@ begin
               [aProcName, integer(P1^), aParams[2].vInteger, P2.Version, P2.sqln, P2.sqld]);
 end;
 
-function TFirebirdClientDebugFactory.isc_dsql_execute_immediate(const
-    aProcName: string; const aProc: pointer; const aParams: array of const;
-    const aResult: longint): string;
-var P1, P2: ^pointer;
-begin
-  P1 := aParams[1].VPointer;
-  P2 := aParams[2].VPointer;
-
-  Result := Format('%s db_handle: %d transaction handle: %d'#13'%s', [aProcName, integer(P1^), integer(P2^), aParams[4].VPChar]);
-end;
-
 function TFirebirdClientDebugFactory.isc_dsql_execute(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
@@ -276,6 +250,17 @@ begin
   Result := Format(
               '%s transaction handle: %d statement handle: %d dialect: %d',
               [aProcName, integer(P1^), integer(P2^), aParams[3].vInteger]);
+end;
+
+function TFirebirdClientDebugFactory.isc_dsql_execute_immediate(const
+    aProcName: string; const aProc: pointer; const aParams: array of const;
+    const aResult: longint): string;
+var P1, P2: ^pointer;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+
+  Result := Format('%s db_handle: %d transaction handle: %d'#13'%s', [aProcName, integer(P1^), integer(P2^), aParams[4].VPChar]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_fetch(const aProcName: string;
@@ -307,6 +292,15 @@ begin
   Result := Format('%s statement handle: %d Option: %s', [aProcName, integer(P^), s]);
 end;
 
+function TFirebirdClientDebugFactory.isc_dsql_prepare(const aProcName: string;
+    const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var s: string;
+begin
+  SetString(S, aParams[4].VPChar, aParams[3].VInteger);
+  Result := Format('%s SQLDialect: %d'#13'%s', [aProcName, aParams[5].VInteger, S]);
+end;
+
 function TFirebirdClientDebugFactory.isc_dsql_sql_info(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
@@ -315,15 +309,6 @@ var P: ^Pointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s statement handle: %d ', [aProcName, integer(P^)]);
-end;
-
-function TFirebirdClientDebugFactory.isc_dsql_prepare(const aProcName: string;
-    const aProc: pointer; const aParams: array of const; const aResult:
-    longint): string;
-var s: string;
-begin
-  SetString(S, aParams[4].VPChar, aParams[3].VInteger);
-  Result := Format('%s SQLDialect: %d'#13'%s', [aProcName, aParams[5].VInteger, S]);
 end;
 
 function TFirebirdClientDebugFactory.isc_encode_sql_date(const aProcName:
@@ -337,6 +322,28 @@ begin
               [aProcName, P.tm_year + 1900, P.tm_mon + 1, P.tm_mday, P.tm_yday, P.tm_wday, P.tm_isdst]);
 end;
 
+function TFirebirdClientDebugFactory.isc_encode_sql_time(const aProcName:
+    string; const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var P: ^tm;
+begin
+  P := aParams[0].VPointer;
+  Result := Format(
+              '%s hour: %d min: %d sec: %d isdst: %d',
+              [aProcName, P.tm_hour, P.tm_min, P.tm_sec, P.tm_isdst]);
+end;
+
+function TFirebirdClientDebugFactory.isc_encode_timestamp(const aProcName:
+    string; const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var P: ^tm;
+begin
+  P := aParams[0].VPointer;
+  Result := Format(
+              '%s year: %d mon: %d mday: %d yday: %d weekday: %d hour: %d min: %d sec: %d isdst: %d',
+              [aProcName, P.tm_year + 1900, P.tm_mon + 1, P.tm_mday, P.tm_yday, P.tm_wday, P.tm_hour, P.tm_min, P.tm_sec, P.tm_isdst]);
+end;
+
 function TFirebirdClientDebugFactory.isc_get_segment(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
@@ -348,6 +355,36 @@ begin
               [aProcName, integer(P^), aParams[2].VInteger, aParams[3].VInteger]);
 end;
 
+function TFirebirdClientDebugFactory.isc_open_blob(const aProcName: string;
+    const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var P1, P2, P3: ^Pointer;
+    P4: PISC_QUAD;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+  P3 := aParams[3].VPointer;
+  P4 := aParams[4].VPointer;
+  Result := Format(
+              '%s db_handle: %d tr_handle: %d blob_handle: %d, BlobID: %d %d',
+              [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.isc_quad_high, P4^.isc_quad_low]);
+end;
+
+function TFirebirdClientDebugFactory.isc_open_blob2(const aProcName: string;
+    const aProc: pointer; const aParams: array of const; const aResult:
+    longint): string;
+var P1, P2, P3: ^Pointer;
+    P4: PISC_QUAD;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+  P3 := aParams[3].VPointer;
+  P4 := aParams[4].VPointer;
+  Result := Format(
+              '%s db_handle: %d tr_handle: %d blob_handle: %d, BlobID: %d %d, bpb_Length: %d ',
+              [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.isc_quad_high, P4^.isc_quad_low, aParams[5].vInteger]);
+end;
+
 function TFirebirdClientDebugFactory.isc_put_segment(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
@@ -357,19 +394,6 @@ begin
   Result := Format(
               '%s blob_handle: %d seg_buffer_length: %d',
               [aProcName, integer(P^), aParams[2].VInteger]);
-end;
-
-function TFirebirdClientDebugFactory.isc_open_blob2(const aProcName: string;
-    const aProc: pointer; const aParams: array of const; const aResult:
-    longint): string;
-var P1, P2, P3: ^Pointer;
-begin
-  P1 := aParams[1].VPointer;
-  P2 := aParams[2].VPointer;
-  P3 := aParams[3].VPointer;
-  Result := Format(
-              '%s db_handle: %d tr_handle: %d blob_handle: %d, bpb_Length: %d ',
-              [aProcName, integer(P1^), integer(P2^), integer(P3^), aParams[5].vInteger]);
 end;
 
 function TFirebirdClientDebugFactory.isc_rollback_transaction(const aProcName:

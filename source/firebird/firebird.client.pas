@@ -82,6 +82,9 @@ type
     function isc_dsql_prepare(status: pstatus_vector; tr_handle: pisc_tr_handle;
         st_handle: pisc_stmt_handle; len: word; statement: pchar; dialect: word;
         params: PXSQLDA): ISC_STATUS; stdcall;
+    function isc_dsql_set_cursor_name(status_vector: pstatus_vector; st_handle:
+        pisc_stmt_handle; cursor_name: PChar; unusedType: word): ISC_STATUS;
+        stdcall;
     function isc_dsql_sql_info(status: pstatus_vector; st_handle: pisc_stmt_handle;
         item_length: short; items: pchar; buffer_length: short; result_buffer:
         pchar): ISC_STATUS; stdcall;
@@ -147,6 +150,7 @@ type
     Fisc_dsql_fetch: Tisc_dsql_fetch;
     Fisc_dsql_free_statement: Tisc_dsql_free_statement;
     Fisc_dsql_prepare: Tisc_dsql_prepare;
+    Fisc_dsql_set_cursor_name: Tisc_dsql_set_cursor_name;
     Fisc_dsql_sql_info: Tisc_dsql_sql_info;
     Fisc_encode_sql_date: Tisc_encode_sql_date;
     Fisc_encode_sql_time: Tisc_encode_sql_time;
@@ -208,6 +212,9 @@ type
     function isc_dsql_prepare(status: pstatus_vector; tr_handle: pisc_tr_handle;
         st_handle: pisc_stmt_handle; len: word; statement: pchar; dialect: word;
         params: PXSQLDA): ISC_STATUS; stdcall;
+    function isc_dsql_set_cursor_name(status_vector: pstatus_vector; st_handle:
+        pisc_stmt_handle; cursor_name: PChar; unusedType: word): ISC_STATUS;
+        stdcall;
     function isc_dsql_sql_info(status: pstatus_vector; st_handle: pisc_stmt_handle;
         item_length: short; items: pchar; buffer_length: short; result_buffer:
         pchar): ISC_STATUS; stdcall;
@@ -565,6 +572,13 @@ begin
   Result := Call(@Fisc_dsql_prepare, [status, tr_handle, st_handle, len, statement, dialect, params]);
 end;
 
+function TFirebirdLibrary.isc_dsql_set_cursor_name(
+  status_vector: pstatus_vector; st_handle: pisc_stmt_handle;
+  cursor_name: PChar; unusedType: word): ISC_STATUS;
+begin
+  Result := Call(@Fisc_dsql_set_cursor_name, [status_vector, st_handle, cursor_name, unusedType]);
+end;
+
 function TFirebirdLibrary.isc_dsql_sql_info(status: pstatus_vector;
   st_handle: pisc_stmt_handle; item_length: short; items: pchar;
   buffer_length: short; result_buffer: pchar): ISC_STATUS;
@@ -702,6 +716,7 @@ begin
   Fisc_dsql_fetch              := GetProc(aHandle, 'isc_dsql_fetch');
   Fisc_dsql_free_statement     := GetProc(aHandle, 'isc_dsql_free_statement');
   Fisc_dsql_prepare            := GetProc(aHandle, 'isc_dsql_prepare');
+  Fisc_dsql_set_cursor_name    := GetProc(aHandle, 'isc_dsql_set_cursor_name');
   Fisc_dsql_sql_info           := GetProc(aHandle, 'isc_dsql_sql_info');
   Fisc_encode_sql_date         := GetProc(aHandle, 'isc_encode_sql_date');
   Fisc_encode_sql_time         := GetProc(aHandle, 'isc_encode_sql_time');
@@ -865,6 +880,7 @@ begin
   FTransDesc := aTransDesc;
 
   tpb := char(isc_tpb_version3) + char(isc_tpb_concurrency) + char(isc_tpb_write);
+  b := 0;
   case aTransDesc.IsolationLevel of
     xilREADCOMMITTED:  b := isc_tpb_read_committed;
     xilREPEATABLEREAD: b := 0;
@@ -875,7 +891,7 @@ begin
     tpb := tpb + char(b);
   tpb := tpb + char(isc_tpb_rec_version) + char(isc_tpb_nowait);
 
-  FTransactionHandle := 0;
+  FTransactionHandle := nil;
   FTransParam.db_ptr := aDBHandle;
   FTransParam.tpb_len := Length(tpb);
   FTransParam.tpb_ptr := PAnsiChar(tpb);
