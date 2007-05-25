@@ -45,7 +45,7 @@ type
     procedure GetDate(aValue: pointer; out aIsNull: boolean);
     procedure GetDouble(aValue: pointer; out aIsNull: boolean);
     procedure GetInteger(aValue: pointer; out aIsNull: boolean);
-    function GetIsNull: boolean;
+    function GetIsNull: boolean; 
     procedure GetShort(aValue: pointer; out aIsNull: boolean);
     procedure GetString(aValue: pointer; out aIsNull: boolean);
     procedure GetTime(aValue: pointer; out aIsNull: boolean);
@@ -99,7 +99,7 @@ type
     function Get_sqln: smallint;
     function Get_Version: smallint;
   protected
-    function GetCount: integer; inline;
+    function GetCount: integer; 
     procedure SetCount(const aValue: integer);
   public
     constructor Create(const aLibrary: IFirebirdLibrary; const aVarCount: Integer =
@@ -200,42 +200,45 @@ begin
 end;
 
 procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
-var B: PBCD;
-    S: string;
-    i: integer;
-    iScaling: Int64;
+
+  procedure Test(aValue: pointer; const aScale: word; aData: string);
+  var i, iLen: integer;
+      bNeg: boolean;
+  begin
+    if aScale > 0 then begin
+      bNeg := aData[1] = '-';
+      if bNeg then
+        Delete(aData, 1, 1);
+
+      iLen := Length(aData);
+      for i := 1 to aScale - iLen do begin
+        aData := '0' + aData;
+        Inc(iLen);
+      end;
+
+      Inc(iLen);  // To hold extra '.'
+      SetLength(aData, iLen);
+      for i := iLen downto iLen - aScale + 1 do
+        aData[i] := aData[i-1];
+      aData[i] := '.';
+
+      if bNeg then
+        aData := '-' + aData;
+    end;
+    PBCD(aValue)^ := StrToBcd(aData);
+  end;
+
 begin
   Assert(FPrepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
-  if CheckType(SQL_INT64) then begin
-    B := aValue;
-    S := IntToStr(PInt64(sqldata)^);
-    B^ := StrToBcd(S);
-
-    iScaling := 1;
-    for i := -1 downto sqlscale do
-      iScaling := iScaling * 10;
-    BcdDivide(B^, iScaling, B^);
-  end else if CheckType(SQL_LONG) then begin
-    B := aValue;
-    S := IntToStr(PInteger(sqldata)^);
-    B^ := StrToBcd(S);
-
-    iScaling := 1;
-    for i := -1 downto sqlscale do
-      iScaling := iScaling * 10;
-    BcdDivide(B^, iScaling, B^);
-  end else if CheckType(SQL_SHORT) then begin
-    B := aValue;
-    S := IntToStr(PSmallInt(sqldata)^);
-    B^ := StrToBcd(S);
-
-    iScaling := 1;
-    for i := -1 downto sqlscale do
-      iScaling := iScaling * 10;
-    BcdDivide(B^, iScaling, B^);
-  end else
+  if CheckType(SQL_INT64) then
+    Test(aValue, -sqlscale, IntToStr(PInt64(sqldata)^))
+  else if CheckType(SQL_LONG) then
+    Test(aValue, -sqlscale, IntToStr(PInteger(sqldata)^))
+  else if CheckType(SQL_SHORT) then
+    Test(aValue, -sqlscale, IntToStr(PSmallInt(sqldata)^))
+  else
     Assert(False);
 end;
 
