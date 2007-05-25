@@ -269,12 +269,11 @@ begin
 
   p := aValue;
 
-  if aLength > High(Word) then
-    iBufSize := High(Word)
-  else
-    iBufSize := aLength;
+  iBufSize := High(Word);
   iLenTotal := 0;
   repeat
+    if aLength - iLenTotal <= High(Word) then
+      iBufSize := aLength - iLenTotal;
     iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, p);
     if iResult = 0 then begin
       p := p + iLen;
