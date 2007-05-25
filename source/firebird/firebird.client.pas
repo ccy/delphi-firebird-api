@@ -48,6 +48,9 @@ type
     function isc_close_blob(status: pstatus_vector; blob_handle: pisc_blob_handle): ISC_STATUS; stdcall;
     function isc_commit_transaction(status: pstatus_vector; tr_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
+    function isc_create_blob(status: pstatus_vector; db_handle: pisc_db_handle;
+        tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
+        PISC_QUAD): ISC_STATUS; stdcall;
     function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
         blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
@@ -134,6 +137,7 @@ type
     Fisc_blob_info: Tisc_blob_info;
     Fisc_close_blob: Tisc_close_blob;
     Fisc_commit_transaction: Tisc_commit_transaction;
+    Fisc_create_blob: Tisc_create_blob;
     Fisc_create_blob2: Tisc_create_blob2;
     Fisc_decode_sql_date: Tisc_decode_sql_date;
     Fisc_decode_sql_time: Tisc_decode_sql_time;
@@ -178,6 +182,9 @@ type
     function isc_close_blob(status: pstatus_vector; blob_handle: pisc_blob_handle): ISC_STATUS; stdcall;
     function isc_commit_transaction(status: pstatus_vector; tr_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
+    function isc_create_blob(status: pstatus_vector; db_handle: pisc_db_handle;
+        tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
+        PISC_QUAD): ISC_STATUS; stdcall;
     function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
         blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
@@ -470,6 +477,13 @@ begin
   Result := Call(@Fisc_commit_transaction, [status, tr_handle]);
 end;
 
+function TFirebirdLibrary.isc_create_blob(status: pstatus_vector;
+  db_handle: pisc_db_handle; tr_handle: pisc_tr_handle;
+  blob_handle: pisc_blob_handle; blob_id: PISC_QUAD): ISC_STATUS;
+begin
+  Result := Call(@Fisc_create_blob, [status, db_handle, tr_handle, blob_handle, blob_id]);
+end;
+
 function TFirebirdLibrary.isc_create_blob2(status: pstatus_vector;
   db_handle: pisc_db_handle; tr_handle: pisc_tr_handle;
   blob_handle: pisc_blob_handle; blob_id: PISC_QUAD; e: short;
@@ -700,6 +714,7 @@ begin
   Fisc_blob_info               := GetProc(aHandle, 'isc_blob_info');
   Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
   Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
+  Fisc_create_blob             := GetProc(aHandle, 'isc_create_blob'); 
   Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
   Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
   Fisc_decode_sql_time         := GetProc(aHandle, 'isc_decode_sql_time');

@@ -38,7 +38,7 @@ type
     procedure GetBCD(aValue: pointer; out aIsNull: boolean);
     function GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: IFirebirdTransaction; aValue: pointer;
-        out aIsNull: boolean): ISC_STATUS;
+        out aIsNull: boolean; aLength: LongWord): ISC_STATUS;
     function GetBlobSize(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: IFirebirdTransaction; out aBlobSize:
         longword; out aIsNull: boolean): ISC_STATUS;
@@ -241,37 +241,46 @@ end;
 
 function TXSQLVAR.GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
     pisc_db_handle; const aTransaction: IFirebirdTransaction; aValue: pointer;
-    out aIsNull: boolean): ISC_STATUS;
+    out aIsNull: boolean; aLength: LongWord): ISC_STATUS;
 var hBlob: isc_blob_handle;
-    BlobID: ISC_QUAD;
+    pBlobID: PISC_QUAD;
     iLen: word;
-    iBufSize: integer;
+    iLenTotal: LongWord;
+    iBufSize: word;
     iResult: ISC_STATUS;
     p: PChar;
 begin
   Assert(FPrepared);
   Assert(CheckType(SQL_BLOB));
 
+  aIsNull := IsNull;
+  if aIsNull then Exit;
+
+  pBlobID := sqldata;
+  aIsNull := (pBlobID.isc_quad_high = 0) and (pBlobID.isc_quad_low = 0);
+  if aIsNull then Exit;
+
   hBlob := nil;
-  Move(sqldata^, BlobID, sqllen);
-
-  FClient.isc_open_blob2(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID, 0, nil);
+  FClient.isc_open_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, pBlobID);
   if aStatusVector.CheckError(FClient, Result) then Exit;
-  aIsNull := (BlobID.isc_quad_high = 0) and (BlobID.isc_quad_low = 0);
 
-  if not aIsNull then begin
-    p := aValue;
-    iBufSize := 65535;
-    repeat
-      iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, p);
-      if iResult = 0 then
-        p := p + iLen
-      else if iResult <> isc_segstr_eof then
-        if aStatusVector.CheckError(FClient, Result) then Exit
-      else
-        Break;
-    until iLen < iBufSize;
-  end;
+  p := aValue;
+
+  if aLength > High(Word) then
+    iBufSize := High(Word)
+  else
+    iBufSize := aLength;
+  iLenTotal := 0;
+  repeat
+    iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, p);
+    if iResult = 0 then begin
+      p := p + iLen;
+      Inc(iLenTotal, iLen);
+    end else if iResult <> isc_segstr_eof then
+      if aStatusVector.CheckError(FClient, Result) then Exit
+    else
+      Break;
+  until iLenTotal = aLength;
   
   FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
   if aStatusVector.CheckError(FClient, Result) then Exit;
@@ -281,26 +290,36 @@ function TXSQLVAR.GetBlobSize(const aStatusVector: IStatusVector; const
     aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction; out
     aBlobSize: longword; out aIsNull: boolean): ISC_STATUS;
 var hBlob: isc_blob_handle;
-    BlobID: ISC_QUAD;
-    C: byte;
-    R: array[0..19] of char;
+    C: string;
+    R: array[0..9] of char;
+    pBlobID: PISC_QUAD;
     iLen: word;
 begin
   Assert(FPrepared);
   Assert(CheckType(SQL_BLOB));
-  C := isc_info_blob_total_length;
+
+  aBlobSize := 0;
+
+  aIsNull := IsNull;
+  if aIsNull then Exit;
+
+  pBlobID := sqldata;
+  aIsNull := (pBlobID.isc_quad_high = 0) and (pBlobID.isc_quad_low = 0);
+  if aIsNull then Exit;
+
+  C := char(isc_info_blob_total_length);
   hBlob := nil;
-  Move(sqldata^, BlobID, sqllen);
 
-  FClient.isc_open_blob2(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID, 0, nil);
+  FClient.isc_open_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, pBlobID);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  FClient.isc_blob_info(aStatusVector.pValue, @hBlob, SizeOf(C), @C, SizeOf(R), R);
+  FClient.isc_blob_info(aStatusVector.pValue, @hBlob, 1, PChar(C), SizeOf(R), R);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  Assert(byte(R[0]) = C);
-  iLen := FClient.isc_vax_integer(@R[1], 2);
-  aBlobSize := FClient.isc_vax_integer(@R[3], iLen);
+  Assert(R[0] = C[1]);
+  Move(R[1], iLen, 2);
+  Assert(iLen = 4);
+  Move(R[3], aBlobSize, iLen);
 
   FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
   if aStatusVector.CheckError(FClient, Result) then Exit;
@@ -604,16 +623,16 @@ begin
   hBlob := nil;
   BlobID.isc_quad_high := 0;
   BlobID.isc_quad_low := 0;
-  FClient.isc_create_blob2(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID, 0, nil);
+  FClient.isc_create_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
   iCurPos := 0;
-  wLen := 65535;
+  wLen := High(Word);
   p := aValue;
   while iCurPos < aLength do begin
     if iCurPos + wLen > aLength then
       wLen := aLength - iCurPos;
-    FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, PChar(@p[iCurPos]));
+    FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, p + iCurPos);
     if aStatusVector.CheckError(FClient, Result) then Exit;
     Inc(iCurPos, wLen);
   end;
@@ -1035,8 +1054,8 @@ begin
     if aStatusVector.CheckError(FClient, Result) then Exit;
 
     if (result_buffer[0] = Char(isc_info_sql_stmt_type)) then begin
-      stmt_len := FClient.isc_vax_integer(@result_buffer[1], 2);
-      StmtType := FClient.isc_vax_integer(@result_buffer[3], stmt_len);
+      Move(result_buffer[1], stmt_len, 2);
+      Move(result_buffer[3], StmtType, stmt_len);
     end;
 
     info_request := Char(isc_info_sql_records);
@@ -1045,9 +1064,9 @@ begin
 
     if (result_buffer[0] = Char(isc_info_sql_records)) then begin
       case StmtType of
-        isc_info_sql_stmt_insert: aRowsAffected := FClient.isc_vax_integer(@result_buffer[27], 4);
-        isc_info_sql_stmt_update: aRowsAffected := FClient.isc_vax_integer(@result_buffer[6], 4);
-        isc_info_sql_stmt_delete: aRowsAffected := FClient.isc_vax_integer(@result_buffer[13], 4);
+        isc_info_sql_stmt_insert: Move(result_buffer[27], aRowsAffected, 4);
+        isc_info_sql_stmt_update: Move(result_buffer[6], aRowsAffected, 4);
+        isc_info_sql_stmt_delete: Move(result_buffer[13], aRowsAffected, 4);
       end;
     end;
   end;
