@@ -2,7 +2,7 @@ unit firebird.client;
 
 interface
 
-uses Windows, IB_Header, SysUtils, Classes, DBXpress;
+uses Windows, IB_Header, SysUtils, Classes;
 
 type
   {$region 'Firebird Library: Debugger'}
@@ -321,6 +321,13 @@ type
 
   ETransactionExist = Exception;
 
+  TTransactionIsolation = (isoReadCommitted, isoRepeatableRead);
+
+  TTransactionInfo = record
+    ID: LongWord;
+    Isolation: TTransactionIsolation;
+  end;
+
   IFirebirdTransaction = interface(IInterface)
   ['{9BC18924-3D12-42F2-9A0A-9FE05FE6FB73}']
     function Active: boolean;
@@ -337,7 +344,7 @@ type
     FClient: IFirebirdLibrary;
     FTransactionHandle: isc_tr_handle;
     FTransParam: isc_teb;
-    FTransDesc: TTransactionDesc;
+    FTransInfo: TTransactionInfo;
   protected
     function Active: boolean;
     function Start(aStatusVector: IStatusVector): ISC_STATUS;
@@ -347,7 +354,7 @@ type
     function TransactionHandle: pisc_tr_handle;
   public
     constructor Create(const aFirebirdClient: IFirebirdLibrary; const aDBHandle:
-        pisc_db_handle; const aTransDesc: TTransactionDesc);
+        pisc_db_handle; const aTransInfo: TTransactionInfo);
   end;
 
   TFirebirdTransactionPool = class(TObject)
@@ -360,7 +367,8 @@ type
     constructor Create(const aFirebirdClient: IFirebirdLibrary; const aDBHandle:
         pisc_db_handle);
     function Add: IFirebirdTransaction; overload;
-    function Add(const aTransDesc: TTransactionDesc): IFirebirdTransaction; overload;
+    function Add(const aTransInfo: TTransactionInfo): IFirebirdTransaction;
+        overload;
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
     function Commit(const aStatusVector: IStatusVector; const aTransID: LongWord):
@@ -884,23 +892,22 @@ begin
   lstrcpyW(aMsg, PWideChar(W));
 end;
 
-constructor TFirebirdTransaction.Create(const aFirebirdClient: IFirebirdLibrary;
-    const aDBHandle: pisc_db_handle; const aTransDesc: TTransactionDesc);
+constructor TFirebirdTransaction.Create(const aFirebirdClient:
+    IFirebirdLibrary; const aDBHandle: pisc_db_handle; const aTransInfo:
+    TTransactionInfo);
 var tpb: AnsiString;
     b: byte;
 begin
   inherited Create;
   FClient := aFirebirdClient;
 
-  FTransDesc := aTransDesc;
+  FTransInfo := aTransInfo;
 
   tpb := char(isc_tpb_version3) + char(isc_tpb_concurrency) + char(isc_tpb_write);
   b := 0;
-  case aTransDesc.IsolationLevel of
-    xilREADCOMMITTED:  b := isc_tpb_read_committed;
-    xilREPEATABLEREAD: b := 0;
-    xilDIRTYREAD:      b := isc_tpb_read_committed;
-    xilCUSTOM:         b := isc_tpb_read_committed;
+  case aTransInfo.Isolation of
+    isoReadCommitted:  b := isc_tpb_read_committed;
+    isoRepeatableRead: b := 0;
   end;
   if b <> 0 then
     tpb := tpb + char(b);
@@ -914,7 +921,7 @@ end;
 
 function TFirebirdTransaction.GetID: LongWord;
 begin
-  Result := FTransDesc.TransactionID;
+  Result := FTransInfo.ID;
 end;
 
 function TFirebirdTransaction.Active: boolean;
@@ -928,7 +935,7 @@ begin
   if Active then
     Result := FClient.isc_commit_transaction(aStatusVector.pValue, TransactionHandle)
   else
-    Result := DBXERR_NONE;
+    Result := 0;
 end;
 
 function TFirebirdTransaction.Rollback(const aStatusVector: IStatusVector):
@@ -966,21 +973,21 @@ begin
     Result := nil;
 end;
 
-function TFirebirdTransactionPool.Add(
-  const aTransDesc: TTransactionDesc): IFirebirdTransaction;
+function TFirebirdTransactionPool.Add(const aTransInfo: TTransactionInfo):
+    IFirebirdTransaction;
 begin
-  if Assigned(Get(aTransDesc.TransactionID)) then
-    raise ETransactionExist.CreateFmt('Transaction ID %d already exist', [aTransDesc.TransactionID]);
+  if Assigned(Get(aTransInfo.ID)) then
+    raise ETransactionExist.CreateFmt('Transaction ID %d already exist', [aTransInfo.ID]);
 
-  Result := TFirebirdTransaction.Create(FFirebirdClient, FDBHandle, aTransDesc);
+  Result := TFirebirdTransaction.Create(FFirebirdClient, FDBHandle, aTransInfo);
   FItems.Add(Result);
 end;
 
 function TFirebirdTransactionPool.Add: IFirebirdTransaction;
-var T: TTransactionDesc;
+var T: TTransactionInfo;
 begin
-  T.TransactionID := 0;
-  T.IsolationLevel := xilREADCOMMITTED;
+  T.ID := 0;
+  T.Isolation := isoReadCommitted;
   Result := Add(T);
 end;
 
