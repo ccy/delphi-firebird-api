@@ -295,7 +295,9 @@ type
   ['{A51BBF0A-0565-4397-AFBE-ED0DD7BAF3BC}']
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
         longint): boolean;
-    function CheckResult(out aResult: word; const aFailed_Result: word): Boolean;
+    function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
+    function CheckResult(out aResult: longint; const aFailed_Result: longint):
+        Boolean; overload;
     function GetError(const aFirebirdClient: IFirebirdLibrary): IFirebirdError;
     function GetLastError: IFirebirdError;
     function GetpValue: pstatus_vector;
@@ -311,7 +313,9 @@ type
   protected
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
         longint): boolean;
-    function CheckResult(out aResult: word; const aFailed_Result: word): Boolean;
+    function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
+    function CheckResult(out aResult: longint; const aFailed_Result: longint):
+        Boolean; overload;
     function GetError(const aFirebirdClient: IFirebirdLibrary): IFirebirdError;
     function GetLastError: IFirebirdError;
     function GetpValue: pstatus_vector;
@@ -789,6 +793,15 @@ end;
 
 function TStatusVector.CheckResult(out aResult: word; const aFailed_Result:
     word): Boolean;
+begin
+  aResult := 0;
+  if HasError then
+    aResult := aFailed_Result;
+  Result := aResult = 0;
+end;
+
+function TStatusVector.CheckResult(out aResult: longint; const aFailed_Result:
+    longint): Boolean;
 begin
   aResult := 0;
   if HasError then
