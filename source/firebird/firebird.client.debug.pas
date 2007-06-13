@@ -223,8 +223,8 @@ begin
   P1 := aParams[1].VPointer;
   P2 := aParams[3].VPointer;
   Result := Format(
-              '%s statement handle: %d dialect: %d version: %d sqln: %d sqld: %d',
-              [aProcName, integer(P1^), aParams[2].vInteger, P2.Version, P2.sqln, P2.sqld]);
+              '%s statement handle: %d daVer: %d sqln: %d sqld: %d',
+              [aProcName, integer(P1^), aParams[2].vInteger, P2.sqln, P2.sqld]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_describe_bind(const aProcName:
@@ -236,8 +236,8 @@ begin
   P1 := aParams[1].VPointer;
   P2 := aParams[3].VPointer;
   Result := Format(
-              '%s statement handle: %d dialect: %d version: %d sqln: %d sqld: %d',
-              [aProcName, integer(P1^), aParams[2].vInteger, P2.Version, P2.sqln, P2.sqld]);
+              '%s statement handle: %d daVer: %d sqln: %d sqld: %d',
+              [aProcName, integer(P1^), aParams[2].vInteger, P2.sqln, P2.sqld]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_execute(const aProcName: string;
@@ -248,7 +248,7 @@ begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
   Result := Format(
-              '%s transaction handle: %d statement handle: %d dialect: %d',
+              '%s transaction handle: %d statement handle: %d daVer: %d',
               [aProcName, integer(P1^), integer(P2^), aParams[3].vInteger]);
 end;
 
@@ -305,7 +305,6 @@ function TFirebirdClientDebugFactory.isc_dsql_sql_info(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
 var P: ^Pointer;
-    s: string;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s statement handle: %d ', [aProcName, integer(P^)]);
