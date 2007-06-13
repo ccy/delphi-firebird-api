@@ -979,8 +979,6 @@ begin
   FState := S_INACTIVE;
 end;
 
-{ TFirebird_DSQL }
-
 procedure TFirebird_DSQL.BeforeDestruction;
 begin
   inherited;
