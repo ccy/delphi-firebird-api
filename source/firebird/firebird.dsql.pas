@@ -920,8 +920,12 @@ end;
 
 function TXSQLDA.GetVars(Index: Integer): TXSQLVAR;
 begin
-  Assert(Index > 0);
-  Result := TXSQLVar(FVars[Index - 1]);
+  {$if CompilerVersion > 18}
+    Result := TXSQLVar(FVars[Index]);
+  {$else}
+    Assert(Index > 0);
+    Result := TXSQLVar(FVars[Index - 1]);
+  {$ifend}
 end;
 
 function TXSQLDA.Get_sqld: smallint;
