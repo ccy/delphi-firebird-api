@@ -366,7 +366,6 @@ type
     FDBHandle: pisc_db_handle;
     FFirebirdClient: IFirebirdLibrary;
     FItems: IInterfaceList;
-    function Get2(const aTransID: LongWord; out aIndex: integer): IFirebirdTransaction;
   public
     constructor Create(const aFirebirdClient: IFirebirdLibrary; const aDBHandle:
         pisc_db_handle);
@@ -375,13 +374,13 @@ type
         overload;
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
-    function Commit(const aStatusVector: IStatusVector; const aTransID: LongWord):
-        ISC_STATUS;
+    function Commit(const aStatusVector: IStatusVector; const aTransaction:
+        IFirebirdTransaction): ISC_STATUS;
     function Count: integer;
     function CurrentTransaction: IFirebirdTransaction;
     function Get(const aTransID: LongWord): IFirebirdTransaction;
-    function RollBack(const aStatusVector: IStatusVector; const aTransID:
-        LongWord): ISC_STATUS;
+    function RollBack(const aStatusVector: IStatusVector; const aTransaction:
+        IFirebirdTransaction): ISC_STATUS;
   end;
 
   TFirebirdLibraryFactory = class abstract
@@ -989,9 +988,11 @@ end;
 function TFirebirdTransactionPool.Add(const aTransInfo: TTransactionInfo):
     IFirebirdTransaction;
 begin
+  {$if CompilerVersion = 18}
   if Assigned(Get(aTransInfo.ID)) then
     raise ETransactionExist.CreateFmt('Transaction ID %d already exist', [aTransInfo.ID]);
-
+  {$ifend}
+  
   Result := TFirebirdTransaction.Create(FFirebirdClient, FDBHandle, aTransInfo);
   FItems.Add(Result);
 end;
@@ -1028,13 +1029,12 @@ begin
 end;
 
 function TFirebirdTransactionPool.Commit(const aStatusVector: IStatusVector;
-    const aTransID: LongWord): ISC_STATUS;
+    const aTransaction: IFirebirdTransaction): ISC_STATUS;
 var i: integer;
-    T: IFirebirdTransaction;
 begin
-  T := Get2(aTransID, i);
-  Assert(T <> nil);
-  Result := T.Commit(aStatusVector);
+  Result := aTransaction.Commit(aStatusVector);
+  i := FItems.IndexOf(aTransaction);
+  Assert(i >= 0);
   FItems.Delete(i);
 end;
 
@@ -1046,36 +1046,26 @@ end;
 function TFirebirdTransactionPool.Get(const aTransID: LongWord):
     IFirebirdTransaction;
 var i: integer;
-begin
-  Result := Get2(aTransID, i);
-end;
-
-function TFirebirdTransactionPool.Get2(const aTransID: LongWord;
-  out aIndex: integer): IFirebirdTransaction;
-var i: integer;
     N: IFirebirdTransaction;
 begin
-  aIndex := -1;
-
+  {$if CompilerVersion > 18} Assert(False, 'For DBX3 Only'); {$ifend}
   Result := nil;
   for i := 0 to Count - 1 do begin
     N := FItems[i] as IFirebirdTransaction;
     if N.ID = aTransID then begin
       Result := N;
-      aIndex := i;
       Break;
     end;
   end;
 end;
 
 function TFirebirdTransactionPool.RollBack(const aStatusVector: IStatusVector;
-    const aTransID: LongWord): ISC_STATUS;
+    const aTransaction: IFirebirdTransaction): ISC_STATUS;
 var i: integer;
-    T: IFirebirdTransaction;
 begin
-  T := Get2(aTransID, i);
-  Assert(T <> nil);
-  Result := T.Rollback(aStatusVector);
+  Result := aTransaction.Rollback(aStatusVector);
+  i := FItems.IndexOf(aTransaction);
+  Assert(i >= 0);
   FItems.Delete(i);
 end;
 

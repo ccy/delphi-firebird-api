@@ -1086,20 +1086,18 @@ end;
 
 function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
 begin
-//  dbxadapter30.dll
-//  if FState = S_INACTIVE then begin
-//    Result := 0;
-//    Exit;
-//  end;
-//  dbxadapter30.dll
+  if FState = S_INACTIVE then begin
+    Result := 0;
+    Exit;
+  end;
 
   if FManageTransaction then begin
     if (FState = S_EXECUTED) or (FState = S_EOF) then begin
-      FTransactionPool.Commit(aStatusVector, FTransaction.ID);
+      FTransactionPool.Commit(aStatusVector, FTransaction);
       FTransaction := nil;
       if aStatusVector.CheckError(FClient, Result) then Exit;
     end else begin
-      FTransactionPool.RollBack(aStatusVector, FTransaction.ID);
+      FTransactionPool.RollBack(aStatusVector, FTransaction);
       FTransaction := nil;
       if aStatusVector.CheckError(FClient, Result) then Exit;
     end;
