@@ -126,6 +126,7 @@ type
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
+    function GetPlan(const aStatusVector: IStatusVector): string;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): Integer;
     function Transaction: IFirebirdTransaction;
@@ -159,6 +160,7 @@ type
     function Fetch(const aStatusVector: IStatusVector): ISC_STATUS;
     function Geti_SQLDA: TXSQLDA;
     function Geto_SQLDA: TXSQLDA;
+    function GetPlan(const aStatusVector: IStatusVector): string;
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
@@ -1039,6 +1041,25 @@ end;
 function TFirebird_DSQL.Geto_SQLDA: TXSQLDA;
 begin
   Result := FSQLDA_Out;
+end;
+
+function TFirebird_DSQL.GetPlan(const aStatusVector: IStatusVector): string;
+var info_request: byte;
+    result_buffer: array[0..16384] of Byte;
+    pLen: PWord;
+begin
+  Assert(FState = S_PREPARED);
+
+  info_request := isc_info_sql_get_plan;
+  FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), @result_buffer);
+  Assert(aStatusVector.Success);
+
+  Assert(result_buffer[0] = isc_info_sql_get_plan);
+
+  pLen := @result_buffer[1];
+  result_buffer[3 + pLen^] := 0;
+
+  Result := String(PChar(@result_buffer[3]));
 end;
 
 function TFirebird_DSQL.GetRowsAffected(const aStatusVector: IStatusVector; out

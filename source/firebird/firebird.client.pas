@@ -701,7 +701,7 @@ function TFirebirdLibrary.isc_service_start(status: pstatus_vector;
   svc_handle, recv_handle: pisc_svc_handle; isc_arg4: short;
   isc_arg5: pchar): ISC_STATUS;
 begin
-  Result := Call(@Fisc_service_start, [status, recv_handle, isc_arg4, isc_arg5]);
+  Result := Call(@Fisc_service_start, [status, svc_handle, recv_handle, isc_arg4, isc_arg5]);
 end;
 
 function TFirebirdLibrary.isc_sqlcode(status: PISC_STATUS): ISC_LONG;
