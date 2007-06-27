@@ -54,6 +54,8 @@ type
     function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
         blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
+    function isc_database_info(status: pstatus_vector; a: pisc_db_handle; b: short;
+        c: pchar; d: short; e: pchar): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
     procedure isc_decode_sql_time(a: PISC_TIME; b: PISC_LONG);
     procedure isc_decode_timestamp(a: PISC_TIMESTAMP; b: PISC_LONG);
@@ -139,6 +141,7 @@ type
     Fisc_commit_transaction: Tisc_commit_transaction;
     Fisc_create_blob: Tisc_create_blob;
     Fisc_create_blob2: Tisc_create_blob2;
+    Fisc_database_info: Tisc_database_info;
     Fisc_decode_sql_date: Tisc_decode_sql_date;
     Fisc_decode_sql_time: Tisc_decode_sql_time;
     Fisc_decode_timestamp: Tisc_decode_timestamp;
@@ -188,6 +191,8 @@ type
     function isc_create_blob2(status: pstatus_vector; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
         blob_id: PISC_QUAD; e: short; f: pchar): ISC_STATUS; stdcall;
+    function isc_database_info(status: pstatus_vector; a: pisc_db_handle; b: short;
+        c: pchar; d: short; e: pchar): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
     procedure isc_decode_sql_time(a: PISC_TIME; b: PISC_LONG);
     procedure isc_decode_timestamp(a: PISC_TIMESTAMP; b: PISC_LONG);
@@ -503,6 +508,12 @@ begin
   Result := Call(@Fisc_create_blob2, [status, db_handle, tr_handle, blob_handle, blob_id, e, f]);
 end;
 
+function TFirebirdLibrary.isc_database_info(status: pstatus_vector;
+  a: pisc_db_handle; b: short; c: pchar; d: short; e: pchar): ISC_STATUS;
+begin
+  Call(@Fisc_database_info, [status, a, b, c, d, e]);
+end;
+
 procedure TFirebirdLibrary.isc_decode_sql_date(a: PISC_DATE; b: PISC_LONG);
 begin
   Call(@Fisc_decode_sql_date, [a, b]);
@@ -727,6 +738,7 @@ begin
   Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
   Fisc_create_blob             := GetProc(aHandle, 'isc_create_blob'); 
   Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
+  Fisc_database_info           := GetProc(aHandle, 'isc_database_info');
   Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
   Fisc_decode_sql_time         := GetProc(aHandle, 'isc_decode_sql_time');
   Fisc_decode_timestamp        := GetProc(aHandle, 'isc_decode_timestamp');
