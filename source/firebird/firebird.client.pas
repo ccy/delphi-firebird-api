@@ -298,6 +298,7 @@ type
 
   IStatusVector = interface(IInterface)
   ['{A51BBF0A-0565-4397-AFBE-ED0DD7BAF3BC}']
+    procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
         longint): boolean;
     function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
@@ -316,6 +317,7 @@ type
     FError: IFirebirdError;
     FStatusVector: status_vector;
   protected
+    procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
         longint): boolean;
     function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
@@ -791,6 +793,13 @@ begin
     L := nil;
   end;
   Result := L;
+end;
+
+procedure TStatusVector.CheckAndRaiseError(
+  const aFirebirdClient: IFirebirdLibrary);
+begin
+  if HasError then
+    raise Exception.Create(GetError(aFirebirdClient).GetMessage);
 end;
 
 function TStatusVector.CheckError(const aFirebirdClient: IFirebirdLibrary; out
