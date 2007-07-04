@@ -585,8 +585,12 @@ begin
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
     i := Pos('.', S);
-    if i > 0 then
+    if i = 1 then
+      S := '0'
+    else if i > 1 then begin
       SetLength(S, i - 1);
+      if S = '-' then S := '0';
+    end;
     iBigInt := StrToInt64(S);
     Move(iBigInt, sqldata^, sqllen)
   end else if CheckType(SQL_LONG) then begin
