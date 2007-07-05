@@ -150,7 +150,6 @@ type
     function StatementHandle: pisc_stmt_handle;
   private
     FLast_DBHandle: pisc_db_handle;
-    FLast_Transaction: IFirebirdTransaction;
     FLast_SQL: string;
     FLast_SQLDialect: word;
     FLast_ParamCount: integer;
@@ -998,7 +997,7 @@ function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): Integer;
 var X: PXSQLDA;
 begin
   if FState = S_INACTIVE then begin
-    Open(aStatusVector, FLast_DBHandle, FLast_Transaction);
+    Open(aStatusVector, FLast_DBHandle, nil);
     if aStatusVector.CheckError(FClient, Result) then Exit;
 
     Prepare(aStatusVector, FLast_SQL, FLast_SQLDialect, FLast_ParamCount);
@@ -1143,7 +1142,6 @@ begin
   Assert(FState = S_INACTIVE);
 
   FLast_DBHandle := aDBHandle;
-  FLast_Transaction := aTransaction;
 
   {$region 'Allocate Statement'}
   FStatementHandle := nil;
