@@ -1109,6 +1109,7 @@ end;
 procedure TFirebirdLibrary2.BeforeDestruction;
 begin
   inherited;
+  Sleep(1); {$Message 'In firebird embedded, this delay will make the FreeLibrary safer and won't cause unexpected error for massive LoadLibrary / FreeLibrary calls'}
   FreeLibrary(FHandle);
 end;
 
