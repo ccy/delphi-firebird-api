@@ -1170,6 +1170,7 @@ begin
   FLast_ParamCount := aParamCount;
 
   {$region 'prepare'}
+  FreeAndNil(FSQLDA_Out);
   FSQLDA_Out := TXSQLDA.Create(FClient);
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), pAnsiChar(aSQL), aSQLDialect, FSQLDA_Out.XSQLDA);
   if aStatusVector.CheckError(FClient, Result) then Exit;
