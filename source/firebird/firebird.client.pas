@@ -272,6 +272,7 @@ type
   private
     FHandle: THandle;
     FLibrary: string;
+    FOldVars: IInterface;
   public
     constructor Create(const aLibrary: string);
     procedure AfterConstruction; override;
@@ -394,6 +395,19 @@ type
   public
     class function New(const aLibrary: string): IFirebirdLibrary; overload;
     class function New(const aHandle: THandle): IFirebirdLibrary; overload;
+  end;
+
+  TFirebirdLibraryRootPath = class(TInterfacedObject)
+  strict private
+    FFIREBIRD: string;
+    FFIREBIRD_MSG: string;
+    FFIREBIRD_TMP: string;
+    FOldVars: TStringList;
+  private
+    procedure SetVars(const aVars: TStringList);
+  public
+    constructor Create(const aRootPath: string);
+    procedure BeforeDestruction; override;
   end;
 
 implementation
@@ -1091,19 +1105,14 @@ begin
 end;
 
 procedure TFirebirdLibrary2.AfterConstruction;
-var sDir: string;
 begin
   inherited;
-  sDir := GetCurrentDir;
-  SetCurrentDir(ExtractFilePath(FLibrary));
-  try
-    FHandle := LoadLibrary(PAnsiChar(FLibrary));
-    if FHandle = 0 then
-      raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
-    Setup(FHandle);
-  finally
-    SetCurrentDir(sDir);
-  end;
+  FOldVars := TFirebirdLibraryRootPath.Create(ExtractFilePath(FLibrary));
+
+  FHandle := LoadLibrary(PAnsiChar(FLibrary));
+  if FHandle = 0 then
+    raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
+  Setup(FHandle);
 end;
 
 procedure TFirebirdLibrary2.BeforeDestruction;
@@ -1117,6 +1126,52 @@ constructor TFirebirdLibrary2.Create(const aLibrary: string);
 begin
   inherited Create;
   FLibrary := aLibrary;
+end;
+
+procedure TFirebirdLibraryRootPath.BeforeDestruction;
+begin
+  inherited;
+  SetVars(FOldVars);
+  FOldVars.Free;
+end;
+
+constructor TFirebirdLibraryRootPath.Create(const aRootPath: string);
+var S: TStringList;
+begin
+  inherited Create;
+  FOldVars := TStringList.Create;
+  FOldVars.Values['FIREBIRD'] := GetEnvironmentVariable('FIREBIRD');
+  FOldVars.Values['FIREBIRD_MSG'] := GetEnvironmentVariable('FIREBIRD_MSG');
+  FOldVars.Values['FIREBIRD_TMP'] := GetEnvironmentVariable('FIREBIRD_TMP');
+
+  S := TStringList.Create;
+  try
+    S.Values['FIREBIRD'] := aRootPath;
+    S.Values['FIREBIRD_MSG'] := aRootPath;
+    S.Values['FIREBIRD_TMP'] := aRootPath;
+    SetVars(S);
+  finally
+    S.Free;
+  end;
+end;
+
+procedure TFirebirdLibraryRootPath.SetVars(const aVars: TStringList);
+var H: THandle;
+    putenv: function(estr: PChar): integer; cdecl;
+    S: string;
+begin
+  H := LoadLibrary('msvcrt.dll');
+  if (H >= 32) then begin
+    try
+      putenv := GetProcAddress( H, '_putenv');
+      if Assigned(putenv) then begin
+        for S in aVars do
+          putenv(PAnsiChar(S));
+      end;
+    finally
+      FreeLibrary(H);
+    end;
+  end;
 end;
 
 end.
