@@ -4,6 +4,8 @@ interface
 
 uses Windows, IB_Header, SysUtils, Classes;
 
+{$Message 'http://tracker.firebirdsql.org/browse/CORE-1745: Firebird Embedded DLL create fb_xxxx.LCK cause problem on multi connection in same project'}
+
 type
   {$region 'Firebird Library: Debugger'}
   IFirebirdLibraryDebuggerListener = interface(IInterface)
