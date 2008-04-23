@@ -401,9 +401,6 @@ type
 
   TFirebirdLibraryRootPath = class(TInterfacedObject)
   strict private
-    FFIREBIRD: string;
-    FFIREBIRD_MSG: string;
-    FFIREBIRD_TMP: string;
     FOldVars: TStringList;
   private
     procedure SetVars(const aVars: TStringList);
@@ -1138,7 +1135,8 @@ begin
 end;
 
 constructor TFirebirdLibraryRootPath.Create(const aRootPath: string);
-var S: TStringList;
+var sPath: array[0..MAX_PATH] of char;
+    S: TStringList;
 begin
   inherited Create;
   FOldVars := TStringList.Create;
@@ -1150,7 +1148,10 @@ begin
   try
     S.Values['FIREBIRD'] := aRootPath;
     S.Values['FIREBIRD_MSG'] := aRootPath;
-    S.Values['FIREBIRD_TMP'] := aRootPath;
+
+    GetTempPath(MAX_PATH, sPath);
+    S.Values['FIREBIRD_TMP'] := sPath;
+
     SetVars(S);
   finally
     S.Free;
