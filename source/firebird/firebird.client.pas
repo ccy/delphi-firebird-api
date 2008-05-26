@@ -1104,14 +1104,22 @@ begin
 end;
 
 procedure TFirebirdLibrary2.AfterConstruction;
+var sPath, sDir: string;
 begin
   inherited;
-  FOldVars := TFirebirdLibraryRootPath.Create(ExtractFilePath(FLibrary));
+  sPath := ExtractFilePath(FLibrary);
+  FOldVars := TFirebirdLibraryRootPath.Create(sPath);
 
-  FHandle := LoadLibrary(PAnsiChar(FLibrary));
-  if FHandle = 0 then
-    raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
-  Setup(FHandle);
+  sDir := GetCurrentDir;
+  try
+    SetCurrentDir(sPath);
+    FHandle := LoadLibrary(PAnsiChar(FLibrary));
+    if FHandle = 0 then
+      raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
+    Setup(FHandle);
+  finally
+    SetCurrentDir(sDir);
+  end;
 end;
 
 procedure TFirebirdLibrary2.BeforeDestruction;
