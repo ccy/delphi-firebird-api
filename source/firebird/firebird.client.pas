@@ -949,15 +949,17 @@ begin
 
   FTransInfo := aTransInfo;
 
-  tpb := char(isc_tpb_version3) + char(isc_tpb_concurrency) + char(isc_tpb_write);
+  tpb := char(isc_tpb_version3) + char(isc_tpb_write);
   b := 0;
   case aTransInfo.Isolation of
     isoReadCommitted:  b := isc_tpb_read_committed;
-    isoRepeatableRead: b := 0;
+    isoRepeatableRead: b := isc_tpb_concurrency;
   end;
   if b <> 0 then
     tpb := tpb + char(b);
-  tpb := tpb + char(isc_tpb_rec_version) + char(isc_tpb_nowait);
+
+  if aTransInfo.Isolation = isoReadCommitted then
+    tpb := tpb + char(isc_tpb_rec_version) + char(isc_tpb_nowait);
 
   FTransactionHandle := nil;
   FTransParam.db_ptr := aDBHandle;
