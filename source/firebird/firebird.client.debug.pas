@@ -4,7 +4,7 @@ interface
 
 uses firebird.client;
 
-type
+type{$M+}
   TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdLibraryDebugFactory)
   protected
     function Get(const aProcName: string; const aProc: pointer; const aParams:
@@ -72,7 +72,8 @@ type
 
 implementation
 
-uses IB_Header, SysUtils;
+uses SysUtils,
+     firebird.time.h, firebird.sqlda_pub.h, firebird.types_pub.h;
 
 function TFirebirdClientDebugFactory.Get(const aProcName: string; const aProc:
     pointer; const aParams: array of const; const aResult: longint): string;
@@ -284,9 +285,9 @@ var P: ^Pointer;
 begin
   P := aParams[1].VPointer;
   case aParams[2].VInteger of
-    DSQL_close: s := 'DSQL_CLOSE';
-    DSQL_drop: s := 'DSQL_DROP';
-    DSQL_cancel: s := 'DSQL_CANCEL';
+    DSQL_close: s := 'DSQL_close';
+    DSQL_drop: s := 'DSQL_drop';
+    DSQL_unprepare: s := 'DSQL_unprepare';
     else s := 'unknown';
   end;
   Result := Format('%s statement handle: %d Option: %s', [aProcName, integer(P^), s]);
@@ -366,7 +367,7 @@ begin
   P4 := aParams[4].VPointer;
   Result := Format(
               '%s db_handle: %d tr_handle: %d blob_handle: %d, BlobID: %d %d',
-              [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.isc_quad_high, P4^.isc_quad_low]);
+              [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.gds_quad_high, P4^.gds_quad_low]);
 end;
 
 function TFirebirdClientDebugFactory.isc_open_blob2(const aProcName: string;
@@ -381,7 +382,7 @@ begin
   P4 := aParams[4].VPointer;
   Result := Format(
               '%s db_handle: %d tr_handle: %d blob_handle: %d, BlobID: %d %d, bpb_Length: %d ',
-              [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.isc_quad_high, P4^.isc_quad_low, aParams[5].vInteger]);
+              [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.gds_quad_high, P4^.gds_quad_low, aParams[5].vInteger]);
 end;
 
 function TFirebirdClientDebugFactory.isc_put_segment(const aProcName: string;

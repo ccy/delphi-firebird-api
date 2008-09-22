@@ -35,11 +35,17 @@ requires
   dbrtl;
 
 contains
-  IB_Header in '..\source\rtl\IB_Header.pas',
   firebird.client in '..\source\rtl\firebird.client.pas',
   firebird.client.debug in '..\source\rtl\firebird.client.debug.pas',
   firebird.dsql in '..\source\rtl\firebird.dsql.pas',
   firebird.service in '..\source\rtl\firebird.service.pas',
+  firebird.ibase.h in '..\source\firebird\firebird.ibase.h.pas',
+  firebird.iberror.h in '..\source\firebird\firebird.iberror.h.pas',
+  firebird.inf_pub.h in '..\source\firebird\firebird.inf_pub.h.pas',
+  firebird.sqlda_pub.h in '..\source\firebird\firebird.sqlda_pub.h.pas',
+  firebird.time.h in '..\source\firebird\firebird.time.h.pas',
+  firebird.types_pub.h in '..\source\firebird\firebird.types_pub.h.pas',
+  firebird.consts_pub.h in '..\source\firebird\firebird.consts_pub.h.pas',
   firebird.charsets in '..\source\rtl\firebird.charsets.pas';
 
 end.

@@ -2,7 +2,10 @@ unit firebird.dsql;
 
 interface
 
-uses Classes, IB_Header, firebird.client;
+uses Classes,
+     firebird.sqlda_pub.h, firebird.ibase.h, firebird.types_pub.h, firebird.iberror.h,
+     firebird.inf_pub.h, firebird.time.h,
+     firebird.client;
 
 type
   TXSQLVAR = class(TObject)
@@ -15,16 +18,12 @@ type
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
   protected
-    function Get_aliasname: TIB_Identifier;
+    function Get_aliasname: string;
     function Get_aliasname_length: smallint;
-    function Get_ownname: TIB_Identifier;
-    function Get_ownname_length: smallint;
-    function Get_relname: TIB_Identifier;
-    function Get_relname_length: smallint;
     function Get_sqldata: Pointer;
-    function Get_sqlind: psmallint;
+    function Get_sqlind: PISC_SHORT;
     function Get_sqllen: smallint;
-    function Get_sqlname: TIB_Identifier;
+    function Get_sqlname: string;
     function Get_sqlname_length: smallint;
     function Get_sqlscale: smallint;
     function Get_sqlsubtype: smallint;
@@ -72,18 +71,14 @@ type
     procedure SetTimeStamp(const aValue: pointer; const aIsNull: boolean);
     procedure SetWideString(const aValue: pointer; const aLength: word; const
         aIsNull: boolean);
-    property aliasname: TIB_Identifier read Get_aliasname;
+    property aliasname: string read Get_aliasname;
     property aliasname_length: smallint read Get_aliasname_length;
     property IsNull: boolean read GetIsNull write SetIsNull;
-    property ownname: TIB_Identifier read Get_ownname;
-    property ownname_length: smallint read Get_ownname_length;
-    property relname: TIB_Identifier read Get_relname;
-    property relname_length: smallint read Get_relname_length;
     property Size: smallint read GetSize;
     property sqldata: pointer read Get_sqldata write Set_sqldata;
-    property sqlind: psmallint read Get_sqlind;
+    property sqlind: PISC_SHORT read Get_sqlind;
     property sqllen: smallint read Get_sqllen;
-    property sqlname: TIB_Identifier read Get_sqlname;
+    property sqlname: string read Get_sqlname;
     property sqlname_length: smallint read Get_sqlname_length;
     property sqlscale: smallint read Get_sqlscale;
     property sqlsubtype: smallint read Get_sqlsubtype;
@@ -209,7 +204,7 @@ begin
 end;
 
 procedure TXSQLVAR.GetAnsiString(aValue: pointer; out aIsNull: boolean);
-var c: PAnsiChar;
+var c: PByte;
     iLen: word;
 begin
   Assert(FPrepared);
@@ -219,23 +214,24 @@ begin
   if CheckType(SQL_TEXT) then begin
     Move(FXSQLVar.sqldata^, aValue^, sqllen);
     c := aValue;
-    c := c + sqllen;
-    c^ := #0;
+    Inc(c, sqllen);
+    c^ := 0;
   end else if CheckType(SQL_VARYING) then begin
     Move(FXSQLVar.sqldata^, iLen, 2);
-    c := PAnsiChar(FXSQLVar.sqldata) + 2;
+    c := PByte(FXSQLVar.sqldata);
+    Inc(c, 2);
     Move(c^, aValue^, iLen);
     c := aValue;
-    c := c + iLen;
-    c^ := #0;
+    Inc(c, iLen);
+    c^ := 0;
   end else
     Assert(False);
 end;
 
 procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
 
-  procedure Test(aValue: pointer; const aScale: word; aData: string);
-  var i, iLen: integer;
+  procedure TestNegative(aValue: pointer; const aScale: word; aData: string);
+  var a, i, iLen: integer;
       bNeg: boolean;
   begin
     if aScale > 0 then begin
@@ -251,9 +247,12 @@ procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
 
       Inc(iLen);  // To hold extra '.'
       SetLength(aData, iLen);
-      for i := iLen downto iLen - aScale + 1 do
+      a := iLen;
+      for i := iLen downto iLen - aScale + 1 do begin
         aData[i] := aData[i-1];
-      aData[i] := '.';
+        Dec(a);
+      end;
+      aData[a] := '.';
 
       if bNeg then
         aData := '-' + aData;
@@ -266,11 +265,11 @@ begin
   aIsNull := IsNull;
   if aIsNull then Exit;
   if CheckType(SQL_INT64) then
-    Test(aValue, -sqlscale, IntToStr(PInt64(sqldata)^))
+    TestNegative(aValue, -sqlscale, IntToStr(PInt64(sqldata)^))
   else if CheckType(SQL_LONG) then
-    Test(aValue, -sqlscale, IntToStr(PInteger(sqldata)^))
+    TestNegative(aValue, -sqlscale, IntToStr(PInteger(sqldata)^))
   else if CheckType(SQL_SHORT) then
-    Test(aValue, -sqlscale, IntToStr(PSmallInt(sqldata)^))
+    TestNegative(aValue, -sqlscale, IntToStr(PSmallInt(sqldata)^))
   else
     Assert(False);
 end;
@@ -284,7 +283,7 @@ var hBlob: isc_blob_handle;
     iLenTotal: LongWord;
     iBufSize: word;
     iResult: ISC_STATUS;
-    p: PAnsiChar;
+    p: PByte;
 begin
   Assert(FPrepared);
   Assert(CheckType(SQL_BLOB));
@@ -293,7 +292,7 @@ begin
   if aIsNull then Exit;
 
   pBlobID := sqldata;
-  aIsNull := (pBlobID.isc_quad_high = 0) and (pBlobID.isc_quad_low = 0);
+  aIsNull := (pBlobID.gds_quad_high = 0) and (pBlobID.gds_quad_low = 0);
   if aIsNull then Exit;
 
   hBlob := nil;
@@ -307,9 +306,9 @@ begin
   repeat
     if aLength - iLenTotal <= High(Word) then
       iBufSize := aLength - iLenTotal;
-    iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, p);
+    iResult := FClient.isc_get_segment(aStatusVector.pValue, @hBlob, @iLen, iBufSize, PISC_SCHAR(p));
     if iResult = 0 then begin
-      p := p + iLen;
+      Inc(p, iLen);
       Inc(iLenTotal, iLen);
     end else if iResult <> isc_segstr_eof then
       if aStatusVector.CheckError(FClient, Result) then Exit
@@ -325,8 +324,8 @@ function TXSQLVAR.GetBlobSize(const aStatusVector: IStatusVector; const
     aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction; out
     aBlobSize: longword; out aIsNull: boolean): ISC_STATUS;
 var hBlob: isc_blob_handle;
-    C: string;
-    R: array[0..9] of AnsiChar;
+    C: array[0..0] of byte;
+    R: array[0..9] of byte;
     pBlobID: PISC_QUAD;
     iLen: word;
 begin
@@ -339,19 +338,19 @@ begin
   if aIsNull then Exit;
 
   pBlobID := sqldata;
-  aIsNull := (pBlobID.isc_quad_high = 0) and (pBlobID.isc_quad_low = 0);
+  aIsNull := (pBlobID.gds_quad_high = 0) and (pBlobID.gds_quad_low = 0);
   if aIsNull then Exit;
 
-  C := char(isc_info_blob_total_length);
+  C[0] := isc_info_blob_total_length;
   hBlob := nil;
 
   FClient.isc_open_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, pBlobID);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  FClient.isc_blob_info(aStatusVector.pValue, @hBlob, 1, PAnsiChar(C), SizeOf(R), R);
+  FClient.isc_blob_info(aStatusVector.pValue, @hBlob, 1, @C, Length(R), @R);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
-  Assert(R[0] = C[1]);
+  Assert(R[0] = C[0]);
   Move(R[1], iLen, 2);
   Assert(iLen = 4);
   Move(R[3], aBlobSize, iLen);
@@ -483,7 +482,7 @@ begin
   if aIsNull then Exit;
 
   if CheckType(SQL_TEXT) then
-    Utf8ToUnicode(PWideChar(aValue), (sqllen div 4) + 1, FXSQLVar.sqldata, sqllen)
+    Utf8ToUnicode(PWideChar(aValue), (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata), sqllen)
   else if CheckType(SQL_VARYING) then begin
     Move(FXSQLVar.sqldata^, iLen, 2);
     Utf8ToUnicode(PWideChar(aValue), (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata) + 2, iLen);
@@ -491,7 +490,7 @@ begin
     Assert(False);
 end;
 
-function TXSQLVAR.Get_aliasname: TIB_Identifier;
+function TXSQLVAR.Get_aliasname: string;
 begin
   Result := FXSQLVAR.aliasname;
 end;
@@ -501,32 +500,12 @@ begin
   Result := FXSQLVAR.aliasname_length;
 end;
 
-function TXSQLVAR.Get_ownname: TIB_Identifier;
-begin
-  Assert(False);
-end;
-
-function TXSQLVAR.Get_ownname_length: smallint;
-begin
-  Assert(False);
-end;
-
-function TXSQLVAR.Get_relname: TIB_Identifier;
-begin
-  Assert(False);
-end;
-
-function TXSQLVAR.Get_relname_length: smallint;
-begin
-  Assert(False);
-end;
-
 function TXSQLVAR.Get_sqldata: Pointer;
 begin
   Result := FXSQLVAR.sqldata;
 end;
 
-function TXSQLVAR.Get_sqlind: psmallint;
+function TXSQLVAR.Get_sqlind: PISC_SHORT;
 begin
   Result := FXSQLVAR.sqlind;
 end;
@@ -536,7 +515,7 @@ begin
   Result := FXSQLVAR.sqllen;
 end;
 
-function TXSQLVAR.Get_sqlname: TIB_Identifier;
+function TXSQLVAR.Get_sqlname: string;
 begin
   Result := FXSQLVar.sqlname
 end;
@@ -599,7 +578,7 @@ end;
 
 procedure TXSQLVAR.SetAnsiString(const aValue: pointer; const aLength: word;
     const aIsNull: boolean);
-var p: PAnsiChar;
+var p: PByte;
     iSmallInt: Smallint;
     iLong: Integer;
     B: TBcd;
@@ -611,15 +590,15 @@ begin
   if CheckType(SQL_VARYING) then begin
     p := sqldata;
     Move(aLength, p^, 2);
-    p := p + 2;
+    Inc(p, 2);
     Move(aValue^, p^, aLength);
   end else if CheckType(SQL_TEXT) then begin
     Move(aValue^, sqldata^, aLength);
     p := sqldata;
-    P := P + aLength;
+    Inc(p, aLength);
     FillChar(p^, sqllen - aLength, 32);
-    P := P + sqllen - aLength;
-    P^ := #0;
+    Inc(p, sqllen - aLength);
+    P^ := 0;
   end else if CheckType(SQL_SHORT) then begin
     iSmallInt := StrToInt(string(PAnsiChar(aValue)));
     SetShort(@iSmallInt, SizeOf(iSmallInt), aIsNull);
@@ -693,15 +672,15 @@ var hBlob: isc_blob_handle;
     BlobID: ISC_QUAD;
     wLen: word;
     iCurPos: integer;
-    p: PAnsiChar;
+    p, q: PByte;
 begin
   IsNull := aIsNull;
   Assert(CheckType(SQL_BLOB));
   Assert(SizeOf(BlobID) = sqllen);
 
   hBlob := nil;
-  BlobID.isc_quad_high := 0;
-  BlobID.isc_quad_low := 0;
+  BlobID.gds_quad_high := 0;
+  BlobID.gds_quad_low := 0;
   FClient.isc_create_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 
@@ -711,7 +690,9 @@ begin
   while iCurPos < aLength do begin
     if iCurPos + wLen > aLength then
       wLen := aLength - iCurPos;
-    FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, p + iCurPos);
+    q := p;
+    Inc(q, iCurPos);
+    FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, PISC_SCHAR(q));
     if aStatusVector.CheckError(FClient, Result) then Exit;
     Inc(iCurPos, wLen);
   end;
@@ -1032,6 +1013,7 @@ var o: TXSQLVAR;
     iLen: integer;
     i: Integer;
     iVarSize: integer;
+    p: PByte;
 begin
   Clear;
   iLen := XSQLDA_LENGTH(aValue);
@@ -1041,7 +1023,9 @@ begin
 
   iVarSize := SizeOf(XSQLVAR);
   for i := 1 to aValue do begin
-    o := TXSQLVAR.Create(FClient, Pointer(PAnsiChar(@FXSQLDA.sqlvar) + (i - 1) * iVarSize));
+    p := @FXSQLDA.sqlvar;
+    Inc(p, (i - 1) * iVarSize);
+    o := TXSQLVAR.Create(FClient, p);
     FVars.Add(o);
   end;
 end;
@@ -1103,8 +1087,10 @@ begin
       FFetchCount := FFetchCount + 1;
   end else if FState = S_EOF then
     Result := 100
-  else
+  else begin
     Assert(False);
+    Result := -1;
+  end;
 end;
 
 function TFirebird_DSQL.Geti_SQLDA: TXSQLDA;
@@ -1138,8 +1124,8 @@ end;
 
 function TFirebird_DSQL.GetRowsAffected(const aStatusVector: IStatusVector; out
     aRowsAffected: LongWord): ISC_STATUS;
-var result_buffer: array[0..64] of AnsiChar;
-    info_request: AnsiChar;
+var result_buffer: array[0..64] of byte;
+    info_request: byte;
     stmt_len: word;
     StmtType: integer;
 begin
@@ -1148,20 +1134,20 @@ begin
   else begin
     aRowsAffected := 0;
 
-    info_request := Char(isc_info_sql_stmt_type);
-    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), result_buffer);
+    info_request := isc_info_sql_stmt_type;
+    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, Length(result_buffer), @result_buffer);
     if aStatusVector.CheckError(FClient, Result) then Exit;
 
-    if (result_buffer[0] = Char(isc_info_sql_stmt_type)) then begin
+    if (result_buffer[0] = isc_info_sql_stmt_type) then begin
       Move(result_buffer[1], stmt_len, 2);
       Move(result_buffer[3], StmtType, stmt_len);
     end;
 
-    info_request := Char(isc_info_sql_records);
-    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, SizeOf(result_buffer), result_buffer);
+    info_request := isc_info_sql_records;
+    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, Length(result_buffer), @result_buffer);
     if aStatusVector.CheckError(FClient, Result) then Exit;
 
-    if (result_buffer[0] = Char(isc_info_sql_records)) then begin
+    if (result_buffer[0] = isc_info_sql_records) then begin
       case StmtType of
         isc_info_sql_stmt_insert: Move(result_buffer[27], aRowsAffected, 4);
         isc_info_sql_stmt_update: Move(result_buffer[6], aRowsAffected, 4);
@@ -1233,6 +1219,7 @@ end;
 
 function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
     string; const aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+var A: AnsiString;
 begin
   Assert(FState = S_OPENED);
 
@@ -1243,7 +1230,8 @@ begin
   {$region 'prepare'}
   FreeAndNil(FSQLDA_Out);
   FSQLDA_Out := TXSQLDA.Create(FClient);
-  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), pAnsiChar(aSQL), aSQLDialect, FSQLDA_Out.XSQLDA);
+  A := aSQL;
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SCHAR(A), aSQLDialect, FSQLDA_Out.XSQLDA);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
   {$region 'describe'}
