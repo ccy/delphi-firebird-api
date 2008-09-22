@@ -35,10 +35,6 @@ requires
   dbrtl;
 
 contains
-  firebird.client in '..\source\rtl\firebird.client.pas',
-  firebird.client.debug in '..\source\rtl\firebird.client.debug.pas',
-  firebird.dsql in '..\source\rtl\firebird.dsql.pas',
-  firebird.service in '..\source\rtl\firebird.service.pas',
   firebird.ibase.h in '..\source\firebird\firebird.ibase.h.pas',
   firebird.iberror.h in '..\source\firebird\firebird.iberror.h.pas',
   firebird.inf_pub.h in '..\source\firebird\firebird.inf_pub.h.pas',
@@ -46,6 +42,10 @@ contains
   firebird.time.h in '..\source\firebird\firebird.time.h.pas',
   firebird.types_pub.h in '..\source\firebird\firebird.types_pub.h.pas',
   firebird.consts_pub.h in '..\source\firebird\firebird.consts_pub.h.pas',
-  firebird.charsets in '..\source\rtl\firebird.charsets.pas';
+  firebird.client.debug in '..\source\firebird\firebird.client.debug.pas',
+  firebird.client in '..\source\firebird\firebird.client.pas',
+  firebird.dsql in '..\source\firebird\firebird.dsql.pas',
+  firebird.service in '..\source\firebird\firebird.service.pas',
+  firebird.charsets in '..\source\firebird\firebird.charsets.pas';
 
 end.
