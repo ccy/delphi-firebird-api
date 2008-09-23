@@ -454,7 +454,7 @@ function TFirebirdLibrary.Call(const aProc: pointer; const aParams: array of
 var i: integer;
     aInteger: integer;
     aPointer: pointer;
-    aPChar: PChar;
+    aPChar: PAnsiChar;
     sDebug: PAnsiChar;
 begin
   for i := High(aParams) downto Low(aParams) do begin
@@ -1212,7 +1212,7 @@ end;
 
 procedure TFirebirdLibraryRootPath.SetVars(const aVars: TStringList);
 var H: THandle;
-    putenv: function(estr: PChar): integer; cdecl;
+    putenv: function(estr: PAnsiChar): integer; cdecl;
     S: string;
 begin
   H := LoadLibrary('msvcrt.dll');
@@ -1221,7 +1221,7 @@ begin
       putenv := GetProcAddress( H, '_putenv');
       if Assigned(putenv) then begin
         for S in aVars do
-          putenv(PAnsiChar(S));
+          putenv(PAnsiChar(AnsiString(S)));
       end;
     finally
       FreeLibrary(H);

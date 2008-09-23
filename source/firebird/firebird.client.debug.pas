@@ -114,7 +114,7 @@ function TFirebirdClientDebugFactory.isc_blob_info(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
 var P: ^Pointer;
-    Buf: PChar;
+    Buf: PAnsiChar;
     i: integer;
 begin
   P := aParams[1].VPointer;
