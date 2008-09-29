@@ -455,7 +455,7 @@ var i: integer;
     aInteger: integer;
     aPointer: pointer;
     aPChar: PAnsiChar;
-    sDebug: PAnsiChar;
+    sDebug: string;
 begin
   for i := High(aParams) downto Low(aParams) do begin
     case aParams[i].VType of
@@ -490,7 +490,7 @@ begin
   if FDebugger.HasListener then begin
     i := FProcs.IndexOfObject(aProc);
     Assert(i <> -1);
-    sDebug := PAnsiChar(FDebugFactory.Get(FProcs[i], aProc, aParams, Result));
+    sDebug := FDebugFactory.Get(FProcs[i], aProc, aParams, Result);
     FDebugger.Notify(sDebug);
   end;
 end;
