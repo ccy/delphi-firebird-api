@@ -476,14 +476,31 @@ end;
 
 procedure TXSQLVAR.GetWideString(aValue: pointer; out aIsNull: boolean);
 var iLen: word;
+    W: PWideChar;
 begin
   Assert(FPrepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
 
-  if CheckType(SQL_TEXT) then
-    Utf8ToUnicode(PWideChar(aValue), (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata), sqllen)
-  else if CheckType(SQL_VARYING) then begin
+  if CheckType(SQL_TEXT) then begin
+    { Character (space) padding is always require in firebird CHAR field,
+      so FXSQLVar.sqldata always store sqllen bytes of data.  All available
+      storage space allocated are always pad with space character.
+      Also, Firebird didn't store the number of UTF-8 code point for the field.
+      As a result, I couldn't determine the actual number of UTF-8 code point in
+      FXSQLVar.sqldata beside the padding characters (The padding characters
+      is also a valid UTF-8 code point).
+      Thus, the return value from Utf8ToUnicode is always 0 indicates it can't
+      perform the tranlation correctly as there is always not enough buffer for
+      the action.
+      Thus, I perform truncation on W for up to the number of pre-allocated
+      UTF-16 code point.}
+
+    W := PWideChar(aValue);
+    Utf8ToUnicode(W, (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata), sqllen);
+    Inc(W, (sqllen div 4));
+    W^ := #0;
+  end else if CheckType(SQL_VARYING) then begin
     Move(FXSQLVar.sqldata^, iLen, 2);
     Utf8ToUnicode(PWideChar(aValue), (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata) + 2, iLen);
   end else
@@ -898,6 +915,7 @@ var p: PAnsiChar;
     iSmallInt: Smallint;
     iLong: Integer;
     iUTF8Len: integer;
+    iPadLen: integer;
     B: TBcd;
     D: double;
     V: variant;
@@ -911,8 +929,10 @@ begin
     p := sqldata;
     iUTF8Len := UnicodeToUtf8(p, sqllen, aValue, aLength) - 1;
     P := P + iUTF8Len;
-    FillChar(p^, sqllen - iUTF8Len, 32);
-    P := P + sqllen - iUTF8Len;
+    iPadLen := sqllen - iUTF8Len;
+    Assert(iPadLen > 0);
+    FillChar(p^, iPadLen, 32);
+    P := P + iPadLen;
     P^ := #0;
   end else if CheckType(SQL_SHORT) then begin
     iSmallInt := StrToInt(WideString(PWideChar(aValue)));
