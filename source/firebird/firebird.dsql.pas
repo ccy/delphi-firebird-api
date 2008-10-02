@@ -509,7 +509,7 @@ end;
 
 function TXSQLVAR.Get_aliasname: string;
 begin
-  Result := FXSQLVAR.aliasname;
+  Result := string(FXSQLVAR.aliasname);
 end;
 
 function TXSQLVAR.Get_aliasname_length: smallint;
@@ -534,7 +534,7 @@ end;
 
 function TXSQLVAR.Get_sqlname: string;
 begin
-  Result := FXSQLVar.sqlname
+  Result := string(FXSQLVar.sqlname);
 end;
 
 function TXSQLVAR.Get_sqlname_length: smallint;
@@ -1250,7 +1250,7 @@ begin
   {$region 'prepare'}
   FreeAndNil(FSQLDA_Out);
   FSQLDA_Out := TXSQLDA.Create(FClient);
-  A := aSQL;
+  A := AnsiString(aSQL);
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SCHAR(A), aSQLDialect, FSQLDA_Out.XSQLDA);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
