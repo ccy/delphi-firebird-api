@@ -142,7 +142,7 @@ type
     FDebugger: IFirebirdLibraryDebugger;
     FProcs: TStringList;
     function Call(const aProc: pointer; const aParams: array of const): ISC_STATUS;
-    function GetProc(const aHandle: THandle; const aProcName: PAnsiChar): pointer;
+    function GetProc(const aHandle: THandle; const aProcName: PChar): pointer;
   private
     Fisc_attach_database: Tisc_attach_database;
     Fisc_blob_info: Tisc_blob_info;
@@ -496,7 +496,7 @@ begin
 end;
 
 function TFirebirdLibrary.GetProc(const aHandle: THandle; const aProcName:
-    PAnsiChar): pointer;
+    PChar): pointer;
 begin
   Result := GetProcAddress(aHandle, aProcName);
   FProcs.AddObject(aProcName, Result);
@@ -880,7 +880,7 @@ begin
   sError := '';
   ptr := GetpValue;
   while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do
-    sError := sError + P;
+    sError := sError + string(P);
 
   FError := nil;
   FError := TFirebirdError.Create(sError);
