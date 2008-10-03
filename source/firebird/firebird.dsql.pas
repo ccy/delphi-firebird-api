@@ -63,6 +63,8 @@ type
         boolean);
     procedure SetDouble(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
+    procedure SetInt64(const aValue: pointer; const aLength: Integer; const
+        aIsNull: boolean);
     procedure SetInteger(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetShort(const aValue: pointer; const aLength: Integer; const
@@ -793,6 +795,25 @@ begin
     iDec := Trunc(SimpleRoundTo((D - iValue) * iScaling, 0));
     iValue := iValue * iScaling + iDec;
 
+    Move(iValue, sqldata^, sqllen);
+  end else
+    Assert(False);
+end;
+
+procedure TXSQLVAR.SetInt64(const aValue: pointer; const aLength: Integer;
+  const aIsNull: boolean);
+var i, iScaling: integer;
+    iValue: INT64;
+begin
+  IsNull := aIsNull;
+  if aIsNull then Exit;
+  if CheckType(SQL_INT64) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    iValue := PInt64(aValue)^;
+    iValue := iValue * iScaling;
     Move(iValue, sqldata^, sqllen);
   end else
     Assert(False);
