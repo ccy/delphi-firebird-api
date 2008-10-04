@@ -1,8 +1,7 @@
-{$R 'rc\library.res' 'rc\library.rc'}
-
 package oofirebird;
 
 {$R *.res}
+{$R '..\..\build\rc\library.res'}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
