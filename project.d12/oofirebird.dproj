@@ -31,7 +31,7 @@
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<DllPrefixDefined>true</DllPrefixDefined>
 			<RuntimeOnlyPackage>true</RuntimeOnlyPackage>
-			<DCC_DependencyCheckOutputName>..\..\..\..\output.d12\moon\SQL.oofirebird.bpl</DCC_DependencyCheckOutputName>
+			<DCC_DependencyCheckOutputName>..\..\..\..\output.d12\earth\SQL.oofirebird.bpl</DCC_DependencyCheckOutputName>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 			<DCC_Description>E Stream Software - Firebird Library</DCC_Description>
 			<DCC_SymbolReferenceInfo>1</DCC_SymbolReferenceInfo>
