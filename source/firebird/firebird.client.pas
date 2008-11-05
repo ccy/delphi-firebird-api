@@ -873,14 +873,18 @@ end;
 
 function TStatusVector.GetError(const aFirebirdClient: IFirebirdLibrary):
     IFirebirdError;
-var P: array [0..511] of AnsiChar;
+var P: array [0..1023] of AnsiChar;
     ptr: PISC_STATUS_ARRAY;
-    sError: string;
+    sLastMsg, sError: string;
 begin
   sError := '';
   ptr := GetpValue;
-  while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do
-    sError := sError + string(P);
+  while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do begin
+    sLastMsg := StrPas(P);
+    if sError <> '' then
+      sError := sError + #13#10;
+    sError := sError + sLastMsg;
+  end;
 
   FError := nil;
   FError := TFirebirdError.Create(sError);
