@@ -880,7 +880,7 @@ begin
   sError := '';
   ptr := GetpValue;
   while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do begin
-    sLastMsg := StrPas(P);
+    sLastMsg := String(StrPas(P));
     if sError <> '' then
       sError := sError + #13#10;
     sError := sError + sLastMsg;
