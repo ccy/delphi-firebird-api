@@ -57,7 +57,7 @@
 			<DelphiCompile Include="oofirebird.dpk">
 				<MainSource>MainSource</MainSource>
 			</DelphiCompile>
-			<DCCReference Include="..\..\build\rc\library.res"/>
+			<DCCReference Include="library.res"/>
 			<DCCReference Include="rtl.dcp"/>
 			<DCCReference Include="dbrtl.dcp"/>
 			<DCCReference Include="..\source\firebird\firebird.ibase.h.pas"/>
@@ -72,7 +72,7 @@
 			<DCCReference Include="..\source\firebird\firebird.dsql.pas"/>
 			<DCCReference Include="..\source\firebird\firebird.service.pas"/>
 			<DCCReference Include="..\source\firebird\firebird.charsets.pas"/>
-			<DCCReference Include="..\..\build\rc\library.res"/>
+			<DCCReference Include="library.res"/>
 			<RcCompile Include="..\..\build\rc\library.rc">
 				<Form>library.res</Form>
 			</RcCompile>
