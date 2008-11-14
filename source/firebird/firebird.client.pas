@@ -425,9 +425,11 @@ type
   strict private
     FOldVars: TStringList;
   private
+    procedure AddVar(const aVarName: string);
     procedure SetVars(const aVars: TStringList);
   public
     constructor Create(const aRootPath: string);
+    constructor CreateFromLibrary(const aLibrary: string);
     procedure BeforeDestruction; override;
   end;
 
@@ -1171,16 +1173,36 @@ begin
 end;
 
 procedure TFirebirdLibrary2.BeforeDestruction;
+var s: string;
+    h: THandle;
 begin
   inherited;
   Sleep(1); {$Message 'In firebird embedded, this delay will make the FreeLibrary safer and won't cause unexpected error for massive LoadLibrary / FreeLibrary calls'}
   FreeLibrary(FHandle);
+
+  {$Message 'Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186'}
+  // In Firebird version 2.X, when execute function isc_dsql_execute_immediate for CREATE DATABASE
+  // intl/fbintl.dll will be loaded and never free.  The following code attempt to free the fbintl.dll library
+  s := ExtractFilePath(FLibrary) + 'intl\fbintl.dll';
+  h := GetModuleHandle(PChar(s));
+  if h <> 0 then
+    FreeLibrary(h);
 end;
 
 constructor TFirebirdLibrary2.Create(const aLibrary: string);
 begin
   inherited Create;
   FLibrary := aLibrary;
+end;
+
+procedure TFirebirdLibraryRootPath.AddVar(const aVarName: string);
+var S: string;
+begin
+  S := GetEnvironmentVariable(aVarName);
+  if S = '' then
+    FOldVars.Add(aVarName + '=')
+  else
+    FOldVars.Values[aVarName] := S;
 end;
 
 procedure TFirebirdLibraryRootPath.BeforeDestruction;
@@ -1196,9 +1218,13 @@ var sPath: array[0..MAX_PATH] of char;
 begin
   inherited Create;
   FOldVars := TStringList.Create;
-  FOldVars.Values['FIREBIRD'] := GetEnvironmentVariable('FIREBIRD');
-  FOldVars.Values['FIREBIRD_MSG'] := GetEnvironmentVariable('FIREBIRD_MSG');
-  FOldVars.Values['FIREBIRD_TMP'] := GetEnvironmentVariable('FIREBIRD_TMP');
+
+  AddVar('FIREBIRD');
+  AddVar('FIREBIRD_MSG');
+  AddVar('FIREBIRD_TMP');
+//  FOldVars.Values['FIREBIRD'] := GetEnvironmentVariable('FIREBIRD');
+//  FOldVars.Values['FIREBIRD_MSG'] := GetEnvironmentVariable('FIREBIRD_MSG');
+//  FOldVars.Values['FIREBIRD_TMP'] := GetEnvironmentVariable('FIREBIRD_TMP');
 
   S := TStringList.Create;
   try
@@ -1212,6 +1238,12 @@ begin
   finally
     S.Free;
   end;
+end;
+
+constructor TFirebirdLibraryRootPath.CreateFromLibrary(
+  const aLibrary: string);
+begin
+  Create(ExtractFilePath(aLibrary));
 end;
 
 procedure TFirebirdLibraryRootPath.SetVars(const aVars: TStringList);
