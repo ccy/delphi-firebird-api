@@ -76,6 +76,7 @@ type
     property aliasname: string read Get_aliasname;
     property aliasname_length: smallint read Get_aliasname_length;
     property IsNull: boolean read GetIsNull write SetIsNull;
+    property Prepared: boolean read FPrepared;
     property Size: smallint read GetSize;
     property sqldata: pointer read Get_sqldata write Set_sqldata;
     property sqlind: PISC_SHORT read Get_sqlind;
@@ -128,7 +129,9 @@ type
         pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
     function GetPlan(const aStatusVector: IStatusVector): string;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
-        aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+        aSQLDialect: word; const aParamCount: Integer = 0): Integer; overload;
+    function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
+        aSQLDialect: word; const aParams: TXSQLDA): Integer; overload;
     function Transaction: IFirebirdTransaction;
     property i_SQLDA: TXSQLDA read Geti_SQLDA;
     property o_SQLDA: TXSQLDA read Geto_SQLDA;
@@ -147,6 +150,7 @@ type
     FTransactionPool: TFirebirdTransactionPool;
     FManageTransaction: boolean;
     FTransaction: IFirebirdTransaction;
+    FManage_SQLDA_In: boolean;
     function StatementHandle: pisc_stmt_handle;
   private
     FLast_DBHandle: pisc_db_handle;
@@ -165,7 +169,9 @@ type
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
-        aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+        aSQLDialect: word; const aParamCount: Integer = 0): Integer; overload;
+    function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
+        aSQLDialect: word; const aParams: TXSQLDA): Integer; overload;
     function Transaction: IFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdLibrary; const
@@ -1043,10 +1049,14 @@ end;
 
 procedure TXSQLDA.Prepare;
 var i: integer;
+    V: TXSQLVAR;
 begin
   Assert(sqln >= sqld);
-  for i := 0 to FVars.Count - 1 do
-    TXSQLVAR(FVars[i]).Prepare;
+  for i := 0 to FVars.Count - 1 do begin
+    V := TXSQLVAR(FVars[i]);
+    if not V.Prepared then
+      V.Prepare;
+  end;
 end;
 
 procedure TXSQLDA.SetCount(const aValue: integer);
@@ -1085,7 +1095,7 @@ begin
   inherited;
   Assert(FState = S_INACTIVE);
 
-  if Assigned(FSQLDA_In) then FSQLDA_In.Free;
+  if FManage_SQLDA_In and Assigned(FSQLDA_In) then FSQLDA_In.Free;
   FSQLDA_Out.Free;
 end;
 
@@ -1100,12 +1110,12 @@ begin
     if aStatusVector.CheckError(FClient, Result) then Exit;
   end;
 
-  if Assigned(FSQLDA_In) then
-    X := FSQLDA_In.XSQLDA
+  if Geti_SQLDA <> nil then
+    X := Geti_SQLDA.XSQLDA
   else
     X := nil;
 
-  Assert(FState = S_PREPARED);
+  Assert((FState = S_PREPARED) or (FState = S_EXECUTED));
 
   Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FSQLDA_Out.Version, X);
   if Result = isc_no_cur_rec then begin
@@ -1260,33 +1270,47 @@ end;
 
 function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
     string; const aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+begin
+  if (aParamCount > 0) and (FSQLDA_In = nil) then begin
+    FManage_SQLDA_In := True;
+    FSQLDA_In := TXSQLDA.Create(FClient, aParamCount);
+  end;
+  Result := Prepare(aStatusVector, aSQL, aSQLDialect, FSQLDA_In);
+end;
+
+function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
+    string; const aSQLDialect: word; const aParams: TXSQLDA): Integer;
 var A: AnsiString;
 begin
   Assert(FState = S_OPENED);
 
   FLast_SQL := aSQL;
   FLast_SQLDialect := aSQLDialect;
-  FLast_ParamCount := aParamCount;
+  if Assigned(aParams) then
+    FLast_ParamCount := aParams.Count
+  else
+    FLast_ParamCount := 0;
 
   {$region 'prepare'}
   FreeAndNil(FSQLDA_Out);
   FSQLDA_Out := TXSQLDA.Create(FClient);
   A := AnsiString(aSQL);
-  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SCHAR(A), aSQLDialect, FSQLDA_Out.XSQLDA);
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SCHAR(A), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
   {$region 'describe'}
   if FSQLDA_Out.sqld > FSQLDA_Out.sqln then begin
     FSQLDA_Out.Count := FSQLDA_Out.sqld;
-    FClient.isc_dsql_describe(aStatusVector.pValue, StatementHandle, FSQLDA_Out.Version, FSQLDA_Out.XSQLDA);
+    FClient.isc_dsql_describe(aStatusVector.pValue, StatementHandle, FLast_SQLDialect, FSQLDA_Out.XSQLDA);
     if aStatusVector.CheckError(FClient, Result) then Exit;
   end;
   FSQLDA_Out.Prepare;
   {$endregion}
   {$region 'describe bind'}
-  if (aParamCount > 0) and (FSQLDA_In = nil) then begin
-    FSQLDA_In := TXSQLDA.Create(FClient, aParamCount);
-    FClient.isc_dsql_describe_bind(aStatusVector.pValue, StatementHandle, FSQLDA_In.Version, FSQLDA_In.XSQLDA);
+  if Assigned(aParams) and (aParams.Count > 0) then begin
+    FManage_SQLDA_In := False;
+    FSQLDA_In := aParams;
+    FClient.isc_dsql_describe_bind(aStatusVector.pValue, StatementHandle, FLast_SQLDialect, FSQLDA_In.XSQLDA);
     if aStatusVector.CheckError(FClient, Result) then Exit;
     FSQLDA_In.Prepare;
   end;
