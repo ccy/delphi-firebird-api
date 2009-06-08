@@ -1019,7 +1019,7 @@ end;
 
 function TXSQLDA.GetCount: integer;
 begin
-  Result := sqld;
+  Result := sqln;
 end;
 
 function TXSQLDA.GetVars(Index: Integer): TXSQLVAR;
