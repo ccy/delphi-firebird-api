@@ -261,7 +261,7 @@ begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
 
-  Result := Format('%s db_handle: %d transaction handle: %d'#13'%s', [aProcName, integer(P1^), integer(P2^), aParams[4].VPChar]);
+  Result := Format('%s db_handle: %d transaction handle: %d %s', [aProcName, integer(P1^), integer(P2^), aParams[4].VPChar]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_fetch(const aProcName: string;
@@ -299,7 +299,7 @@ function TFirebirdClientDebugFactory.isc_dsql_prepare(const aProcName: string;
 var s: string;
 begin
   SetString(S, aParams[4].VPChar, aParams[3].VInteger);
-  Result := Format('%s SQLDialect: %d'#13'%s', [aProcName, aParams[5].VInteger, S]);
+  Result := Format('%s SQLDialect: %d %s', [aProcName, aParams[5].VInteger, S]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_sql_info(const aProcName: string;

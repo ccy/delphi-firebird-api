@@ -45,6 +45,7 @@ type
         longword; out aIsNull: boolean): ISC_STATUS;
     procedure GetDate(aValue: pointer; out aIsNull: boolean);
     procedure GetDouble(aValue: pointer; out aIsNull: boolean);
+    procedure GetInt64(aValue: pointer; out aIsNull: boolean);
     procedure GetInteger(aValue: pointer; out aIsNull: boolean);
     function GetIsNull: boolean;
     procedure GetShort(aValue: pointer; out aIsNull: boolean);
@@ -100,7 +101,7 @@ type
     function Get_sqln: smallint;
     function Get_Version: smallint;
   protected
-    function GetCount: integer; 
+    function GetCount: integer;
     procedure SetCount(const aValue: integer);
   public
     constructor Create(const aLibrary: IFirebirdLibrary; const aVarCount: Integer =
@@ -121,6 +122,7 @@ type
     function Close(const aStatusVector: IStatusVector): Integer;
     function Execute(const aStatusVector: IStatusVector): Integer;
     function Fetch(const aStatusVector: IStatusVector): ISC_STATUS;
+    function GetIsStoredProc: Boolean;
     function Geti_SQLDA: TXSQLDA;
     function Geto_SQLDA: TXSQLDA;
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
@@ -133,6 +135,7 @@ type
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParams: TXSQLDA): Integer; overload;
     function Transaction: IFirebirdTransaction;
+    property IsStoredProc: Boolean read GetIsStoredProc;
     property i_SQLDA: TXSQLDA read Geti_SQLDA;
     property o_SQLDA: TXSQLDA read Geto_SQLDA;
   end;
@@ -150,6 +153,7 @@ type
     FTransactionPool: TFirebirdTransactionPool;
     FManageTransaction: boolean;
     FTransaction: IFirebirdTransaction;
+    FIsStoredProc: boolean;
     FManage_SQLDA_In: boolean;
     function StatementHandle: pisc_stmt_handle;
   private
@@ -161,6 +165,7 @@ type
     function Close(const aStatusVector: IStatusVector): Integer;
     function Execute(const aStatusVector: IStatusVector): Integer;
     function Fetch(const aStatusVector: IStatusVector): ISC_STATUS;
+    function GetIsStoredProc: Boolean;
     function Geti_SQLDA: TXSQLDA;
     function Geto_SQLDA: TXSQLDA;
     function GetPlan(const aStatusVector: IStatusVector): string;
@@ -175,7 +180,8 @@ type
     function Transaction: IFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdLibrary; const
-        aTransactionPool: TFirebirdTransactionPool);
+        aTransactionPool: TFirebirdTransactionPool; const aIsStoredProc: Boolean =
+        False);
     procedure BeforeDestruction; override;
   end;
 
@@ -318,12 +324,12 @@ begin
     if iResult = 0 then begin
       Inc(p, iLen);
       Inc(iLenTotal, iLen);
-    end else if iResult <> isc_segstr_eof then
-      if aStatusVector.CheckError(FClient, Result) then Exit
-    else
-      Break;
+    end else if iResult = isc_segstr_eof then
+      Break
+    else if aStatusVector.CheckError(FClient, Result) then
+      Exit
   until iLenTotal = aLength;
-  
+
   FClient.isc_close_blob(aStatusVector.pValue, @hBlob);
   if aStatusVector.CheckError(FClient, Result) then Exit;
 end;
@@ -413,6 +419,14 @@ begin
     Move(d, aValue^, SizeOf(Double));
   end else
     Assert(False);
+end;
+
+procedure TXSQLVAR.GetInt64(aValue: pointer; out aIsNull: boolean);
+begin
+  Assert(FPrepared and CheckType(SQL_INT64));
+  aIsNull := IsNull;
+  if not aIsNull then
+    Move(FXSQLVar.sqldata^, aValue^, sqllen);
 end;
 
 procedure TXSQLVAR.GetInteger(aValue: pointer; out aIsNull: boolean);
@@ -1082,11 +1096,14 @@ begin
 end;
 
 constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdLibrary; const
-    aTransactionPool: TFirebirdTransactionPool);
+    aTransactionPool: TFirebirdTransactionPool; const aIsStoredProc: Boolean =
+    False);
 begin
   inherited Create;
   FClient := aClientLibrary;
   FTransactionPool := aTransactionPool;
+  FIsStoredProc := aIsStoredProc;
+
   FState := S_INACTIVE;
 end;
 
@@ -1117,7 +1134,11 @@ begin
 
   Assert((FState = S_PREPARED) or (FState = S_EXECUTED));
 
-  Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FSQLDA_Out.Version, X);
+  if not FIsStoredProc then
+    Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X)
+  else
+    Result := FClient.isc_dsql_execute2(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X, FSQLDA_Out.XSQLDA);
+
   if Result = isc_no_cur_rec then begin
     FState := S_EOF;
     aStatusVector.pValue[1] := 0;
@@ -1243,6 +1264,11 @@ begin
   FState := S_INACTIVE;
 end;
 
+function TFirebird_DSQL.GetIsStoredProc: Boolean;
+begin
+  Result := FIsStoredProc;
+end;
+
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
     aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction):
     Integer;
@@ -1253,7 +1279,7 @@ begin
 
   {$region 'Allocate Statement'}
   FStatementHandle := nil;
-  FClient.isc_dsql_allocate_statement(aStatusVector.pValue, aDBHandle, StatementHandle);
+  FClient.isc_dsql_alloc_statement2(aStatusVector.pValue, aDBHandle, StatementHandle);
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
 
