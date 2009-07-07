@@ -259,14 +259,14 @@ procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
         Inc(iLen);
       end;
 
-      Inc(iLen);  // To hold extra '.'
+      Inc(iLen);  // To hold extra DecimalSeparator
       SetLength(aData, iLen);
       a := iLen;
       for i := iLen downto iLen - aScale + 1 do begin
         aData[i] := aData[i-1];
         Dec(a);
       end;
-      aData[a] := '.';
+      aData[a] := DecimalSeparator;;
 
       if bNeg then
         aData := '-' + aData;
@@ -673,7 +673,7 @@ begin
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
-    i := Pos('.', S);
+    i := Pos(DecimalSeparator, S);
     if i = 1 then
       S := '0'
     else if i > 1 then begin
