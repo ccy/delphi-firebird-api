@@ -70,8 +70,9 @@
     <DelphiCompile Include="oofirebird.dpk">
       <MainSource>MainSource</MainSource>
     </DelphiCompile>
-    <DCCReference Include="$(SystemRoot)\system32\dbrtl.dcp" />
-    <DCCReference Include="$(SystemRoot)\system32\rtl.dcp" />
+    <DCCReference Include="..\..\..\moon\dbx\project\dbrtl.dcp" />
+    <DCCReference Include="..\..\..\moon\dbx\project\oortl.dcp" />
+    <DCCReference Include="..\..\..\moon\dbx\project\rtl.dcp" />
     <DCCReference Include="..\..\build\rc\library.res" />
     <DCCReference Include="..\..\build\rc\library.res" />
     <DCCReference Include="..\source\firebird\firebird.charsets.pas" />

@@ -60,6 +60,7 @@
 			<DCCReference Include="library.res"/>
 			<DCCReference Include="rtl.dcp"/>
 			<DCCReference Include="dbrtl.dcp"/>
+			<DCCReference Include="oortl.dcp"/>
 			<DCCReference Include="..\source\firebird\firebird.ibase.h.pas"/>
 			<DCCReference Include="..\source\firebird\firebird.iberror.h.pas"/>
 			<DCCReference Include="..\source\firebird\firebird.inf_pub.h.pas"/>

@@ -31,7 +31,8 @@ package oofirebird;
 
 requires
   rtl,
-  dbrtl;
+  dbrtl,
+  oortl;
 
 contains
   firebird.ibase.h in '..\source\firebird\firebird.ibase.h.pas',
