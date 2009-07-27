@@ -1029,6 +1029,7 @@ begin
     TXSQLVar(FVars[i]).Free;
   FVars.Clear;
   FreeMem(FXSQLDA);
+  FXSQLDA := nil;
 end;
 
 function TXSQLDA.GetCount: integer;
@@ -1334,7 +1335,8 @@ begin
   {$endregion}
   {$region 'describe bind'}
   if Assigned(aParams) and (aParams.Count > 0) then begin
-    FManage_SQLDA_In := False;
+    if FSQLDA_In = nil then
+      FManage_SQLDA_In := False;
     FSQLDA_In := aParams;
     FClient.isc_dsql_describe_bind(aStatusVector.pValue, StatementHandle, FLast_SQLDialect, FSQLDA_In.XSQLDA);
     if aStatusVector.CheckError(FClient, Result) then Exit;
