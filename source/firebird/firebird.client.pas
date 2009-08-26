@@ -429,7 +429,7 @@ type
     procedure SetVars(const aVars: TStringList);
   public
     constructor Create(const aRootPath: string);
-    constructor CreateFromLibrary(const aLibrary: string);
+    constructor CreateFromLibrary(const aLibrary: string; const Dummy: Integer = 0);
     procedure BeforeDestruction; override;
   end;
 
@@ -1240,8 +1240,8 @@ begin
   end;
 end;
 
-constructor TFirebirdLibraryRootPath.CreateFromLibrary(
-  const aLibrary: string);
+constructor TFirebirdLibraryRootPath.CreateFromLibrary(const aLibrary: string;
+    const Dummy: Integer = 0);
 begin
   Create(ExtractFilePath(aLibrary));
 end;
