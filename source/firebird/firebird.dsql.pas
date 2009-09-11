@@ -935,7 +935,7 @@ var T: tm;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
-  Assert(CheckType(SQL_TIMESTAMP));
+  Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP));
 
   S := PSQLTimeStamp(aValue);
   with T do begin
