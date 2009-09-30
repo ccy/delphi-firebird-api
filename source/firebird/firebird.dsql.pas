@@ -15,6 +15,7 @@ type
     FXSQLVAR: PXSQLVAR;
   private
     FSize: smallint;
+    FsqlDataSize: smallint;
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
   protected
@@ -607,6 +608,7 @@ begin
   end else
     iSize := FSize;
 
+  FsqlDataSize := iSize;
   GetMem(FXSQLVAR^.sqldata, iSize);
 
   GetMem(FXSQLVAR^.sqlind, sizeof(smallint));
@@ -964,17 +966,18 @@ begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
-    iUTF8Len := UnicodeToUtf8(PAnsiChar(sqldata) + 2, sqllen, aValue, aLength) - 1;
+    iUTF8Len := UnicodeToUtf8(PAnsiChar(sqldata) + 2, FsqlDataSize, aValue, aLength) - 1;
     Move(iUTF8Len, sqldata^, 2);
   end else if CheckType(SQL_TEXT) then begin
     p := sqldata;
-    iUTF8Len := UnicodeToUtf8(p, sqllen, aValue, aLength) - 1;
+    iUTF8Len := UnicodeToUtf8(p, FsqlDataSize, aValue, aLength) - 1;
     P := P + iUTF8Len;
     iPadLen := sqllen - iUTF8Len;
-    Assert(iPadLen > 0);
-    FillChar(p^, iPadLen, 32);
-    P := P + iPadLen;
-    P^ := #0;
+    if iPadLen > 0 then begin
+      FillChar(p^, iPadLen, 32);
+      P := P + iPadLen;
+      P^ := #0;
+    end;
   end else if CheckType(SQL_SHORT) then begin
     iSmallInt := StrToInt(WideString(PWideChar(aValue)));
     SetShort(@iSmallInt, SizeOf(iSmallInt), aIsNull);
