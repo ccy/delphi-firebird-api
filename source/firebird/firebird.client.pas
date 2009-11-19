@@ -325,6 +325,7 @@ type
     procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
         longint): boolean;
+    function CheckFirebirdError(out aErrorCode: longint): boolean;
     function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
     function CheckResult(out aResult: longint; const aFailed_Result: longint):
         Boolean; overload;
@@ -344,6 +345,7 @@ type
     procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
         longint): boolean;
+    function CheckFirebirdError(out aErrorCode: longint): boolean;
     function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
     function CheckResult(out aResult: longint; const aFailed_Result: longint):
         Boolean; overload;
@@ -855,6 +857,14 @@ begin
   Result := aErrorCode <> 0;
 end;
 
+function TStatusVector.CheckFirebirdError(out aErrorCode: longint): boolean;
+begin
+  aErrorCode := 0;
+  if HasError then
+    aErrorCode := GetpValue[1];
+  Result := aErrorCode <> 0;
+end;
+
 function TStatusVector.CheckResult(out aResult: word; const aFailed_Result:
     word): Boolean;
 begin
@@ -1105,7 +1115,8 @@ begin
     S := TStatusVector.Create;
     for i := Count - 1 downto 0 do begin
       N := FItems[i] as IFirebirdTransaction;
-      N.Rollback(S);
+      if N.Active then
+        N.Rollback(S);
       FItems.Delete(i);
       N := nil;
     end;
