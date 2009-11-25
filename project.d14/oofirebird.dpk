@@ -1,5 +1,6 @@
 package oofirebird;
 
+{$R *.res}
 {$R 'library.res'}
 {$ALIGN 8}
 {$ASSERTIONS ON}
