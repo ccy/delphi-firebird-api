@@ -34,7 +34,6 @@
 			<DCC_DependencyCheckOutputName>..\..\..\..\output.d14\earth\SQL.oofirebird.bpl</DCC_DependencyCheckOutputName>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 			<DCC_Description>E Stream Software - Firebird Library</DCC_Description>
-			<DCC_SymbolReferenceInfo>1</DCC_SymbolReferenceInfo>
 			<DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
 			<GenDll>true</GenDll>
 			<GenPackage>true</GenPackage>
