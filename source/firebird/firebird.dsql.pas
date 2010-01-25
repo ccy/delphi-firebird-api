@@ -967,6 +967,12 @@ begin
   if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
     iUTF8Len := UnicodeToUtf8(PAnsiChar(sqldata) + 2, FsqlDataSize, aValue, aLength) - 1;
+    if iUTF8Len = -1 then begin
+      iUTF8Len := 1;
+      p := sqldata;
+      Inc(p, 2);
+      p^ := #0;
+    end;
     Move(iUTF8Len, sqldata^, 2);
   end else if CheckType(SQL_TEXT) then begin
     p := sqldata;
