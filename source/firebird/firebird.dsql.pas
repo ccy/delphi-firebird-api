@@ -2,7 +2,7 @@ unit firebird.dsql;
 
 interface
 
-uses Classes,
+uses SysUtils, Classes,
      firebird.sqlda_pub.h, firebird.ibase.h, firebird.types_pub.h, firebird.iberror.h,
      firebird.inf_pub.h, firebird.time.h,
      firebird.client;
@@ -154,6 +154,7 @@ type
     FTransactionPool: TFirebirdTransactionPool;
     FManageTransaction: boolean;
     FTransaction: IFirebirdTransaction;
+    FServerCharSet: WideString;
     FIsStoredProc: boolean;
     FManage_SQLDA_In: boolean;
     function StatementHandle: pisc_stmt_handle;
@@ -181,14 +182,21 @@ type
     function Transaction: IFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdLibrary; const
-        aTransactionPool: TFirebirdTransactionPool; const aIsStoredProc: Boolean =
-        False);
+        aTransactionPool: TFirebirdTransactionPool; const aServerCharSet:
+        WideString = ''; const aIsStoredProc: Boolean = False);
     procedure BeforeDestruction; override;
   end;
 
+  {$ifdef Unicode}
+  TFirebird_DSQL_Unicode = class helper for TFirebird_DSQL
+  protected
+    function GetEncoding: TEncoding;
+  end;
+  {$endif}
+
 implementation
 
-uses SysUtils, FMTBcd, SqlTimSt, Math, firebird.charsets;
+uses FMTBcd, SqlTimSt, Math, firebird.charsets;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer);
@@ -1106,12 +1114,13 @@ begin
 end;
 
 constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdLibrary; const
-    aTransactionPool: TFirebirdTransactionPool; const aIsStoredProc: Boolean =
-    False);
+    aTransactionPool: TFirebirdTransactionPool; const aServerCharSet:
+    WideString = ''; const aIsStoredProc: Boolean = False);
 begin
   inherited Create;
   FClient := aClientLibrary;
   FTransactionPool := aTransactionPool;
+  FServerCharSet := aServerCharSet;
   FIsStoredProc := aIsStoredProc;
 
   FState := S_INACTIVE;
@@ -1316,7 +1325,7 @@ end;
 
 function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
     string; const aSQLDialect: word; const aParams: TXSQLDA): Integer;
-var A: AnsiString;
+{$ifdef Unicode}var B: TBytes;{$endif}
 begin
   Assert(FState = S_OPENED);
 
@@ -1330,8 +1339,14 @@ begin
   {$region 'prepare'}
   FreeAndNil(FSQLDA_Out);
   FSQLDA_Out := TXSQLDA.Create(FClient);
-  A := AnsiString(aSQL);
-  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SCHAR(A), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
+
+  {$ifdef Unicode}
+  B := GetEncoding.GetBytes(aSQL);
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(B), @B[0], FLast_SQLDialect, FSQLDA_Out.XSQLDA);
+  {$else}
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SChar(aSQL), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
+  {$endif}
+
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
   {$region 'describe'}
@@ -1355,5 +1370,15 @@ begin
 
   FState := S_PREPARED;
 end;
+
+{$ifdef Unicode}
+function TFirebird_DSQL_Unicode.GetEncoding: TEncoding;
+begin
+  if (FServerCharSet = 'NONE') or (FServerCharSet = 'UTF8') then
+    Result := TEncoding.UTF8
+  else
+    Result := TEncoding.Default;
+end;
+{$endif}
 
 end.
