@@ -724,32 +724,37 @@ var hBlob: isc_blob_handle;
     p, q: PByte;
 begin
   IsNull := aIsNull;
-  Assert(CheckType(SQL_BLOB));
-  Assert(SizeOf(BlobID) = sqllen);
 
-  hBlob := nil;
-  BlobID.gds_quad_high := 0;
-  BlobID.gds_quad_low := 0;
-  FClient.isc_create_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
+  if CheckTYPE(SQL_BLOB) then begin
+    Assert(SizeOf(BlobID) = sqllen);
 
-  iCurPos := 0;
-  wLen := High(Word);
-  p := aValue;
-  while iCurPos < aLength do begin
-    if iCurPos + wLen > aLength then
-      wLen := aLength - iCurPos;
-    q := p;
-    Inc(q, iCurPos);
-    FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, PISC_SCHAR(q));
+    hBlob := nil;
+    BlobID.gds_quad_high := 0;
+    BlobID.gds_quad_low := 0;
+    FClient.isc_create_blob(aStatusVector.pValue, aDBHandle, aTransaction.TransactionHandle, @hBlob, @BlobID);
     if aStatusVector.CheckError(FClient, Result) then Exit;
-    Inc(iCurPos, wLen);
-  end;
 
-  FClient.isc_close_blob(aStatusvector.pValue, @hBlob);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
+    iCurPos := 0;
+    wLen := High(Word);
+    p := aValue;
+    while iCurPos < aLength do begin
+      if iCurPos + wLen > aLength then
+        wLen := aLength - iCurPos;
+      q := p;
+      Inc(q, iCurPos);
+      FClient.isc_put_segment(aStatusVector.pValue, @hBlob, wLen, PISC_SCHAR(q));
+      if aStatusVector.CheckError(FClient, Result) then Exit;
+      Inc(iCurPos, wLen);
+    end;
 
-  Move(BlobID, sqldata^, sqllen);
+    FClient.isc_close_blob(aStatusvector.pValue, @hBlob);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+
+    Move(BlobID, sqldata^, sqllen);
+  end else if CheckType(SQL_TEXT) or CheckType(SQL_VARYING) then begin
+    SetAnsiString(aValue, aLength, aIsNull);
+  end else
+    Assert(False);
 end;
 
 procedure TXSQLVAR.SetDate(const aValue: pointer; const aLength: Integer; const
