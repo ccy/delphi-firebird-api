@@ -800,7 +800,7 @@ procedure TXSQLVAR.SetDouble(const aValue: pointer; const aLength: Integer;
     const aIsNull: boolean);
 var S: Single;
     D: Double;
-    iScaling: integer;
+    iScaling: Int64;
     i: integer;
     iValue: INT64;
     iDec: INT64;
