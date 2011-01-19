@@ -67,12 +67,16 @@ type
         aIsNull: boolean);
     procedure SetInt64(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
+    procedure SetInt8(const aValue: pointer; const aLength: Integer; const
+        aIsNull: boolean);
     procedure SetInteger(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetShort(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetTime(const aValue: pointer; const aIsNull: boolean);
     procedure SetTimeStamp(const aValue: pointer; const aIsNull: boolean);
+    procedure SetUInt8(const aValue: pointer; const aLength: Integer; const
+        aIsNull: boolean);
     procedure SetWideString(const aValue: pointer; const aLength: word; const
         aIsNull: boolean);
     property aliasname: string read Get_aliasname;
@@ -854,11 +858,40 @@ begin
     Assert(False);
 end;
 
+procedure TXSQLVAR.SetInt8(const aValue: pointer; const aLength: Integer;
+  const aIsNull: boolean);
+var i, iScaling: integer;
+    i16: Smallint;
+    i32: integer;
+    i64: INT64;
+begin
+  IsNull := aIsNull;
+  if aIsNull then Exit;
+  if CheckType(SQL_SHORT) then begin
+    Assert(aLength = 1);
+    i16 := PShortInt(aValue)^;
+    Move(i16, sqldata^, sqllen);
+  end else if CheckType(SQL_LONG) then begin
+    Assert(aLength = 1);
+    i32 := PShortInt(aValue)^;
+    Move(i32, sqldata^, sqllen);
+  end else if CheckType(SQL_INT64) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    i64 := PByte(aValue)^;
+    i64 := i64 * iScaling;
+    Move(i64, sqldata^, sqllen);
+  end else
+    Assert(False);
+end;
+
 procedure TXSQLVAR.SetInteger(const aValue: pointer; const aLength: Integer;
     const aIsNull: boolean);
 var i, iScaling: integer;
-    iSmallInt: Smallint;
-    iValue: INT64;
+    i16: Smallint;
+    i64: INT64;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -866,16 +899,16 @@ begin
     Move(aValue^, sqldata^, sqllen)
   else if CheckType(SQL_SHORT) then begin
     Assert(aLength = 4);
-    iSmallInt := PInteger(aValue)^;
-    Move(iSmallInt, sqldata^, sqllen)
+    i16 := PInteger(aValue)^;
+    Move(i16, sqldata^, sqllen)
   end else if CheckType(SQL_INT64) then begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
 
-    iValue := PInteger(aValue)^;
-    iValue := iValue * iScaling;
-    Move(iValue, sqldata^, sqllen);
+    i64 := PInteger(aValue)^;
+    i64 := i64 * iScaling;
+    Move(i64, sqldata^, sqllen);
   end else
     Assert(False);
 end;
@@ -894,8 +927,8 @@ end;
 procedure TXSQLVAR.SetShort(const aValue: pointer; const aLength: Integer;
     const aIsNull: boolean);
 var i, iScaling: integer;
-    iLong: integer;
-    iValue: INT64;
+    i32: integer;
+    i64: INT64;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -903,16 +936,16 @@ begin
     Move(aValue^, sqldata^, sqllen)
   else if CheckType(SQL_LONG) then begin
     Assert(aLength = 2);
-    iLong := PSmallInt(aValue)^;
-    Move(iLong, sqldata^, sqllen);
+    i32 := PSmallInt(aValue)^;
+    Move(i32, sqldata^, sqllen);
   end else if CheckType(SQL_INT64) then begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
 
-    iValue := PSmallInt(aValue)^;
-    iValue := iValue * iScaling;
-    Move(iValue, sqldata^, sqllen);
+    i64 := PSmallInt(aValue)^;
+    i64 := i64 * iScaling;
+    Move(i64, sqldata^, sqllen);
   end else
     Assert(False);
 end;
@@ -965,6 +998,35 @@ begin
   Move(D, sqldata^, sqllen)
 end;
 
+procedure TXSQLVAR.SetUInt8(const aValue: pointer; const aLength: Integer;
+  const aIsNull: boolean);
+var i, iScaling: integer;
+    i16: word;
+    i32: integer;
+    i64: INT64;
+begin
+  IsNull := aIsNull;
+  if aIsNull then Exit;
+  if CheckType(SQL_SHORT) then begin
+    Assert(aLength = 1);
+    i16 := PByte(aValue)^;
+    Move(i16, sqldata^, sqllen);
+  end else if CheckType(SQL_LONG) then begin
+    Assert(aLength = 1);
+    i32 := PByte(aValue)^;
+    Move(i32, sqldata^, sqllen);
+  end else if CheckType(SQL_INT64) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    i64 := PByte(aValue)^;
+    i64 := i64 * iScaling;
+    Move(i64, sqldata^, sqllen);
+  end else
+    Assert(False);
+end;
+
 procedure TXSQLVAR.SetWideString(const aValue: pointer; const aLength: word;
     const aIsNull: boolean);
 var p: PAnsiChar;
@@ -989,7 +1051,9 @@ begin
     Move(iUTF8Len, sqldata^, 2);
   end else if CheckType(SQL_TEXT) then begin
     p := sqldata;
-    iUTF8Len := UnicodeToUtf8(p, FsqlDataSize, aValue, aLength) - 1;
+    iUTF8Len := UnicodeToUtf8(p, FsqlDataSize, aValue, aLength);
+    if iUTF8Len > 0 then
+      iUTF8Len := iUTF8Len - 1;
     P := P + iUTF8Len;
     iPadLen := sqllen - iUTF8Len;
     if iPadLen > 0 then begin
