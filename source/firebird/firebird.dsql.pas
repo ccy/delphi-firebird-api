@@ -279,7 +279,7 @@ procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
         aData[i] := aData[i-1];
         Dec(a);
       end;
-      aData[a] := DecimalSeparator;;
+      aData[a] := {$if RTLVersion>=22}FormatSettings.{$ifend}DecimalSeparator;;
 
       if bNeg then
         aData := '-' + aData;
@@ -687,7 +687,7 @@ begin
       iScaling := iScaling * 10;
     BcdMultiply(B^, IntToStr(iScaling), B^);
     S := BcdToStr(B^);
-    i := Pos(DecimalSeparator, S);
+    i := Pos({$if RTLVersion>=22}FormatSettings.{$ifend}DecimalSeparator, S);
     if i = 1 then
       S := '0'
     else if i > 1 then begin
