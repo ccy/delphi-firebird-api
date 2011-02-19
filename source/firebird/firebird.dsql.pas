@@ -4,8 +4,82 @@ interface
 
 uses SysUtils, Classes,
      firebird.sqlda_pub.h, firebird.ibase.h, firebird.types_pub.h, firebird.iberror.h,
-     firebird.inf_pub.h, firebird.time.h,
+     firebird.inf_pub.h, firebird.time.h, firebird.charsets,
      firebird.client;
+
+const
+  CharSetBytes: array[CS_NONE..CS_GB18030] of byte = (
+    {CS_NONE} 1,
+    {CS_OCTETS} 1,
+    {CS_ASCII} 1,
+    {CS_UNICODE_FSS} 3,
+    {CS_UTF8} 4,
+    {CS_SJIS_0208} 2,
+    {CS_EUCJ_0208} 2,
+    {} 1,
+    {} 1,
+    {CS_DOS737} 1,
+    {CS_DOS437} 1,
+    {CS_DOS850} 1,
+    {CS_DOS865} 1,
+    {CS_DOS860} 1,
+    {CS_DOS863} 1,
+    {CS_DOS775} 1,
+    {CS_DOS858} 1,
+    {CS_DOS862} 1,
+    {CS_DOS864} 1,
+    {CS_NEXT} 1,
+    {} 1,
+    {CS_ISO8859_1} 1,
+    {CS_ISO8859_2} 1,
+    {CS_ISO8859_3} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {CS_ISO8859_4} 1,
+    {CS_ISO8859_5} 1,
+    {CS_ISO8859_6} 1,
+    {CS_ISO8859_7} 1,
+    {CS_ISO8859_8} 1,
+    {CS_ISO8859_9} 1,
+    {CS_ISO8859_13} 1,
+    {} 1,
+    {} 1,
+    {} 1,
+    {CS_KSC_5601} 2,
+    {CS_DOS852} 1,
+    {CS_DOS857} 1,
+    {CS_DOS861} 1,
+    {CS_DOS866} 1,
+    {CS_DOS869} 1,
+    {CS_CYRL} 1,
+    {CS_WIN1250} 1,
+    {CS_WIN1251} 1,
+    {CS_WIN1252} 1,
+    {CS_WIN1253} 1,
+    {CS_WIN1254} 1,
+    {CS_BIG_5} 2,
+    {CS_GB_2312} 2,
+    {CS_WIN1255} 1,
+    {CS_WIN1256} 1,
+    {CS_WIN1257} 1,
+    {} 1,
+    {} 1,
+    {CS_KOI8R} 1,
+    {CS_KOI8U} 1,
+    {CS_WIN1258} 1,
+    {CS_TIS620} 1,
+    {CS_GBK} 2,
+    {CS_CP943C} 2,
+    {CS_GB18030} 4
+  );
 
 type
   TXSQLVAR = class(TObject)
@@ -26,6 +100,8 @@ type
     function Get_sqllen: smallint;
     function Get_sqlname: string;
     function Get_sqlname_length: smallint;
+    function Get_relname: string;
+    function Get_relname_length: smallint;
     function Get_sqlscale: smallint;
     function Get_sqlsubtype: smallint;
     function Get_sqltype: smallint;
@@ -50,6 +126,7 @@ type
     procedure GetInteger(aValue: pointer; out aIsNull: boolean);
     function GetIsNull: boolean;
     procedure GetShort(aValue: pointer; out aIsNull: boolean);
+    function GetTextLen: SmallInt;
     procedure GetTime(aValue: pointer; out aIsNull: boolean);
     procedure GetTimeStamp(aValue: pointer; out aIsNull: boolean);
     procedure GetWideString(aValue: pointer; out aIsNull: boolean);
@@ -89,6 +166,8 @@ type
     property sqllen: smallint read Get_sqllen;
     property sqlname: string read Get_sqlname;
     property sqlname_length: smallint read Get_sqlname_length;
+    property relname: string read Get_Relname;
+    property relname_length: smallint read Get_relname_length;
     property sqlscale: smallint read Get_sqlscale;
     property sqlsubtype: smallint read Get_sqlsubtype;
     property sqltype: smallint read Get_sqltype write Set_sqltype;
@@ -200,7 +279,7 @@ type
 
 implementation
 
-uses FMTBcd, SqlTimSt, Math, firebird.charsets;
+uses FMTBcd, SqlTimSt, Math;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer);
@@ -471,6 +550,18 @@ begin
   Result := FSize;
 end;
 
+function TXSQLVAR.GetTextLen: SmallInt;
+var i: Integer;
+    b: SmallInt;
+begin
+  i := sqlsubtype and $00FF;
+  if (i <> CS_UNICODE_FSS) or (Pos('RDB$', RelName) <> 1) then
+    b := CharSetBytes[i]
+  else
+    b := 1;
+  Result := sqllen div b;
+end;
+
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
 var T: tm;
     D: ISC_TIME;
@@ -532,12 +623,12 @@ begin
       UTF-16 code point.}
 
     W := PWideChar(aValue);
-    Utf8ToUnicode(W, (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata), sqllen);
-    Inc(W, (sqllen div 4));
+    Utf8ToUnicode(W, GetTextLen + 1, PAnsiChar(FXSQLVar.sqldata), sqllen);
+    Inc(W, GetTextLen);
     W^ := #0;
   end else if CheckType(SQL_VARYING) then begin
     Move(FXSQLVar.sqldata^, iLen, 2);
-    Utf8ToUnicode(PWideChar(aValue), (sqllen div 4) + 1, PAnsiChar(FXSQLVar.sqldata) + 2, iLen);
+    Utf8ToUnicode(PWideChar(aValue), GetTextLen + 1, PAnsiChar(FXSQLVar.sqldata) + 2, iLen);
   end else
     Assert(False);
 end;
@@ -550,6 +641,16 @@ end;
 function TXSQLVAR.Get_aliasname_length: smallint;
 begin
   Result := FXSQLVAR.aliasname_length;
+end;
+
+function TXSQLVAR.Get_relname: string;
+begin
+  Result := string(FXSQLVAR.relname);
+end;
+
+function TXSQLVAR.Get_relname_length: smallint;
+begin
+  Result := FXSQLVAR.relname_length;
 end;
 
 function TXSQLVAR.Get_sqldata: Pointer;
@@ -609,13 +710,11 @@ begin
 
   if iType = SQL_VARYING then begin
     iSize := FSize + 2;
-    if CheckCharSet(CS_UTF8) then
-      FSize := FSize div 4;
+    FSize := GetTextLen;
     Inc(FSize, 1);
   end else if iType = SQL_TEXT then begin
     iSize := FSize + 1;
-    if CheckCharSet(CS_UTF8) then
-      FSize := FSize div 4;
+    FSize := GetTextLen;
     Inc(FSize, 1);
   end else
     iSize := FSize;
