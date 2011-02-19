@@ -96,10 +96,9 @@ const CS_WIN1258         = 65; (* Windows cp 1258  *)
 const CS_TIS620          = 66; (* TIS620 *)
 const CS_GBK             = 67; (* GBK *)
 const CS_CP943C          = 68; (* CP943C *)
+const CS_GB18030         = 69; (* GB18030 *)
 
 const CS_dynamic         = 127; (* Pseudo number for runtime charset *)
-
-const CS_MAX_CS_NUMBER   = 67;
 
 implementation
 end.
