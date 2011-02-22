@@ -76,6 +76,7 @@
 			<DCCReference Include="..\source\firebird\firebird.service.pas"/>
 			<DCCReference Include="..\source\firebird\firebird.charsets.pas"/>
 			<DCCReference Include="..\source\firebird\firebird.sql.pas"/>
+			<DCCReference Include="..\source\firebird\firebird.database.pas"/>
 			<RcCompile Include="..\..\build\rc\library.rc">
 				<Form>library.res</Form>
 			</RcCompile>
