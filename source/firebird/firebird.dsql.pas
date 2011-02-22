@@ -173,6 +173,13 @@ type
     property sqltype: smallint read Get_sqltype write Set_sqltype;
   end;
 
+  TXSQLVAREx = class helper for TXSQLVAR
+  public
+    function AsInt64: Int64;
+    function AsSmallInt: SmallInt;
+    function AsWideString: WideString;
+  end;
+
   TXSQLDA = class(TObject)
   strict private
     FVars: TList;
@@ -1187,6 +1194,38 @@ procedure TXSQLVAR.Set_sqltype(Value: smallint);
 begin
   Assert(not FPrepared);
   FXSQLVAR.sqltype := Value;
+end;
+
+function TXSQLVAREx.AsInt64: Int64;
+var bIsNull: boolean;
+begin
+  GetInt64(@Result, bIsNull);
+  if bIsNull then
+    Result := 0;
+end;
+
+function TXSQLVAREx.AsSmallInt: SmallInt;
+var bIsNull: boolean;
+begin
+  GetShort(@Result, bIsNull);
+  if bIsNull then
+    Result := 0;
+end;
+
+function TXSQLVAREx.AsWideString: WideString;
+var bIsNull: boolean;
+    W: PWideChar;
+begin
+  W := StrAlloc(Size);
+  try
+    GetWideString(W, bIsNull);
+    if not bIsNull then
+      Result := W
+    else
+      Result := '';
+  finally
+    StrDispose(W);
+  end;
 end;
 
 constructor TXSQLDA.Create(const aLibrary: IFirebirdLibrary; const aVarCount:
