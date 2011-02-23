@@ -286,7 +286,7 @@ type
 
 implementation
 
-uses FMTBcd, SqlTimSt, Math;
+uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}FMTBcd, SqlTimSt, Math;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer);
@@ -1216,7 +1216,7 @@ function TXSQLVAREx.AsWideString: WideString;
 var bIsNull: boolean;
     W: PWideChar;
 begin
-  W := StrAlloc(Size);
+  W := {$if CompilerVersion <=18.5}WStrAlloc{$else}StrAlloc{$ifend}(Size);
   try
     GetWideString(W, bIsNull);
     if not bIsNull then
@@ -1224,7 +1224,7 @@ begin
     else
       Result := '';
   finally
-    StrDispose(W);
+    {$if CompilerVersion <=18.5}WStrDispose{$else}StrDispose{$ifend}(W);
   end;
 end;
 
