@@ -1203,7 +1203,7 @@ function TXSQLVAREx.AsAnsiString: AnsiString;
 var P: PAnsiChar;
     bIsNull: boolean;
 begin
-  P := AnsiStrAlloc(Size);
+  P := {$ifdef Unicode}AnsiStrAlloc{$else}StrAlloc{$endif}(Size);
   try
     GetAnsiString(P, bIsNull);
     if not bIsNull then
