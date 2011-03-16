@@ -175,8 +175,11 @@ type
 
   TXSQLVAREx = class helper for TXSQLVAR
   public
+    function AsAnsiString: AnsiString;
+    function AsDate: TDateTime;
     function AsInt64: Int64;
     function AsSmallInt: SmallInt;
+    function AsTime: TDateTime;
     function AsWideString: WideString;
   end;
 
@@ -1196,6 +1199,35 @@ begin
   FXSQLVAR.sqltype := Value;
 end;
 
+function TXSQLVAREx.AsAnsiString: AnsiString;
+var P: PAnsiChar;
+    bIsNull: boolean;
+begin
+  P := AnsiStrAlloc(Size);
+  try
+    GetAnsiString(P, bIsNull);
+    if not bIsNull then
+      Result := P
+    else
+      Result := '';
+  finally
+    StrDispose(P);
+  end;
+end;
+
+function TXSQLVAREx.AsDate: TDateTime;
+var M: TTimeStamp;
+    bIsNull: boolean;
+begin
+  GetDate(@M.Date, bIsNull);
+  if bIsNull then
+    Result := 0
+  else begin
+    M.Time := 0;
+    Result := TimeStampToDateTime(M);
+  end;
+end;
+
 function TXSQLVAREx.AsInt64: Int64;
 var bIsNull: boolean;
 begin
@@ -1210,6 +1242,19 @@ begin
   GetShort(@Result, bIsNull);
   if bIsNull then
     Result := 0;
+end;
+
+function TXSQLVAREx.AsTime: TDateTime;
+var M: TTimeStamp;
+    bIsNull: boolean;
+begin
+  GetTime(@M.Time, bIsNull);
+  if bIsNull then
+    Result := 0
+  else begin
+//    M.Date := 0;
+    Result := TimeStampToDateTime(M);
+  end;
 end;
 
 function TXSQLVAREx.AsWideString: WideString;
@@ -1586,6 +1631,7 @@ begin
   else
     Result := TEncoding.Default;
 end;
+
 {$endif}
 
 end.
