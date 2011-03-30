@@ -2,7 +2,7 @@ unit firebird.dsql;
 
 interface
 
-uses SysUtils, Classes,
+uses SysUtils, Classes, Windows, FmtBcd, SqlTimSt,
      firebird.sqlda_pub.h, firebird.ibase.h, firebird.types_pub.h, firebird.iberror.h,
      firebird.inf_pub.h, firebird.time.h, firebird.charsets,
      firebird.client;
@@ -173,12 +173,22 @@ type
     property sqltype: smallint read Get_sqltype write Set_sqltype;
   end;
 
+  {$if CompilerVersion = 18.5}
+  Int16  = SmallInt;
+  Int32  = Integer;
+  {$ifend}
+
   TXSQLVAREx = class helper for TXSQLVAR
   public
     function AsAnsiString: AnsiString;
+    function AsBcd: TBcd;
     function AsDate: TDateTime;
+    function AsDouble: double;
+    function AsInt16: Int16;
+    function AsInt32: Int32;
     function AsInt64: Int64;
-    function AsSmallInt: SmallInt;
+    function AsQuoatedSQLValue: WideString;
+    function AsSQLTimeStamp: TSQLTimeStamp;
     function AsTime: TDateTime;
     function AsWideString: WideString;
   end;
@@ -256,6 +266,7 @@ type
     FLast_SQL: string;
     FLast_SQLDialect: word;
     FLast_ParamCount: integer;
+    procedure DoDebug;
   protected
     function Close(const aStatusVector: IStatusVector): Integer;
     function Execute(const aStatusVector: IStatusVector): Integer;
@@ -289,7 +300,7 @@ type
 
 implementation
 
-uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}FMTBcd, SqlTimSt, Math;
+uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer);
@@ -1215,6 +1226,14 @@ begin
   end;
 end;
 
+function TXSQLVAREx.AsBcd: TBcd;
+var bIsNull: boolean;
+begin
+  GetBCD(@Result, bIsNull);
+  if bIsNull then
+    Result := NullBcd;
+end;
+
 function TXSQLVAREx.AsDate: TDateTime;
 var M: TTimeStamp;
     bIsNull: boolean;
@@ -1228,6 +1247,30 @@ begin
   end;
 end;
 
+function TXSQLVAREx.AsDouble: double;
+var bIsNull: boolean;
+begin
+  GetDouble(@Result, bIsNull);
+  if bIsNull then
+    Result := 0;
+end;
+
+function TXSQLVAREx.AsInt16: Int16;
+var bIsNull: boolean;
+begin
+  GetShort(@Result, bIsNull);
+  if bIsNull then
+    Result := 0;
+end;
+
+function TXSQLVAREx.AsInt32: Int32;
+var bIsNull: boolean;
+begin
+  GetInteger(@Result, bIsNull);
+  if bIsNull then
+    Result := 0;
+end;
+
 function TXSQLVAREx.AsInt64: Int64;
 var bIsNull: boolean;
 begin
@@ -1236,12 +1279,60 @@ begin
     Result := 0;
 end;
 
-function TXSQLVAREx.AsSmallInt: SmallInt;
+function TXSQLVAREx.AsQuoatedSQLValue: WideString;
+var bQuote: boolean;
+begin
+  bQuote := True;
+  if IsNull then
+    Result := 'NULL'
+  else begin
+    Result := Format('*UNKNOWN(%d,%d)*', [sqltype, sqlsubtype]);
+    if CheckType(SQL_TEXT) or CheckType(SQL_VARYING) then begin
+      if CheckCharSet(CS_UTF8) or CheckCharSet(CS_UNICODE_FSS) then
+        Result := AsWideString
+      else
+        Result := AsAnsiString;
+    end else if CheckType(SQL_SHORT) then begin
+      if sqlsubtype = 0 then begin
+        Result := IntToStr(AsInt16);
+      end else if (sqlsubtype = 1) or (sqlsubtype = 2) then
+        Result := BcdToStr(AsBcd);
+      bQuote := False;
+    end else if CheckType(SQL_LONG) then begin
+      if sqlsubtype = 0 then begin
+        Result := IntToStr(AsInt32);
+      end else if (sqlsubtype = 1) or (sqlsubtype = 2) then
+        Result := BcdToStr(AsBcd);
+      bQuote := False;
+    end else if CheckType(SQL_INT64) then begin
+      if (sqlsubtype = 0) and (sqlscale = 0) then
+        Result := {$if CompilerVersion <= 18.5} BcdToStr(AsBcd) {$else} IntToStr(AsInt64) {$ifend}
+      else
+        Result := BcdToStr(AsBcd);
+      bQuote := False;
+    end else if CheckType(SQL_TYPE_DATE) then begin
+      Result := FormatDateTime('dd mmm yyyy', AsDate);
+    end else if CheckType(SQL_TYPE_TIME) then begin
+      Result := TimeToStr(AsTime);
+    end else if CheckType(SQL_TIMESTAMP) then begin
+      Result := SQLTimeStampToStr('dd mmm yy hh:mm:ss', AsSQLTimeStamp);
+    end else if CheckType(SQL_FLOAT) or CheckType(SQL_DOUBLE) then begin
+      Result := FloatToStr(AsDouble);
+      bQuote := False;
+    end else if CheckType(SQL_BLOB) then begin
+      Result := '(BLOB)';
+    end;
+    if bQuote then
+      Result := QuotedStr(Result);
+  end;
+end;
+
+function TXSQLVAREx.AsSQLTimeStamp: TSQLTimeStamp;
 var bIsNull: boolean;
 begin
-  GetShort(@Result, bIsNull);
+  GetTimeStamp(@Result, bIsNull);
   if bIsNull then
-    Result := 0;
+    Result := NullSQLTimeStamp;
 end;
 
 function TXSQLVAREx.AsTime: TDateTime;
@@ -1252,7 +1343,6 @@ begin
   if bIsNull then
     Result := 0
   else begin
-//    M.Date := 0;
     Result := TimeStampToDateTime(M);
   end;
 end;
@@ -1378,6 +1468,22 @@ begin
   FState := S_INACTIVE;
 end;
 
+procedure TFirebird_DSQL.DoDebug;
+var s: string;
+    x: TXSQLDA;
+    i: integer;
+begin
+  s := StringReplace(FLast_SQL, #13#10, ' ', [rfReplaceAll]);
+  while Pos('  ', s) > 0 do
+    s := StringReplace(s, '  ', ' ', [rfReplaceAll]);
+  x := Geti_SQLDA;
+  if Assigned(x) then begin
+    for i := 0 to x.Count - 1 do
+      s := StringReplace(s, '?', x[i].AsQuoatedSQLValue, []);
+  end;
+  OutputDebugString(PChar(s));
+end;
+
 procedure TFirebird_DSQL.BeforeDestruction;
 begin
   inherited;
@@ -1402,6 +1508,8 @@ begin
     X := Geti_SQLDA.XSQLDA
   else
     X := nil;
+
+  (* DoDebug; *)
 
   Assert((FState = S_PREPARED) or (FState = S_EXECUTED));
 
