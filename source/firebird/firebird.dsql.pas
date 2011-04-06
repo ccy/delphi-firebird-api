@@ -730,7 +730,7 @@ begin
   Assert(iType <> SQL_BOOLEAN);
 
   if iType = SQL_VARYING then begin
-    iSize := FSize + 2;
+    iSize := 2{First 2 bytes indicate length of varchar string} + FSize + 1{Null Terminated for UnicodeToUtf8 used in SetWideString};
     FSize := GetTextLen;
     Inc(FSize, 1);
   end else if iType = SQL_TEXT then begin
@@ -1291,7 +1291,7 @@ begin
       if CheckCharSet(CS_UTF8) or CheckCharSet(CS_UNICODE_FSS) then
         Result := AsWideString
       else
-        Result := AsAnsiString;
+        Result := string(AsAnsiString);
     end else if CheckType(SQL_SHORT) then begin
       if sqlsubtype = 0 then begin
         Result := IntToStr(AsInt16);
@@ -1488,9 +1488,8 @@ procedure TFirebird_DSQL.BeforeDestruction;
 begin
   inherited;
   Assert(FState = S_INACTIVE);
-
-  if FManage_SQLDA_In and Assigned(FSQLDA_In) then FSQLDA_In.Free;
   FSQLDA_Out.Free;
+  if FManage_SQLDA_In and Assigned(FSQLDA_In) then FSQLDA_In.Free;
 end;
 
 function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): Integer;
