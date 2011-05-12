@@ -300,7 +300,7 @@ type
 
 implementation
 
-uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math;
+uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer);
@@ -1494,6 +1494,7 @@ end;
 
 function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): Integer;
 var X: PXSQLDA;
+    bHasOutput: boolean;
 begin
   if FState = S_INACTIVE then begin
     Open(aStatusVector, FLast_DBHandle, nil);
@@ -1512,7 +1513,8 @@ begin
 
   Assert((FState = S_PREPARED) or (FState = S_EXECUTED));
 
-  if not FIsStoredProc then
+  bHasOutput := FIsStoredProc or (StartsText('INSERT', FLast_SQL) and ContainsText(FLast_SQL, 'RETURNING'));
+  if not bHasOutput then
     Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X)
   else
     Result := FClient.isc_dsql_execute2(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X, FSQLDA_Out.XSQLDA);
