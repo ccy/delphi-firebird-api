@@ -38,7 +38,6 @@
 		<Import Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')" Project="..\..\build\optset\Base.optset"/>
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
 			<VerInfo_Locale>1033</VerInfo_Locale>
 			<DllPrefixDefined>true</DllPrefixDefined>
@@ -51,10 +50,7 @@
 			<CfgDependentOn>..\..\build\optset\Base.optset</CfgDependentOn>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
-			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-			<VerInfo_Locale>1033</VerInfo_Locale>
 			<Debugger_HostApplication>$(ActiveHostApplication)</Debugger_HostApplication>
 		</PropertyGroup>
 		<Import Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Release.optset')" Project="..\..\build\optset\Release.optset"/>
@@ -125,7 +121,7 @@
 						<Parameters Name="HostApplication">$(ActiveHostApplication)</Parameters>
 					</Parameters>
 					<VersionInfo>
-						<VersionInfo Name="IncludeVerInfo">True</VersionInfo>
+						<VersionInfo Name="IncludeVerInfo">False</VersionInfo>
 						<VersionInfo Name="AutoIncBuild">False</VersionInfo>
 						<VersionInfo Name="MajorVer">1</VersionInfo>
 						<VersionInfo Name="MinorVer">0</VersionInfo>
