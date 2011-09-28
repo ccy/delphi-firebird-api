@@ -142,6 +142,7 @@ type
     FDebugger: IFirebirdLibraryDebugger;
     FProcs: TStringList;
     function Call(const aProc: pointer; const aParams: array of const): ISC_STATUS;
+    function GetDebugFactory: IFirebirdLibraryDebugFactory;
     function GetProc(const aHandle: THandle; const aProcName: PChar): pointer;
   private
     Fisc_attach_database: Tisc_attach_database;
@@ -444,7 +445,6 @@ begin
   inherited;
   FProcs := TStringList.Create;
   FDebugger := TFirebirdLibraryDebugger.Create;
-  FDebugFactory := TFirebirdClientDebugFactory.Create;
 end;
 
 procedure TFirebirdLibrary.BeforeDestruction;
@@ -494,9 +494,16 @@ begin
   if FDebugger.HasListener then begin
     i := FProcs.IndexOfObject(aProc);
     Assert(i <> -1);
-    sDebug := FDebugFactory.Get(FProcs[i], aProc, aParams, Result);
+    sDebug := GetDebugFactory.Get(FProcs[i], aProc, aParams, Result);
     FDebugger.Notify(sDebug);
   end;
+end;
+
+function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
+begin
+  if FDebugFactory = nil then
+    FDebugFactory := TFirebirdClientDebugFactory.Create(IFirebirdLibrary(Self));
+  Result := FDebugFactory;
 end;
 
 function TFirebirdLibrary.GetProc(const aHandle: THandle; const aProcName:

@@ -85,6 +85,7 @@ type
   TXSQLVAR = class(TObject)
   strict private
     FClient: IFirebirdLibrary;
+    FSQLVarReady: boolean;
     FPrepared: boolean;
     FXSQLVAR: PXSQLVAR;
   private
@@ -92,6 +93,7 @@ type
     FsqlDataSize: smallint;
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
+    function GetPrepared: boolean;
   protected
     function Get_aliasname: string;
     function Get_aliasname_length: smallint;
@@ -108,7 +110,8 @@ type
     procedure Set_sqldata(Value: Pointer);
     procedure Set_sqltype(Value: smallint);
   public
-    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer);
+    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
+        aSQLVarReady: Boolean = False);
     procedure BeforeDestruction; override;
     function CheckCharSet(const aExpectedCharSet: smallint): boolean;
     function CheckType(const aExpectedType: smallint): boolean;
@@ -159,7 +162,7 @@ type
     property aliasname: string read Get_aliasname;
     property aliasname_length: smallint read Get_aliasname_length;
     property IsNull: boolean read GetIsNull write SetIsNull;
-    property Prepared: boolean read FPrepared;
+    property Prepared: boolean read GetPrepared;
     property Size: smallint read GetSize;
     property sqldata: pointer read Get_sqldata write Set_sqldata;
     property sqlind: PISC_SHORT read Get_sqlind;
@@ -303,11 +306,13 @@ implementation
 uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
-    pointer);
+    pointer; aSQLVarReady: Boolean = False);
 begin
   inherited Create;
   FClient := aLibrary;
   FXSQLVAR := aPtr;
+  FSQLVarReady := aSQLVarReady;
+
   FPrepared := False;
 end;
 
@@ -334,7 +339,7 @@ procedure TXSQLVAR.GetAnsiString(aValue: pointer; out aIsNull: boolean);
 var c: PByte;
     iLen: word;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
 
@@ -388,7 +393,7 @@ procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
   end;
 
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
   if CheckType(SQL_INT64) then
@@ -412,7 +417,7 @@ var hBlob: isc_blob_handle;
     iResult: ISC_STATUS;
     p: PByte;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   Assert(CheckType(SQL_BLOB));
 
   aIsNull := IsNull;
@@ -456,7 +461,7 @@ var hBlob: isc_blob_handle;
     pBlobID: PISC_QUAD;
     iLen: word;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   Assert(CheckType(SQL_BLOB));
 
   aBlobSize := 0;
@@ -495,7 +500,7 @@ var T: tm;
     C: TDateTime;
     E: integer;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
 
@@ -518,7 +523,7 @@ end;
 procedure TXSQLVAR.GetDouble(aValue: pointer; out aIsNull: boolean);
 var d: double;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
 
@@ -536,7 +541,7 @@ end;
 
 procedure TXSQLVAR.GetInt64(aValue: pointer; out aIsNull: boolean);
 begin
-  Assert(FPrepared and CheckType(SQL_INT64));
+  Assert(Prepared and CheckType(SQL_INT64));
   aIsNull := IsNull;
   if not aIsNull then
     Move(FXSQLVar.sqldata^, aValue^, sqllen);
@@ -544,7 +549,7 @@ end;
 
 procedure TXSQLVAR.GetInteger(aValue: pointer; out aIsNull: boolean);
 begin
-  Assert(FPrepared and CheckType(SQL_LONG));
+  Assert(Prepared and CheckType(SQL_LONG));
   aIsNull := IsNull;
   if not aIsNull then
     Move(FXSQLVar.sqldata^, aValue^, sqllen);
@@ -557,9 +562,14 @@ begin
     Result := psmallint(FXSQLVar.sqlind)^ = -1;
 end;
 
+function TXSQLVAR.GetPrepared: boolean;
+begin
+  Result := FSQLVarReady or FPrepared;
+end;
+
 procedure TXSQLVAR.GetShort(aValue: pointer; out aIsNull: boolean);
 begin
-  Assert(FPrepared and CheckType(SQL_SHORT));
+  Assert(Prepared and CheckType(SQL_SHORT));
   aIsNull := IsNull;
   if not aIsNull then
     Move(FXSQLVar.sqldata^, aValue^, sqllen);
@@ -567,7 +577,7 @@ end;
 
 function TXSQLVAR.GetSize: smallint;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   Result := FSize;
 end;
 
@@ -589,7 +599,7 @@ var T: tm;
     C: TDateTime;
     E: integer;
 begin
-  Assert(FPrepared and CheckType(SQL_TYPE_TIME));
+  Assert(Prepared and CheckType(SQL_TYPE_TIME));
   aIsNull := IsNull;
   if not aIsNull then begin
     Move(sqldata^, D, sqllen);
@@ -605,7 +615,7 @@ var T: tm;
     D: ISC_TIMESTAMP;
     S: TSQLTimeStamp;
 begin
-  Assert(FPrepared and CheckType(SQL_TIMESTAMP));
+  Assert(Prepared and CheckType(SQL_TIMESTAMP));
   aIsNull := IsNull;
   if not aIsNull then begin
     Move(sqldata^, D, sqllen);
@@ -625,7 +635,7 @@ procedure TXSQLVAR.GetWideString(aValue: pointer; out aIsNull: boolean);
 var iLen: word;
     W: PWideChar;
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
 
@@ -722,7 +732,7 @@ end;
 procedure TXSQLVAR.Prepare;
 var iType, iSize: smallint;
 begin
-  Assert(not FPrepared);
+  Assert(not Prepared);
 
   FSize := sqllen;
 
@@ -1035,7 +1045,7 @@ end;
 
 procedure TXSQLVAR.SetIsNull(const Value: boolean);
 begin
-  Assert(FPrepared);
+  Assert(Prepared);
   if Value then begin
     if not IsNullable then
       FXSQLVAR.sqltype := FXSQLVAR.sqltype + 1;
@@ -1200,13 +1210,13 @@ end;
 
 procedure TXSQLVAR.Set_sqldata(Value: Pointer);
 begin
-  Assert(not FPrepared);
+  Assert(not Prepared);
   FXSQLVAR.sqldata := Value;
 end;
 
 procedure TXSQLVAR.Set_sqltype(Value: smallint);
 begin
-  Assert(not FPrepared);
+  Assert(not Prepared);
   FXSQLVAR.sqltype := Value;
 end;
 

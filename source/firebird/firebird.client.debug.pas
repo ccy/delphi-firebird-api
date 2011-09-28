@@ -6,9 +6,13 @@ uses firebird.client;
 
 type{$M+}
   TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdLibraryDebugFactory)
+  private
+    FClient: IFirebirdLibrary;
   protected
     function Get(const aProcName: string; const aProc: pointer; const aParams:
         array of const; const aResult: longint): string;
+  public
+    constructor Create(const aClient: IFirebirdLibrary);
   published
     function isc_attach_database(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
@@ -73,7 +77,14 @@ type{$M+}
 implementation
 
 uses SysUtils,
-     firebird.time.h, firebird.sqlda_pub.h, firebird.types_pub.h;
+     firebird.time.h, firebird.sqlda_pub.h, firebird.types_pub.h,
+     firebird.dsql;
+
+constructor TFirebirdClientDebugFactory.Create(const aClient: IFirebirdLibrary);
+begin
+  inherited Create;
+  FClient := aClient;
+end;
 
 function TFirebirdClientDebugFactory.Get(const aProcName: string; const aProc:
     pointer; const aParams: array of const; const aResult: longint): string;
@@ -244,13 +255,34 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_execute(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1, P2: ^pointer;
+var P1, P2: PInteger;
+    P4: PXSQLDA;
+    S: string;
+    i: Integer;
+    p: PByte;
+    v: TXSQLVar;
 begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
+
+  P4 := aParams[4].VPointer;
+  if Assigned(P4) then begin
+    S := Format('sqlda.version: %d sqlda.sqln: %d sqlda.sqld: %d', [P4.version, P4.sqln, P4.sqld]);
+    p := @P4.sqlvar;
+    for i := 1 to P4.sqln do begin
+      Inc(p, (i - 1) * SizeOf(XSQLVAR));
+      v := TXSQLVAR.Create(FClient, p, True);
+      try
+        S := Format('%s value.%d: %s', [S, i, v.AsQuoatedSQLValue]);
+      finally
+        v.Free;
+      end;
+    end;
+  end;
+
   Result := Format(
-              '%s transaction handle: %d statement handle: %d daVer: %d',
-              [aProcName, integer(P1^), integer(P2^), aParams[3].vInteger]);
+              '%s transaction handle: %d statement handle: %d daVer: %d %s',
+              [aProcName, P1^, P2^, aParams[3].vInteger, S]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_execute_immediate(const
