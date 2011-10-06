@@ -2,12 +2,13 @@ unit firebird.client.debug;
 
 interface
 
-uses firebird.client;
+uses Windows, firebird.sqlda_pub.h, firebird.client;
 
 type{$M+}
   TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdLibraryDebugFactory)
   private
     FClient: IFirebirdLibrary;
+    function XSQLDA_DebugMsg(const X: PXSQLDA): string;
   protected
     function Get(const aProcName: string; const aProc: pointer; const aParams:
         array of const; const aResult: longint): string;
@@ -17,6 +18,8 @@ type{$M+}
     function isc_attach_database(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
     function isc_blob_info(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
+    function isc_create_blob(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_close_blob(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
@@ -42,6 +45,8 @@ type{$M+}
         const aParams: array of const; const aResult: longint): string;
     function isc_dsql_execute(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
+    function isc_dsql_execute2(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
     function isc_dsql_execute_immediate(const aProcName: string; const aProc:
         pointer; const aParams: array of const; const aResult: longint): string;
     function isc_dsql_fetch(const aProcName: string; const aProc: pointer; const
@@ -60,6 +65,8 @@ type{$M+}
         const aParams: array of const; const aResult: longint): string;
     function isc_get_segment(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
+    function isc_interprete(const aProcName: string; const aProc: pointer; const
+        aParams: array of const; const aResult: longint): string;
     function isc_open_blob(const aProcName: string; const aProc: pointer; const
         aParams: array of const; const aResult: longint): string;
     function isc_open_blob2(const aProcName: string; const aProc: pointer; const
@@ -68,6 +75,8 @@ type{$M+}
         aParams: array of const; const aResult: longint): string;
     function isc_rollback_transaction(const aProcName: string; const aProc:
         pointer; const aParams: array of const; const aResult: longint): string;
+    function isc_sqlcode(const aProcName: string; const aProc: pointer;
+        const aParams: array of const; const aResult: longint): string;
     function isc_start_multiple(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
     function isc_vax_integer(const aProcName: string; const aProc: pointer; const
@@ -77,10 +86,11 @@ type{$M+}
 implementation
 
 uses SysUtils,
-     firebird.time.h, firebird.sqlda_pub.h, firebird.types_pub.h,
+     firebird.time.h, firebird.types_pub.h,
      firebird.dsql;
 
-constructor TFirebirdClientDebugFactory.Create(const aClient: IFirebirdLibrary);
+constructor TFirebirdClientDebugFactory.Create(const aClient:
+    IFirebirdLibrary);
 begin
   inherited Create;
   FClient := aClient;
@@ -88,34 +98,24 @@ end;
 
 function TFirebirdClientDebugFactory.Get(const aProcName: string; const aProc:
     pointer; const aParams: array of const; const aResult: longint): string;
-var pMethod: pointer;
-    H: integer;
+var P: function(const aProcName: string; const aProc: pointer;
+         const aParams: array of const; const aResult: longint): string of object;
 begin
   Result := aProcName;
-  pMethod := Self.MethodAddress(aProcName);   // Find method in Message Class
-  if Assigned(pMethod) then begin
-    H := High(aParams);
-    asm
-      mov  eax,[aParams]        // 3rd argument: @aParams
-      push eax
-      mov  eax,[H]              // 4th argument: Highest index of dynamic array. Eg: High(aParams)
-      push eax
-      mov  eax,[aResult]        // 5th argument: aResult
-      push eax
-      mov  eax,[Result]         // 6th argument: @Result
-      push eax
-      mov  ecx,aProc            // 2nd argument: aProc
-      mov  edx,[aProcName]      // 1st argument: aProcName
-      mov  eax,[Self]           // address of self or class
-      call pMethod              // call message method
-    end;
+  with TMethod(P) do begin
+    Data := Self;
+    Code := Self.MethodAddress(aProcName);  // Find method in Message Class
+    if Assigned(Code) then
+      Result := P(aProcName, aProc, aParams, aResult)
+    else
+      {$ifdef Debug}OutputDebugString(PChar(aProcName));{$endif}
   end;
 end;
 
 function TFirebirdClientDebugFactory.isc_attach_database(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[3].VPointer;
   Result := Format('%s db_name: %s db_handle: %d', [aProcName, aParams[2].VPChar, integer(P^)]);
@@ -124,7 +124,7 @@ end;
 function TFirebirdClientDebugFactory.isc_blob_info(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
     Buf: PAnsiChar;
     i: integer;
 begin
@@ -138,7 +138,7 @@ end;
 function TFirebirdClientDebugFactory.isc_close_blob(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s blob_handle: %d', [aProcName, integer(P^)]);
@@ -147,16 +147,29 @@ end;
 function TFirebirdClientDebugFactory.isc_commit_transaction(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s tr_handle: %d', [aProcName, integer(P^)]);
 end;
 
+function TFirebirdClientDebugFactory.isc_create_blob(const aProcName: string;
+  const aProc: pointer; const aParams: array of const;
+  const aResult: Integer): string;
+var P1, P2, P3: PPointer;
+    P4: PISC_QUAD;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+  P3 := aParams[3].VPointer;
+  P4 := aParams[4].VPointer;
+  Result := Format('%s db_handle: %d tr_handle: %d blob_handle: %d blobid: %d %d', [aProcName, integer(P1^), integer(P2^), integer(P3^), P4^.gds_quad_high, P4^.gds_quad_low]);
+end;
+
 function TFirebirdClientDebugFactory.isc_create_blob2(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1, P2, P3: ^Pointer;
+var P1, P2, P3: PPointer;
 begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
@@ -200,7 +213,7 @@ end;
 function TFirebirdClientDebugFactory.isc_detach_database(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s db_handle: %d', [aProcName, integer(P^)]);
@@ -209,7 +222,7 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_allocate_statement(const
     aProcName: string; const aProc: pointer; const aParams: array of const;
     const aResult: longint): string;
-var P1, P2: ^Pointer;
+var P1, P2: PPointer;
 begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
@@ -219,7 +232,7 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_alloc_statement2(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1, P2: ^Pointer;
+var P1, P2: PPointer;
 begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
@@ -229,7 +242,7 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_describe(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1: ^Pointer;
+var P1: PPointer;
     P2: PXSQLDA;
 begin
   P1 := aParams[1].VPointer;
@@ -242,7 +255,7 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_describe_bind(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1: ^Pointer;
+var P1: PPointer;
     P2: PXSQLDA;
 begin
   P1 := aParams[1].VPointer;
@@ -257,38 +270,35 @@ function TFirebirdClientDebugFactory.isc_dsql_execute(const aProcName: string;
     longint): string;
 var P1, P2: PInteger;
     P4: PXSQLDA;
-    S: string;
-    i: Integer;
-    p: PByte;
-    v: TXSQLVar;
 begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
-
   P4 := aParams[4].VPointer;
-  if Assigned(P4) then begin
-    S := Format('sqlda.version: %d sqlda.sqln: %d sqlda.sqld: %d', [P4.version, P4.sqln, P4.sqld]);
-    p := @P4.sqlvar;
-    for i := 1 to P4.sqln do begin
-      Inc(p, (i - 1) * SizeOf(XSQLVAR));
-      v := TXSQLVAR.Create(FClient, p, True);
-      try
-        S := Format('%s value.%d: %s', [S, i, v.AsQuoatedSQLValue]);
-      finally
-        v.Free;
-      end;
-    end;
-  end;
 
   Result := Format(
               '%s transaction handle: %d statement handle: %d daVer: %d %s',
-              [aProcName, P1^, P2^, aParams[3].vInteger, S]);
+              [aProcName, P1^, P2^, aParams[3].vInteger, XSQLDA_DebugMsg(P4)]);
+end;
+
+function TFirebirdClientDebugFactory.isc_dsql_execute2(const aProcName: string;
+  const aProc: pointer; const aParams: array of const;
+  const aResult: Integer): string;
+var P1, P2: PInteger;
+    P4, P5: PXSQLDA;
+begin
+  P1 := aParams[1].VPointer;
+  P2 := aParams[2].VPointer;
+  P4 := aParams[4].VPointer;
+  P5 := aParams[5].VPointer;
+  Result := Format(
+              '%s transaction handle: %d statement handle: %d dialect: %d in_sqlda: [%s] out_sqlda: [%s]',
+              [aProcName, P1^, P2^, aParams[3].vInteger, XSQLDA_DebugMsg(P4), XSQLDA_DebugMsg(P5)]);
 end;
 
 function TFirebirdClientDebugFactory.isc_dsql_execute_immediate(const
     aProcName: string; const aProc: pointer; const aParams: array of const;
     const aResult: longint): string;
-var P1, P2: ^pointer;
+var P1, P2: PPointer;
 begin
   P1 := aParams[1].VPointer;
   P2 := aParams[2].VPointer;
@@ -312,7 +322,7 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_free_statement(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
     s: string;
 begin
   P := aParams[1].VPointer;
@@ -337,7 +347,7 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_sql_info(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s statement handle: %d ', [aProcName, integer(P^)]);
@@ -379,7 +389,7 @@ end;
 function TFirebirdClientDebugFactory.isc_get_segment(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format(
@@ -387,10 +397,17 @@ begin
               [aProcName, integer(P^), aParams[2].VInteger, aParams[3].VInteger]);
 end;
 
+function TFirebirdClientDebugFactory.isc_interprete(const aProcName: string;
+  const aProc: pointer; const aParams: array of const;
+  const aResult: Integer): string;
+begin
+  Result := Format('%s buffer: %s', [aProcName, aParams[0].vpchar]);
+end;
+
 function TFirebirdClientDebugFactory.isc_open_blob(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1, P2, P3: ^Pointer;
+var P1, P2, P3: PPointer;
     P4: PISC_QUAD;
 begin
   P1 := aParams[1].VPointer;
@@ -405,7 +422,7 @@ end;
 function TFirebirdClientDebugFactory.isc_open_blob2(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P1, P2, P3: ^Pointer;
+var P1, P2, P3: PPointer;
     P4: PISC_QUAD;
 begin
   P1 := aParams[1].VPointer;
@@ -420,7 +437,7 @@ end;
 function TFirebirdClientDebugFactory.isc_put_segment(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format(
@@ -435,10 +452,17 @@ begin
   Result := Format('%s tr_handle: %d', [aProcName, integer(aParams[1].VPointer)]);
 end;
 
+function TFirebirdClientDebugFactory.isc_sqlcode(const aProcName: string;
+  const aProc: pointer; const aParams: array of const;
+  const aResult: Integer): string;
+begin
+  Result := Format('%s result: %d', [aProcName, aResult]);
+end;
+
 function TFirebirdClientDebugFactory.isc_start_multiple(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: ^Pointer;
+var P: PPointer;
 begin
   P := aParams[1].VPointer;
   Result := Format('%s tr_handle: %d', [aProcName, integer(P^)]);
@@ -451,6 +475,26 @@ var P: PInteger;
 begin
   P := aParams[0].VPointer;
   Result := Format('%s buffer: %d length: %d', [aProcName, P^, aParams[1].vInteger]);
+end;
+
+function TFirebirdClientDebugFactory.XSQLDA_DebugMsg(const X: PXSQLDA): string;
+var p: PByte;
+    i: integer;
+    v: TXSQLVar;
+begin
+  if X = nil then Exit;
+
+  Result := Format('sqlda.version: %d sqlda.sqln: %d sqlda.sqld: %d', [X.version, X.sqln, X.sqld]);
+  p := @X.sqlvar;
+  for i := 1 to X.sqln do begin
+    Inc(p, (i - 1) * SizeOf(XSQLVAR));
+    v := TXSQLVAR.Create(FClient, p, True);
+    try
+      Result := Format('%s value.%d: %s', [Result, i, v.AsQuoatedSQLValue]);
+    finally
+      v.Free;
+    end;
+  end;
 end;
 
 end.

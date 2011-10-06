@@ -42,8 +42,8 @@ interface
 //type   intptr_t = __int64;
 //type   __int64 uintptr_t = Word;
 //else
-type intptr_t = LongInt;
-type uintptr_t = Cardinal;
+type intptr_t = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
+//type uintptr_t = Cardinal;
 //endif
 //endif
 
@@ -136,7 +136,7 @@ type ISC_UINT64 = UInt64;
 //ifndef ISC_TIMESTAMP_DEFINED
 type ISC_DATE = integer;
 type PISC_DATE = ^ISC_DATE;
-type ISC_TIME = Word;
+type ISC_TIME = integer;
 type PISC_TIME = ^ISC_TIME;
 type  ISC_TIMESTAMP = record
    timestamp_date: ISC_DATE;

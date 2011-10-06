@@ -226,8 +226,8 @@ type
 
   IFirebird_DSQL = interface(IInterface)
   ['{D78064C2-2E8F-4BA0-8EBD-739826B7FC34}']
-    function Close(const aStatusVector: IStatusVector): Integer;
-    function Execute(const aStatusVector: IStatusVector): Integer;
+    function Close(const aStatusVector: IStatusVector): TFBIntType;
+    function Execute(const aStatusVector: IStatusVector): TFBIntType;
     function Fetch(const aStatusVector: IStatusVector): ISC_STATUS;
     function GetIsStoredProc: Boolean;
     function Geti_SQLDA: TXSQLDA;
@@ -235,12 +235,12 @@ type
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
+        pisc_db_handle; const aTransaction: IFirebirdTransaction): TFBIntType;
     function GetPlan(const aStatusVector: IStatusVector): string;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
-        aSQLDialect: word; const aParamCount: Integer = 0): Integer; overload;
+        aSQLDialect: word; const aParamCount: Integer = 0): TFBIntType; overload;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
-        aSQLDialect: word; const aParams: TXSQLDA): Integer; overload;
+        aSQLDialect: word; const aParams: TXSQLDA): TFBIntType; overload;
     function Transaction: IFirebirdTransaction;
     property IsStoredProc: Boolean read GetIsStoredProc;
     property i_SQLDA: TXSQLDA read Geti_SQLDA;
@@ -271,8 +271,8 @@ type
     FLast_ParamCount: integer;
     procedure DoDebug;
   protected
-    function Close(const aStatusVector: IStatusVector): Integer;
-    function Execute(const aStatusVector: IStatusVector): Integer;
+    function Close(const aStatusVector: IStatusVector): TFBIntType;
+    function Execute(const aStatusVector: IStatusVector): TFBIntType;
     function Fetch(const aStatusVector: IStatusVector): ISC_STATUS;
     function GetIsStoredProc: Boolean;
     function Geti_SQLDA: TXSQLDA;
@@ -281,11 +281,11 @@ type
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction): Integer;
+        pisc_db_handle; const aTransaction: IFirebirdTransaction): TFBIntType;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
-        aSQLDialect: word; const aParamCount: Integer = 0): Integer; overload;
+        aSQLDialect: word; const aParamCount: Integer = 0): TFBIntType; overload;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
-        aSQLDialect: word; const aParams: TXSQLDA): Integer; overload;
+        aSQLDialect: word; const aParams: TXSQLDA): TFBIntType; overload;
     function Transaction: IFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdLibrary; const
@@ -1349,12 +1349,12 @@ function TXSQLVAREx.AsTime: TDateTime;
 var M: TTimeStamp;
     bIsNull: boolean;
 begin
+  M := DateTimeToTimeStamp(0);
   GetTime(@M.Time, bIsNull);
   if bIsNull then
     Result := 0
-  else begin
+  else
     Result := TimeStampToDateTime(M);
-  end;
 end;
 
 function TXSQLVAREx.AsWideString: WideString;
@@ -1502,7 +1502,7 @@ begin
   if FManage_SQLDA_In and Assigned(FSQLDA_In) then FSQLDA_In.Free;
 end;
 
-function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): Integer;
+function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): TFBIntType;
 var X: PXSQLDA;
     bHasOutput: boolean;
 begin
@@ -1629,7 +1629,7 @@ begin
   Result := FTransaction;
 end;
 
-function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): Integer;
+function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): TFBIntType;
 begin
   if FState = S_INACTIVE then begin
     Result := 0;
@@ -1661,7 +1661,7 @@ end;
 
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
     aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction):
-    Integer;
+    TFBIntType;
 begin
   Assert(FState = S_INACTIVE);
 
@@ -1685,7 +1685,8 @@ begin
 end;
 
 function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
-    string; const aSQLDialect: word; const aParamCount: Integer = 0): Integer;
+    string; const aSQLDialect: word; const aParamCount: Integer = 0):
+    TFBIntType;
 begin
   if (aParamCount > 0) and (FSQLDA_In = nil) then begin
     FManage_SQLDA_In := True;
@@ -1695,7 +1696,7 @@ begin
 end;
 
 function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
-    string; const aSQLDialect: word; const aParams: TXSQLDA): Integer;
+    string; const aSQLDialect: word; const aParams: TXSQLDA): TFBIntType;
 {$ifdef Unicode}var B: TBytes;{$endif}
 begin
   Assert(FState = S_OPENED);

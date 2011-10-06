@@ -8,6 +8,8 @@ uses Windows, SysUtils, Classes,
 {$Message 'http://tracker.firebirdsql.org/browse/CORE-1745: Firebird Embedded DLL create fb_xxxx.LCK cause problem on multi connection in same project'}
 
 type
+  TFBIntType = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
+
   {$region 'Firebird Library: Debugger'}
   IFirebirdLibraryDebuggerListener = interface(IInterface)
   ['{5E724646-C4F6-499E-9C04-38AA81425B47}']
@@ -100,9 +102,9 @@ type
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
     procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE);
     procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME);
-    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIME);
+    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP);
     function isc_get_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
-        pisc_blob_handle; length: pWord; buffer_length: Word; buffer: PISC_SCHAR):
+        pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer: PISC_SCHAR):
         ISC_STATUS; stdcall;
     function isc_interprete(buffer: PISC_SCHAR; status_vector: PPISC_STATUS_ARRAY):
         ISC_STATUS; stdcall;
@@ -142,8 +144,11 @@ type
     FDebugger: IFirebirdLibraryDebugger;
     FProcs: TStringList;
     function Call(const aProc: pointer; const aParams: array of const): ISC_STATUS;
+        deprecated; platform;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
     function GetProc(const aHandle: THandle; const aProcName: PChar): pointer;
+    procedure DebugMsg(const aProc: pointer; const aParams: array of const;
+        aResult: ISC_STATUS);
   private
     Fisc_attach_database: Tisc_attach_database;
     Fisc_blob_info: Tisc_blob_info;
@@ -245,9 +250,9 @@ type
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
     procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE);
     procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME);
-    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIME);
+    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP);
     function isc_get_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
-        pisc_blob_handle; length: pWord; buffer_length: Word; buffer: PISC_SCHAR):
+        pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer: PISC_SCHAR):
         ISC_STATUS; stdcall;
     function isc_interprete(buffer: PISC_SCHAR; status_vector: PPISC_STATUS_ARRAY):
         ISC_STATUS; stdcall;
@@ -325,8 +330,8 @@ type
   ['{A51BBF0A-0565-4397-AFBE-ED0DD7BAF3BC}']
     procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
-        longint): boolean;
-    function CheckFirebirdError(out aErrorCode: longint): boolean;
+        TFBIntType): boolean;
+    function CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
     function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
     function CheckResult(out aResult: longint; const aFailed_Result: longint):
         Boolean; overload;
@@ -345,8 +350,8 @@ type
   protected
     procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
-        longint): boolean;
-    function CheckFirebirdError(out aErrorCode: longint): boolean;
+        TFBIntType): boolean;
+    function CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
     function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
     function CheckResult(out aResult: longint; const aFailed_Result: longint):
         Boolean; overload;
@@ -455,12 +460,15 @@ end;
 
 function TFirebirdLibrary.Call(const aProc: pointer; const aParams: array of
     const): ISC_STATUS;
+{$ifdef Win32}
 var i: integer;
     aInteger: integer;
     aPointer: pointer;
     aPChar: PAnsiChar;
     sDebug: string;
+{$endif}
 begin
+{$ifdef Win32}
   for i := High(aParams) downto Low(aParams) do begin
     case aParams[i].VType of
       vtInteger: begin
@@ -497,6 +505,7 @@ begin
     sDebug := GetDebugFactory.Get(FProcs[i], aProc, aParams, Result);
     FDebugger.Notify(sDebug);
   end;
+{$endif}
 end;
 
 function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
@@ -519,33 +528,38 @@ function TFirebirdLibrary.isc_attach_database(status_vector: PISC_STATUS_ARRAY;
     file_length: SmallInt; file_name: PISC_SCHAR; public_handle:
     pisc_db_handle; dpb_length: SmallInt; dpb: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_attach_database, [status_vector, file_length, file_name, public_handle, dpb_length, dpb]);
+  Result := Fisc_attach_database(status_vector, file_length, file_name, public_handle, dpb_length, dpb);
+  DebugMsg(@Fisc_attach_database, [status_vector, file_length, file_name, public_handle, dpb_length, dpb], Result);
 end;
 
 function TFirebirdLibrary.isc_blob_info(status_vector: PISC_STATUS_ARRAY;
     isc_blob_handle: pisc_blob_handle; item_length: SmallInt; items:
     PISC_SCHAR; buffer_length: SmallInt; buffer: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@FIsc_blob_info, [status_vector, isc_blob_handle, item_length, items, buffer_length, buffer]);
+  Result := FIsc_blob_info(status_vector, isc_blob_handle, item_length, items, buffer_length, buffer);
+  DebugMsg(@FIsc_blob_info, [status_vector, isc_blob_handle, item_length, items, buffer_length, buffer], Result);
 end;
 
 function TFirebirdLibrary.isc_close_blob(status_vector: PISC_STATUS_ARRAY;
     blob_handle: pisc_blob_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_close_blob, [status_vector, blob_handle]);
+  Result := Fisc_close_blob(status_vector, blob_handle);
+  DebugMsg(@Fisc_close_blob, [status_vector, blob_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_commit_transaction(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_commit_transaction, [status_vector, tra_handle]);
+  Result := Fisc_commit_transaction(status_vector, tra_handle);
+  DebugMsg(@Fisc_commit_transaction, [status_vector, tra_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_create_blob(status_vector: PISC_STATUS_ARRAY;
     db_handle: pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle:
     pisc_blob_handle; blob_id: PISC_QUAD): ISC_STATUS;
 begin
-  Result := Call(@Fisc_create_blob, [status_vector, db_handle, tr_handle, blob_handle, blob_id]);
+  Result := Fisc_create_blob(status_vector, db_handle, tr_handle, blob_handle, blob_id);
+  DebugMsg(@Fisc_create_blob, [status_vector, db_handle, tr_handle, blob_handle, blob_id], Result);
 end;
 
 function TFirebirdLibrary.isc_create_blob2(status_vector: PISC_STATUS_ARRAY;
@@ -553,195 +567,225 @@ function TFirebirdLibrary.isc_create_blob2(status_vector: PISC_STATUS_ARRAY;
     pisc_blob_handle; blob_id: PISC_QUAD; bpb_length: SmallInt; bpb:
     PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_create_blob2, [status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb]);
+  Result := Fisc_create_blob2(status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb);
+  DebugMsg(@Fisc_create_blob2, [status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb], Result);
 end;
 
 function TFirebirdLibrary.isc_database_info(status_vector: PISC_STATUS_ARRAY;
     db_handle: pisc_db_handle; info_len: SmallInt; info: PISC_SCHAR; res_len:
     SmallInt; res: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_database_info, [status_vector, db_handle, info_len, info, res_len, res]);
+  Result := Fisc_database_info(status_vector, db_handle, info_len, info, res_len, res);
+  DebugMsg(@Fisc_database_info, [status_vector, db_handle, info_len, info, res_len, res], Result);
 end;
 
 procedure TFirebirdLibrary.isc_decode_sql_date(date: PISC_DATE; times_arg:
     pointer);
 begin
-  Call(@Fisc_decode_sql_date, [date, times_arg]);
+  Fisc_decode_sql_date(date, times_arg);
+  DebugMsg(@Fisc_decode_sql_date, [date, times_arg], 0);
 end;
 
 procedure TFirebirdLibrary.isc_decode_sql_time(sql_time: PISC_TIME; times_args:
     pointer);
 begin
-  Call(@Fisc_decode_sql_time, [sql_time, times_args]);
+  Fisc_decode_sql_time(sql_time, times_args);
+  DebugMsg(@Fisc_decode_sql_time, [sql_time, times_args], 0);
 end;
 
 procedure TFirebirdLibrary.isc_decode_timestamp(date: PISC_TIMESTAMP;
     times_arg: pointer);
 begin
-  Call(@Fisc_decode_timestamp, [date, times_arg]);
+  Fisc_decode_timestamp(date, times_arg);
+  DebugMsg(@Fisc_decode_timestamp, [date, times_arg], 0);
 end;
 
 function TFirebirdLibrary.isc_detach_database(status_vector: PISC_STATUS_ARRAY;
     public_handle: pisc_db_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_detach_database, [status_vector, public_handle]);
+  Result := Fisc_detach_database(status_vector, public_handle);
+  DebugMsg(@Fisc_detach_database, [status_vector, public_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_drop_database(status_vector: PISC_STATUS_ARRAY;
     db_handle: pisc_db_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_drop_database, [status_vector, db_handle]);
+  Result := Fisc_drop_database(status_vector, db_handle);
+  DebugMsg(@Fisc_drop_database, [status_vector, db_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_allocate_statement(status_vector:
     PISC_STATUS_ARRAY; db_handle: pisc_db_handle; stmt_handle: pisc_stmt_handle):
     ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_allocate_statement, [status_vector, db_handle, stmt_handle]);
+  Result := Fisc_dsql_allocate_statement(status_vector, db_handle, stmt_handle);
+  DebugMsg(@Fisc_dsql_allocate_statement, [status_vector, db_handle, stmt_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_alloc_statement2(status_vector: PISC_STATUS_ARRAY;
     db_handle: pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_alloc_statement2, [status_vector, db_handle, stmt_handle]);
+  Result := Fisc_dsql_alloc_statement2(status_vector, db_handle, stmt_handle);
+  DebugMsg(@Fisc_dsql_alloc_statement2, [status_vector, db_handle, stmt_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_describe(status_vector: PISC_STATUS_ARRAY;
     stmt_handle: pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_describe, [status_vector, stmt_handle, dialect, sqlda]);
+  Result := Fisc_dsql_describe(status_vector, stmt_handle, dialect, sqlda);
+  DebugMsg(@Fisc_dsql_describe, [status_vector, stmt_handle, dialect, sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_describe_bind(status_vector: PISC_STATUS_ARRAY;
     stmt_handle: pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_describe_bind, [status_vector, stmt_handle, dialect, sqlda]);
+  Result := Fisc_dsql_describe_bind(status_vector, stmt_handle, dialect, sqlda);
+  DebugMsg(@Fisc_dsql_describe_bind, [status_vector, stmt_handle, dialect, sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_execute(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word;
     sqlda: PXSQLDA): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_execute, [status_vector, tra_handle, stmt_handle, dialect, sqlda]);
+  Result := Fisc_dsql_execute(status_vector, tra_handle, stmt_handle, dialect, sqlda);
+  DebugMsg(@Fisc_dsql_execute, [status_vector, tra_handle, stmt_handle, dialect, sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_execute2(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word;
     in_sqlda: PXSQLDA; out_sqlda: PXSQLDA): ISC_STATUS;
 begin
-  Result := call(@Fisc_dsql_execute2, [status_vector, tra_handle, stmt_handle, dialect, in_sqlda, out_sqlda]);
+  Result := Fisc_dsql_execute2(status_vector, tra_handle, stmt_handle, dialect, in_sqlda, out_sqlda);
+  DebugMsg(@Fisc_dsql_execute2, [status_vector, tra_handle, stmt_handle, dialect, in_sqlda, out_sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_execute_immediate(status_vector:
     PISC_STATUS_ARRAY; db_handle: pisc_db_handle; tra_handle: pisc_tr_handle; length:
     Word; statement: PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_execute_immediate, [status_vector, db_handle, tra_handle, length, statement, dialect, sqlda]);
+  Result := Fisc_dsql_execute_immediate(status_vector, db_handle, tra_handle, length, statement, dialect, sqlda);
+  DebugMsg(@Fisc_dsql_execute_immediate, [status_vector, db_handle, tra_handle, length, statement, dialect, sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_fetch(status_vector: PISC_STATUS_ARRAY;
     stmt_handle: pisc_stmt_handle; da_version: Word; sqlda: PXSQLDA):
     ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_fetch, [status_vector, stmt_handle, da_version, sqlda]);
+  Result := Fisc_dsql_fetch(status_vector, stmt_handle, da_version, sqlda);
+  DebugMsg(@Fisc_dsql_fetch, [status_vector, stmt_handle, da_version, sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_free_statement(status_vector: PISC_STATUS_ARRAY;
     stmt_handle: pisc_stmt_handle; option: Word): ISC_STATUS;
 begin
-  Result := call(@Fisc_dsql_free_statement, [status_vector, stmt_handle, option]);
+  Result := Fisc_dsql_free_statement(status_vector, stmt_handle, option);
+  DebugMsg(@Fisc_dsql_free_statement, [status_vector, stmt_handle, option], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_prepare(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle; stmt_handle: pisc_stmt_handle; length: Word;
     str: PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_prepare, [status_vector, tra_handle, stmt_handle, length, str, dialect, sqlda]);
+  Result := Fisc_dsql_prepare(status_vector, tra_handle, stmt_handle, length, str, dialect, sqlda);
+  DebugMsg(@Fisc_dsql_prepare, [status_vector, tra_handle, stmt_handle, length, str, dialect, sqlda], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_set_cursor_name(status_vector: PISC_STATUS_ARRAY;
     stmt_handle: pisc_stmt_handle; cursor_name: PISC_SCHAR; reserve: Word):
     ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_set_cursor_name, [status_vector, stmt_handle, cursor_name, reserve]);
+  Result := Fisc_dsql_set_cursor_name(status_vector, stmt_handle, cursor_name, reserve);
+  DebugMsg(@Fisc_dsql_set_cursor_name, [status_vector, stmt_handle, cursor_name, reserve], Result);
 end;
 
 function TFirebirdLibrary.isc_dsql_sql_info(status_vector: PISC_STATUS_ARRAY;
     stmt_handle: pisc_stmt_handle; items_len: SmallInt; items: PISC_SCHAR;
     buffer_len: SmallInt; buffer: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_dsql_sql_info, [status_vector, stmt_handle, items_len, items, buffer_len, buffer]);
+  Result := Fisc_dsql_sql_info(status_vector, stmt_handle, items_len, items, buffer_len, buffer);
+  DebugMsg(@Fisc_dsql_sql_info, [status_vector, stmt_handle, items_len, items, buffer_len, buffer], Result);
 end;
 
 procedure TFirebirdLibrary.isc_encode_sql_date(times_arg: pointer; date:
     PISC_DATE);
 begin
-  Call(@Fisc_encode_sql_date, [times_arg, date]);
+  Fisc_encode_sql_date(times_arg, date);
+  DebugMsg(@Fisc_encode_sql_date, [times_arg, date], 0);
 end;
 
 procedure TFirebirdLibrary.isc_encode_sql_time(times_arg: pointer; isc_time:
     PISC_TIME);
 begin
-  Call(@Fisc_encode_sql_time, [times_arg, isc_time]);
+  Fisc_encode_sql_time(times_arg, isc_time);
+  DebugMsg(@Fisc_encode_sql_time, [times_arg, isc_time], 0);
 end;
 
 procedure TFirebirdLibrary.isc_encode_timestamp(times_arg: pointer; isc_time:
-    PISC_TIME);
+    PISC_TIMESTAMP);
 begin
-  Call(@Fisc_encode_timestamp, [times_arg, isc_time]);
+  Fisc_encode_timestamp(times_arg, isc_time);
+  DebugMsg(@Fisc_encode_timestamp, [times_arg, isc_time], 0);
 end;
 
 function TFirebirdLibrary.isc_get_segment(status_vector: PISC_STATUS_ARRAY;
-    blob_handle: pisc_blob_handle; length: pWord; buffer_length: Word; buffer:
+    blob_handle: pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer:
     PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_get_segment, [status_vector, blob_handle, length, buffer_length, buffer]);
+  Result := Fisc_get_segment(status_vector, blob_handle, length, buffer_length, buffer);
+  DebugMsg(@Fisc_get_segment, [status_vector, blob_handle, length, buffer_length, buffer], Result);
 end;
 
 function TFirebirdLibrary.isc_interprete(buffer: PISC_SCHAR; status_vector:
     PPISC_STATUS_ARRAY): ISC_STATUS;
 begin
-  Result := Call(@Fisc_interprete, [buffer, status_vector]);
+  Result := Fisc_interprete(buffer, status_vector);
+  DebugMsg(@Fisc_interprete, [buffer, status_vector], Result);
 end;
 
 function TFirebirdLibrary.isc_open_blob(status_vector: PISC_STATUS_ARRAY; db_handle:
     pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
     blob_id: PISC_QUAD): ISC_STATUS;
 begin
-  Result := Call(@Fisc_open_blob, [status_vector, db_handle, tr_handle, blob_handle, blob_id]);
+  Result := Fisc_open_blob(status_vector, db_handle, tr_handle, blob_handle, blob_id);
+  DebugMsg(@Fisc_open_blob, [status_vector, db_handle, tr_handle, blob_handle, blob_id], Result);
 end;
 
 function TFirebirdLibrary.isc_open_blob2(status_vector: PISC_STATUS_ARRAY; db_handle:
     pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
     blob_id: PISC_QUAD; bpb_length: ISC_USHORT; bpb: PISC_UCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_open_blob2, [status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb]);
+  Result := Fisc_open_blob2(status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb);
+  DebugMsg(@Fisc_open_blob2, [status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb], Result);
 end;
 
 function TFirebirdLibrary.isc_put_segment(status_vector: PISC_STATUS_ARRAY;
     blob_handle: pisc_blob_handle; buffer_length: Word; buffer: PISC_SCHAR):
     ISC_STATUS;
 begin
-  Result := Call(@Fisc_put_segment, [status_vector, blob_handle, buffer_length, buffer]);
+  Result := Fisc_put_segment(status_vector, blob_handle, buffer_length, buffer);
+  DebugMsg(@Fisc_put_segment, [status_vector, blob_handle, buffer_length, buffer], Result);
 end;
 
 function TFirebirdLibrary.isc_rollback_transaction(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_rollback_transaction, [status_vector, tra_handle]);
+  Result := Fisc_rollback_transaction(status_vector, tra_handle);
+  DebugMsg(@Fisc_rollback_transaction, [status_vector, tra_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_service_attach(status_vector: PISC_STATUS_ARRAY;
     service_length: Word; service: PISC_SCHAR; svc_handle: pisc_svc_handle;
     spb_length: Word; spb: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_service_attach, [status_vector, service_length, service, svc_handle, spb_length, spb]);
+  Result := Fisc_service_attach(status_vector, service_length, service, svc_handle, spb_length, spb);
+  DebugMsg(@Fisc_service_attach, [status_vector, service_length, service, svc_handle, spb_length, spb], Result);
 end;
 
 function TFirebirdLibrary.isc_service_detach(status_vector: PISC_STATUS_ARRAY;
     svc_handle: pisc_svc_handle): ISC_STATUS;
 begin
-  Result := Call(@Fisc_service_detach, [status_vector, svc_handle]);
+  Result := Fisc_service_detach(status_vector, svc_handle);
+  DebugMsg(@Fisc_service_detach, [status_vector, svc_handle], Result);
 end;
 
 function TFirebirdLibrary.isc_service_query(status_vector: PISC_STATUS_ARRAY;
@@ -749,31 +793,36 @@ function TFirebirdLibrary.isc_service_query(status_vector: PISC_STATUS_ARRAY;
     Word; send_spb: PISC_SCHAR; request_spb_length:Word; request_spb:
     PISC_SCHAR; buffer_length: Word; buffer: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_service_query, [status_vector, svc_handle, reserved, send_spb_length, send_spb, request_spb_length, request_spb, buffer_length, buffer]);
+  Result := Fisc_service_query(status_vector, svc_handle, reserved, send_spb_length, send_spb, request_spb_length, request_spb, buffer_length, buffer);
+  DebugMsg(@Fisc_service_query, [status_vector, svc_handle, reserved, send_spb_length, send_spb, request_spb_length, request_spb, buffer_length, buffer], Result);
 end;
 
 function TFirebirdLibrary.isc_service_start(status_vector: PISC_STATUS_ARRAY;
     svc_handle: pisc_svc_handle; reserved: pisc_resv_handle; spb_length: Word;
     spb: PISC_SCHAR): ISC_STATUS;
 begin
-  Result := Call(@Fisc_service_start, [status_vector, svc_handle, reserved, spb_length, spb]);
+  Result := Fisc_service_start(status_vector, svc_handle, reserved, spb_length, spb);
+  DebugMsg(@Fisc_service_start, [status_vector, svc_handle, reserved, spb_length, spb], Result);
 end;
 
 function TFirebirdLibrary.isc_sqlcode(status_vector: PISC_STATUS_ARRAY): ISC_LONG;
 begin
-  Result := Call(@Fisc_sqlcode, [status_vector]);
+  Result := Fisc_sqlcode(status_vector);
+  DebugMsg(@Fisc_sqlcode, [status_vector], Result);
 end;
 
 function TFirebirdLibrary.isc_start_multiple(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle; count: SmallInt; vec: pointer): ISC_STATUS;
 begin
-  Result := Call(@Fisc_start_multiple, [status_vector, tra_handle, count, vec]);
+  Result := Fisc_start_multiple(status_vector, tra_handle, count, vec);
+  DebugMsg(@Fisc_start_multiple, [status_vector, tra_handle, count, vec], Result);
 end;
 
 function TFirebirdLibrary.isc_vax_integer(buffer: PISC_SCHAR; len: SmallInt):
     ISC_LONG;
 begin
-  Result := Call(@Fisc_vax_integer, [buffer, len]);
+  Result := Fisc_vax_integer(buffer, len);
+  DebugMsg(@Fisc_vax_integer, [buffer, len], Result);
 end;
 
 function TFirebirdLibrary.QueryInterface(const IID: TGUID; out Obj): HResult;
@@ -791,7 +840,7 @@ begin
   Fisc_blob_info               := GetProc(aHandle, 'isc_blob_info');
   Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
   Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
-  Fisc_create_blob             := GetProc(aHandle, 'isc_create_blob'); 
+  Fisc_create_blob             := GetProc(aHandle, 'isc_create_blob');
   Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
   Fisc_database_info           := GetProc(aHandle, 'isc_database_info');
   Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
@@ -829,6 +878,13 @@ begin
   Fisc_vax_integer             := GetProc(aHandle, 'isc_vax_integer');
 end;
 
+procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
+    of const; aResult: ISC_STATUS);
+begin
+  if FDebugger.HasListener then
+    FDebugger.Notify(GetDebugFactory.Get(FProcs[FProcs.IndexOfObject(aProc)], aProc, aParams, aResult));
+end;
+
 class function TFirebirdLibraryFactory.New(
   const aLibrary: string): IFirebirdLibrary;
 begin
@@ -856,7 +912,7 @@ begin
 end;
 
 function TStatusVector.CheckError(const aFirebirdClient: IFirebirdLibrary; out
-    aErrorCode: longint): boolean;
+    aErrorCode: TFBIntType): boolean;
 begin
   aErrorCode := 0;
   if HasError then
@@ -864,7 +920,7 @@ begin
   Result := aErrorCode <> 0;
 end;
 
-function TStatusVector.CheckFirebirdError(out aErrorCode: longint): boolean;
+function TStatusVector.CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
 begin
   aErrorCode := 0;
   if HasError then
