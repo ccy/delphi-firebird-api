@@ -781,7 +781,7 @@ type
   ): ISC_STATUS; stdcall;
 
   Tisc_sqlcode = function(
-    status_vector:     PISC_STATUS
+    status_vector:     PISC_STATUS_ARRAY
   ): ISC_LONG; stdcall;
 
   Tisc_sqlcode_s = procedure(
