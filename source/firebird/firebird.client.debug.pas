@@ -487,13 +487,13 @@ begin
   Result := Format('sqlda.version: %d sqlda.sqln: %d sqlda.sqld: %d', [X.version, X.sqln, X.sqld]);
   p := @X.sqlvar;
   for i := 1 to X.sqln do begin
-    Inc(p, (i - 1) * SizeOf(XSQLVAR));
     v := TXSQLVAR.Create(FClient, p, True);
     try
       Result := Format('%s value.%d: %s', [Result, i, v.AsQuoatedSQLValue]);
     finally
       v.Free;
     end;
+    Inc(p, SizeOf(XSQLVAR));
   end;
 end;
 
