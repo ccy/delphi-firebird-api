@@ -89,7 +89,7 @@ type
     FPrepared: boolean;
     FXSQLVAR: PXSQLVAR;
   private
-    FSize: smallint;
+    FSize: word;
     FsqlDataSize: smallint;
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
@@ -767,20 +767,29 @@ var p: PByte;
     B: TBcd;
     D: double;
     V: variant;
+    iLen: integer;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
+    if FSize > aLength then
+      iLen := aLength
+    else
+      iLen := FSize - 1;
     p := sqldata;
-    Move(aLength, p^, 2);
+    Move(iLen, p^, 2);
     Inc(p, 2);
-    Move(aValue^, p^, aLength);
+    Move(aValue^, p^, iLen);
   end else if CheckType(SQL_TEXT) then begin
-    Move(aValue^, sqldata^, aLength);
+    if FSize > aLength then
+      iLen := aLength
+    else
+      iLen := FSize - 1;
+    Move(aValue^, sqldata^, iLen);
     p := sqldata;
-    Inc(p, aLength);
-    FillChar(p^, sqllen - aLength, 32);
-    Inc(p, sqllen - aLength);
+    Inc(p, iLen);
+    FillChar(p^, sqllen - iLen, 32);
+    Inc(p, sqllen - iLen);
     P^ := 0;
   end else if CheckType(SQL_SHORT) then begin
     iSmallInt := StrToInt(string(PAnsiChar(aValue)));
@@ -1164,6 +1173,7 @@ var p: PAnsiChar;
     iLong: Integer;
     iUTF8Len: integer;
     iPadLen: integer;
+    iLen: integer;
     B: TBcd;
     D: double;
     V: variant;
@@ -1171,7 +1181,11 @@ begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
-    iUTF8Len := UnicodeToUtf8(PAnsiChar(sqldata) + 2, FsqlDataSize, aValue, aLength) - 1;
+    if FSize > aLength then
+      iLen := aLength
+    else
+      iLen := FSize - 1;
+    iUTF8Len := UnicodeToUtf8(PAnsiChar(sqldata) + 2, FsqlDataSize - 2, aValue, iLen) - 1;
     if iUTF8Len = -1 then begin
       iUTF8Len := 1;
       p := sqldata;
@@ -1180,8 +1194,12 @@ begin
     end;
     Move(iUTF8Len, sqldata^, 2);
   end else if CheckType(SQL_TEXT) then begin
+    if FSize > aLength then
+      iLen := aLength
+    else
+      iLen := FSize - 1;
     p := sqldata;
-    iUTF8Len := UnicodeToUtf8(p, FsqlDataSize, aValue, aLength);
+    iUTF8Len := UnicodeToUtf8(p, FsqlDataSize, aValue, iLen);
     if iUTF8Len > 0 then
       iUTF8Len := iUTF8Len - 1;
     P := P + iUTF8Len;
