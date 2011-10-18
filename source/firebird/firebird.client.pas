@@ -42,8 +42,7 @@ type
   end;
   {$endregion}
 
-  IFirebirdLibrary = interface(IInterface)
-  ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
+  IFirebirdLibrary_DLL = interface(IInterface)
     function isc_attach_database(status_vector: PISC_STATUS_ARRAY; file_length: SmallInt;
         file_name: PISC_SCHAR; public_handle: pisc_db_handle; dpb_length: SmallInt;
         dpb: PISC_SCHAR): ISC_STATUS; stdcall;
@@ -135,7 +134,12 @@ type
     function isc_start_multiple(status_vector: PISC_STATUS_ARRAY; tra_handle:
         pisc_tr_handle; count: SmallInt; vec: pointer): ISC_STATUS; stdcall;
     function isc_vax_integer(buffer: PISC_SCHAR; len: SmallInt): ISC_LONG; stdcall;
+  end;
+
+  IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
+    ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
     procedure Setup(const aHandle: THandle);
+    function TryGetODSMajor(out aODS: integer): boolean;
   end;
 
   TFirebirdLibrary = class(TInterfacedObject, IFirebirdLibrary)
@@ -190,7 +194,7 @@ type
     Fisc_sqlcode: Tisc_sqlcode;
     Fisc_start_multiple: Tisc_start_multiple;
     Fisc_vax_integer: Tisc_vax_integer;
-  protected
+  protected  // IFirebirdLibrary_DLL
     function isc_attach_database(status_vector: PISC_STATUS_ARRAY; file_length: SmallInt;
         file_name: PISC_SCHAR; public_handle: pisc_db_handle; dpb_length: SmallInt;
         dpb: PISC_SCHAR): ISC_STATUS; stdcall;
@@ -284,7 +288,11 @@ type
         pisc_tr_handle; count: SmallInt; vec: pointer): ISC_STATUS; stdcall;
     function isc_vax_integer(buffer: PISC_SCHAR; len: SmallInt): ISC_LONG; stdcall;
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+  protected // IFirebirdLibrary
+    FAttached_DB: pisc_db_handle;
+    FODSMajor: integer;
     procedure Setup(const aHandle: THandle);
+    function TryGetODSMajor(out aODS: integer): boolean;
   public
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
@@ -443,13 +451,15 @@ type
 
 implementation
 
-uses firebird.consts_pub.h, firebird.client.debug;
+uses firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
 
 procedure TFirebirdLibrary.AfterConstruction;
 begin
   inherited;
   FProcs := TStringList.Create;
   FDebugger := TFirebirdLibraryDebugger.Create;
+  FAttached_DB := nil;
+  FODSMajor := -1;
 end;
 
 procedure TFirebirdLibrary.BeforeDestruction;
@@ -529,6 +539,7 @@ function TFirebirdLibrary.isc_attach_database(status_vector: PISC_STATUS_ARRAY;
     pisc_db_handle; dpb_length: SmallInt; dpb: PISC_SCHAR): ISC_STATUS;
 begin
   Result := Fisc_attach_database(status_vector, file_length, file_name, public_handle, dpb_length, dpb);
+  FAttached_DB := public_handle;
   DebugMsg(@Fisc_attach_database, [status_vector, file_length, file_name, public_handle, dpb_length, dpb], Result);
 end;
 
@@ -604,6 +615,8 @@ function TFirebirdLibrary.isc_detach_database(status_vector: PISC_STATUS_ARRAY;
     public_handle: pisc_db_handle): ISC_STATUS;
 begin
   Result := Fisc_detach_database(status_vector, public_handle);
+  FAttached_DB := nil;
+  FODSMajor := -1;
   DebugMsg(@Fisc_detach_database, [status_vector, public_handle], Result);
 end;
 
@@ -876,6 +889,31 @@ begin
   Fisc_service_start           := GetProc(aHandle, 'isc_service_start');
   Fisc_start_multiple          := GetProc(aHandle, 'isc_start_multiple');
   Fisc_vax_integer             := GetProc(aHandle, 'isc_vax_integer');
+end;
+
+function TFirebirdLibrary.TryGetODSMajor(out aODS: integer): boolean;
+var _DatabaseInfoCommand: AnsiChar;
+    local_buffer: array[0..511] of Byte;
+    L: integer;
+    V: IStatusVector;
+begin
+  if FODSMajor <> -1 then begin
+    Result := True;
+    aODS := FODSMajor;
+    Exit;
+  end;
+  Result := False;
+  if FAttached_DB = nil then Exit;
+
+  V := TStatusVector.Create;
+  _DatabaseInfoCommand := AnsiChar(isc_info_ods_version);
+  isc_database_info(V.pValue, FAttached_DB, 1, @_DatabaseInfoCommand, SizeOf(local_buffer), @local_buffer);
+  if V.Success then begin
+    L := isc_vax_integer(@local_buffer[1], 2);
+    FODSMajor := isc_vax_integer(@local_buffer[3], L);
+    aODS := FODSMajor;
+    Result := True;
+  end;
 end;
 
 procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
@@ -1296,9 +1334,6 @@ begin
   AddVar('FIREBIRD');
   AddVar('FIREBIRD_MSG');
   AddVar('FIREBIRD_TMP');
-//  FOldVars.Values['FIREBIRD'] := GetEnvironmentVariable('FIREBIRD');
-//  FOldVars.Values['FIREBIRD_MSG'] := GetEnvironmentVariable('FIREBIRD_MSG');
-//  FOldVars.Values['FIREBIRD_TMP'] := GetEnvironmentVariable('FIREBIRD_TMP');
 
   S := TStringList.Create;
   try

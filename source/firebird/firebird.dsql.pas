@@ -82,6 +82,8 @@ const
   );
 
 type
+  TXSQLVARClass = class of TXSQLVAR;
+
   TXSQLVAR = class(TObject)
   strict private
     FClient: IFirebirdLibrary;
@@ -91,6 +93,8 @@ type
   private
     FSize: word;
     FsqlDataSize: smallint;
+    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
+        aSQLVarReady: Boolean = False);
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
     function GetPrepared: boolean;
@@ -110,8 +114,6 @@ type
     procedure Set_sqldata(Value: Pointer);
     procedure Set_sqltype(Value: smallint);
   public
-    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
-        aSQLVarReady: Boolean = False);
     procedure BeforeDestruction; override;
     function CheckCharSet(const aExpectedCharSet: smallint): boolean;
     function CheckType(const aExpectedType: smallint): boolean;
@@ -129,7 +131,7 @@ type
     procedure GetInteger(aValue: pointer; out aIsNull: boolean);
     function GetIsNull: boolean;
     procedure GetShort(aValue: pointer; out aIsNull: boolean);
-    function GetTextLen: SmallInt;
+    function GetTextLen: SmallInt; virtual;
     procedure GetTime(aValue: pointer; out aIsNull: boolean);
     procedure GetTimeStamp(aValue: pointer; out aIsNull: boolean);
     procedure GetWideString(aValue: pointer; out aIsNull: boolean);
@@ -176,6 +178,11 @@ type
     property sqltype: smallint read Get_sqltype write Set_sqltype;
   end;
 
+  TXSQLVAR_10 = class(TXSQLVAR)
+  public
+    function GetTextLen: SmallInt; override;
+  end;
+
   {$if CompilerVersion = 18.5}
   Int16  = SmallInt;
   Int32  = Integer;
@@ -194,6 +201,12 @@ type
     function AsSQLTimeStamp: TSQLTimeStamp;
     function AsTime: TDateTime;
     function AsWideString: WideString;
+  end;
+
+  TXSQLVarFactory = class abstract
+  public
+    class function New(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
+        aSQLVarReady: Boolean = False): TXSQLVar;
   end;
 
   TXSQLDA = class(TObject)
@@ -582,15 +595,8 @@ begin
 end;
 
 function TXSQLVAR.GetTextLen: SmallInt;
-var i: Integer;
-    b: SmallInt;
 begin
-  i := sqlsubtype and $00FF;
-  if (i <> CS_UNICODE_FSS) or (Pos('RDB$', RelName) <> 1) then
-    b := CharSetBytes[i]
-  else
-    b := 1;
-  Result := sqllen div b;
+  Result := sqllen div CharSetBytes[sqlsubtype and $00FF];
 end;
 
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
@@ -1238,6 +1244,18 @@ begin
   FXSQLVAR.sqltype := Value;
 end;
 
+function TXSQLVAR_10.GetTextLen: SmallInt;
+var i: Integer;
+    b: SmallInt;
+begin
+  i := sqlsubtype and $00FF;
+  if i = CS_UNICODE_FSS then
+    b := 1
+  else
+    b := CharSetBytes[i];
+  Result := sqllen div b;
+end;
+
 function TXSQLVAREx.AsAnsiString: AnsiString;
 var P: PAnsiChar;
     bIsNull: boolean;
@@ -1391,6 +1409,17 @@ begin
   end;
 end;
 
+class function TXSQLVarFactory.New(const aLibrary: IFirebirdLibrary; const
+    aPtr: pointer; aSQLVarReady: Boolean = False): TXSQLVar;
+var o: integer;
+    C: TXSQLVARClass;
+begin
+  C := TXSQLVAR;
+  if aLibrary.TryGetODSMajor(o) and (o = 10) then
+    C := TXSQLVAR_10;
+  Result := C.Create(aLibrary, aPtr, aSQLVarReady);
+end;
+
 constructor TXSQLDA.Create(const aLibrary: IFirebirdLibrary; const aVarCount:
     Integer = 0);
 begin
@@ -1478,7 +1507,7 @@ begin
   for i := 1 to aValue do begin
     p := @FXSQLDA.sqlvar;
     Inc(p, (i - 1) * iVarSize);
-    o := TXSQLVAR.Create(FClient, p);
+    o := TXSQLVARFactory.New(FClient, p);
     FVars.Add(o);
   end;
 end;
