@@ -27,7 +27,6 @@ package oofirebird;
 {$LIBPREFIX 'SQL.'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
-{$DEFINE estream_core}
 
 requires
   rtl,
