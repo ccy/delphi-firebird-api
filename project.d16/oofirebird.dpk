@@ -24,8 +24,6 @@ package oofirebird;
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE Debug}
-{$DEFINE estream_core}
 {$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'E Stream Software - Firebird Library'}
 {$LIBPREFIX 'SQL.'}
