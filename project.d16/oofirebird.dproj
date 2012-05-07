@@ -41,18 +41,7 @@
 			<Cfg_2>true</Cfg_2>
 			<Base>true</Base>
 		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Profile' or '$(Cfg_3)'!=''">
-			<Cfg_3>true</Cfg_3>
-			<CfgParent>Base</CfgParent>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_3)'=='true') or '$(Cfg_3_Win64)'!=''">
-			<Cfg_3_Win64>true</Cfg_3_Win64>
-			<CfgParent>Cfg_3</CfgParent>
-			<Cfg_3>true</Cfg_3>
-			<Base>true</Base>
-		</PropertyGroup>
-		<Import Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')" Project="..\..\build\optset\Base.optset"/>
+		<Import Project="..\..\build\optset\Base.optset" Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')"/>
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
 			<DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
@@ -75,24 +64,18 @@
 			<DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
 			<Debugger_HostApplication>$(ActiveHostApplication)</Debugger_HostApplication>
 		</PropertyGroup>
-		<Import Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Release.optset')" Project="..\..\build\optset\Release.optset"/>
+		<Import Project="..\..\build\optset\Release.optset" Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Release.optset')"/>
 		<PropertyGroup Condition="'$(Cfg_1)'!=''">
 			<CfgDependentOn>..\..\build\optset\Release.optset</CfgDependentOn>
 		</PropertyGroup>
-		<Import Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Debug.optset')" Project="..\..\build\optset\Debug.optset"/>
+		<Import Project="..\..\build\optset\Debug.optset" Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Debug.optset')"/>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<CfgDependentOn>..\..\build\optset\Debug.optset</CfgDependentOn>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
 			<DCC_RemoteDebug>true</DCC_RemoteDebug>
 		</PropertyGroup>
-		<Import Condition="'$(Cfg_3)'!='' And Exists('..\..\build\optset\Profile.optset')" Project="..\..\build\optset\Profile.optset"/>
-		<PropertyGroup Condition="'$(Cfg_3)'!=''">
-			<CfgDependentOn>..\..\build\optset\Profile.optset</CfgDependentOn>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_3_Win64)'!=''">
-			<DCC_RemoteDebug>true</DCC_RemoteDebug>
-		</PropertyGroup>
+		<Import Project="..\..\build\optset\Profile.optset" Condition="'$(Cfg_3)'!='' And Exists('..\..\build\optset\Profile.optset')"/>
 		<ItemGroup>
 			<DelphiCompile Include="$(MainSource)">
 				<MainSource>MainSource</MainSource>
@@ -123,11 +106,6 @@
 				<CfgParent>Base</CfgParent>
 				<DependentOn>..\..\build\optset\Debug.optset</DependentOn>
 			</BuildConfiguration>
-			<BuildConfiguration Include="Profile">
-				<Key>Cfg_3</Key>
-				<CfgParent>Base</CfgParent>
-				<DependentOn>..\..\build\optset\Profile.optset</DependentOn>
-			</BuildConfiguration>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 				<DependentOn>..\..\build\optset\Base.optset</DependentOn>
@@ -138,8 +116,8 @@
 				<DependentOn>..\..\build\optset\Release.optset</DependentOn>
 			</BuildConfiguration>
 		</ItemGroup>
-		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
-		<Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
+		<Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+		<Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
 		<ProjectExtensions>
 			<Borland.Personality>Delphi.Personality.12</Borland.Personality>
 			<Borland.ProjectType>Package</Borland.ProjectType>
