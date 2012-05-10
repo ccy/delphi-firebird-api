@@ -41,7 +41,7 @@
 			<Cfg_2>true</Cfg_2>
 			<Base>true</Base>
 		</PropertyGroup>
-		<Import Project="..\..\build\optset\Base.optset" Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')"/>
+		<Import Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')" Project="..\..\build\optset\Base.optset"/>
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
 			<DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
@@ -58,24 +58,23 @@
 		<PropertyGroup Condition="'$(Base_Win64)'!=''">
 			<Debugger_HostApplication>$(ActiveHostApplication)</Debugger_HostApplication>
 			<DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
-			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
 			<DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
 			<Debugger_HostApplication>$(ActiveHostApplication)</Debugger_HostApplication>
 		</PropertyGroup>
-		<Import Project="..\..\build\optset\Release.optset" Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Release.optset')"/>
+		<Import Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Release.optset')" Project="..\..\build\optset\Release.optset"/>
 		<PropertyGroup Condition="'$(Cfg_1)'!=''">
 			<CfgDependentOn>..\..\build\optset\Release.optset</CfgDependentOn>
 		</PropertyGroup>
-		<Import Project="..\..\build\optset\Debug.optset" Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Debug.optset')"/>
+		<Import Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Debug.optset')" Project="..\..\build\optset\Debug.optset"/>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<CfgDependentOn>..\..\build\optset\Debug.optset</CfgDependentOn>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
 			<DCC_RemoteDebug>true</DCC_RemoteDebug>
 		</PropertyGroup>
-		<Import Project="..\..\build\optset\Profile.optset" Condition="'$(Cfg_3)'!='' And Exists('..\..\build\optset\Profile.optset')"/>
+		<Import Condition="'$(Cfg_3)'!='' And Exists('..\..\build\optset\Profile.optset')" Project="..\..\build\optset\Profile.optset"/>
 		<ItemGroup>
 			<DelphiCompile Include="$(MainSource)">
 				<MainSource>MainSource</MainSource>
@@ -116,8 +115,8 @@
 				<DependentOn>..\..\build\optset\Release.optset</DependentOn>
 			</BuildConfiguration>
 		</ItemGroup>
-		<Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
-		<Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
+		<Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
 		<ProjectExtensions>
 			<Borland.Personality>Delphi.Personality.12</Borland.Personality>
 			<Borland.ProjectType>Package</Borland.ProjectType>
@@ -154,10 +153,10 @@
 						<VersionInfoKeys Name="Comments"/>
 					</VersionInfoKeys>
 					<Excluded_Packages>
-						<Excluded_Packages Name="$(BDSBIN)\bcboffice2k160.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
-						<Excluded_Packages Name="$(BDSBIN)\bcbofficexp160.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dcloffice2k160.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dclofficexp160.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+						<Excluded_Packages Name="$(BDSBIN)\bcboffice2k160.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
+						<Excluded_Packages Name="$(BDSBIN)\bcbofficexp160.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
 					</Excluded_Packages>
 					<Source>
 						<Source Name="MainSource">oofirebird.dpk</Source>
