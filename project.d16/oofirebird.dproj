@@ -54,11 +54,11 @@
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
 			<Debugger_HostApplication>$(ActiveHostApplication)</Debugger_HostApplication>
 		</PropertyGroup>
-		<Import Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Debug.optset')" Project="..\..\build\optset\Debug.optset"/>
+		<Import Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Debug.optset')" Project="..\..\build\optset\Debug.optset"/>
 		<PropertyGroup Condition="'$(Cfg_1)'!=''">
 			<CfgDependentOn>..\..\build\optset\Debug.optset</CfgDependentOn>
 		</PropertyGroup>
-		<Import Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Release.optset')" Project="..\..\build\optset\Release.optset"/>
+		<Import Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Release.optset')" Project="..\..\build\optset\Release.optset"/>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<CfgDependentOn>..\..\build\optset\Release.optset</CfgDependentOn>
 		</PropertyGroup>
