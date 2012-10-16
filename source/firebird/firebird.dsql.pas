@@ -778,18 +778,22 @@ begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
-    if FSize > aLength then
-      iLen := aLength
-    else
+    if FSize > aLength then begin
+      iLen := aLength;
+      if (aLength > 0) and ((pbyte(avalue) + iLen - 1)^ = 0) then
+        Dec(iLen); // XE3 introduces additional null terminated character in method TDBXAnsiStringBuilderValue.SetAnsiString
+    end else
       iLen := FSize - 1;
     p := sqldata;
     Move(iLen, p^, 2);
     Inc(p, 2);
     Move(aValue^, p^, iLen);
   end else if CheckType(SQL_TEXT) then begin
-    if FSize > aLength then
-      iLen := aLength
-    else
+    if FSize > aLength then begin
+      iLen := aLength;
+      if (aLength > 0) and ((pbyte(avalue) + iLen - 1)^ = 0) then
+        Dec(iLen); // XE3 introduces additional null terminated character in method TDBXAnsiStringBuilderValue.SetAnsiString
+    end else
       iLen := FSize - 1;
     Move(aValue^, sqldata^, iLen);
     p := sqldata;
@@ -871,6 +875,7 @@ var hBlob: isc_blob_handle;
     wLen: word;
     iCurPos: integer;
     p, q: PByte;
+    iLong: Integer;
 begin
   IsNull := aIsNull;
 
@@ -902,6 +907,9 @@ begin
     Move(BlobID, sqldata^, sqllen);
   end else if CheckType(SQL_TEXT) or CheckType(SQL_VARYING) then begin
     SetAnsiString(aValue, aLength, aIsNull);
+  end else if CheckType(SQL_LONG) then begin
+    iLong := StrToInt(AnsiString(PAnsiChar(aValue)));
+    SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else
     Assert(False);
 end;
