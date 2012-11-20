@@ -1191,7 +1191,14 @@ var p: PAnsiChar;
     B: TBcd;
     D: double;
     V: variant;
+    R: RawByteString;
 begin
+  if CheckCharSet(CS_NONE) then begin
+    R := PWideChar(aValue);
+    SetAnsiString(PAnsiChar(R), Length(R), aIsNull);
+    Exit;
+  end;
+
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_VARYING) then begin
