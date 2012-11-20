@@ -780,7 +780,13 @@ begin
   if CheckType(SQL_VARYING) then begin
     if FSize > aLength then begin
       iLen := aLength;
+    {$if RtlVersion <= 18.5}
+      p := PByte(aValue);
+      Inc(p, iLen - 1);
+      if (aLength > 0) and (p^ = 0) then
+    {$else}
       if (aLength > 0) and ((pbyte(avalue) + iLen - 1)^ = 0) then
+    {$ifend}
         Dec(iLen); // XE3 introduces additional null terminated character in method TDBXAnsiStringBuilderValue.SetAnsiString
     end else
       iLen := FSize - 1;
@@ -791,7 +797,13 @@ begin
   end else if CheckType(SQL_TEXT) then begin
     if FSize > aLength then begin
       iLen := aLength;
+    {$if RtlVersion <= 18.5}
+      p := PByte(aValue);
+      Inc(p, iLen - 1);
+      if (aLength > 0) and (p^ = 0) then
+    {$else}
       if (aLength > 0) and ((pbyte(avalue) + iLen - 1)^ = 0) then
+    {$ifend}
         Dec(iLen); // XE3 introduces additional null terminated character in method TDBXAnsiStringBuilderValue.SetAnsiString
     end else
       iLen := FSize - 1;
@@ -1191,13 +1203,15 @@ var p: PAnsiChar;
     B: TBcd;
     D: double;
     V: variant;
-    R: RawByteString;
+    {$ifdef Unicode}R: RawByteString;{$endif}
 begin
+  {$ifdef Unicode}
   if CheckCharSet(CS_NONE) then begin
     R := PWideChar(aValue);
     SetAnsiString(PAnsiChar(R), Length(R), aIsNull);
     Exit;
   end;
+  {$endif}
 
   IsNull := aIsNull;
   if aIsNull then Exit;
