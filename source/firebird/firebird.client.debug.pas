@@ -338,9 +338,13 @@ end;
 function TFirebirdClientDebugFactory.isc_dsql_prepare(const aProcName: string;
     const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var s: string;
+var S: string;
 begin
+{$ifdef Unicode}
+  S := TEncoding.UTF8.GetString(TBytes(aParams[4].VPChar), 0, aParams[3].VInteger);
+{$else}
   SetString(S, aParams[4].VPChar, aParams[3].VInteger);
+{$endif}
   Result := Format('%s SQLDialect: %d %s', [aProcName, aParams[5].VInteger, S]);
 end;
 
