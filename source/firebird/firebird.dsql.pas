@@ -1289,15 +1289,19 @@ function TXSQLVAREx.AsAnsiString: AnsiString;
 var P: PAnsiChar;
     bIsNull: boolean;
 begin
-  P := {$ifdef Unicode}AnsiStrAlloc{$else}StrAlloc{$endif}(Size);
-  try
-    GetAnsiString(P, bIsNull);
-    if not bIsNull then
-      Result := P
-    else
-      Result := '';
-  finally
-    StrDispose(P);
+  if Size = 0 then
+    Result := ''
+  else begin
+    P := {$ifdef Unicode}AnsiStrAlloc{$else}StrAlloc{$endif}(Size);
+    try
+      GetAnsiString(P, bIsNull);
+      if not bIsNull then
+        Result := P
+      else
+        Result := '';
+    finally
+      StrDispose(P);
+    end;
   end;
 end;
 
@@ -1426,15 +1430,19 @@ function TXSQLVAREx.AsWideString: WideString;
 var bIsNull: boolean;
     W: PWideChar;
 begin
-  W := {$if CompilerVersion <=18.5}WStrAlloc{$else}StrAlloc{$ifend}(Size);
-  try
-    GetWideString(W, bIsNull);
-    if not bIsNull then
-      Result := W
-    else
-      Result := '';
-  finally
-    {$if CompilerVersion <=18.5}WStrDispose{$else}StrDispose{$ifend}(W);
+  if Size = 0 then
+    Result := ''
+  else begin
+    W := {$if CompilerVersion <=18.5}WStrAlloc{$else}StrAlloc{$ifend}(Size);
+    try
+      GetWideString(W, bIsNull);
+      if not bIsNull then
+        Result := W
+      else
+        Result := '';
+    finally
+      {$if CompilerVersion <=18.5}WStrDispose{$else}StrDispose{$ifend}(W);
+    end;
   end;
 end;
 
