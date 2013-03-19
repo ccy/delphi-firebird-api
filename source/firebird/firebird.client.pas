@@ -1292,13 +1292,17 @@ begin
   Sleep(1); {$Message 'In firebird embedded, this delay will make the FreeLibrary safer and won't cause unexpected error for massive LoadLibrary / FreeLibrary calls'}
   FreeLibrary(FHandle);
 
-  {$Message 'Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186'}
-  // In Firebird version 2.X, when execute function isc_dsql_execute_immediate for CREATE DATABASE
-  // intl/fbintl.dll will be loaded and never free.  The following code attempt to free the fbintl.dll library
-  s := ExtractFilePath(FLibrary) + 'intl\fbintl.dll';
-  h := GetModuleHandle(PChar(s));
-  if h <> 0 then
-    FreeLibrary(h);
+  // Check if the FLibrary still in used, otherwise attempt to free library fbintl.dll
+  h := GetModuleHandle(PChar(FLibrary));
+  if h = 0 then begin
+    {$Message 'Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186'}
+    // In Firebird version 2.X, when execute function isc_dsql_execute_immediate for CREATE DATABASE
+    // intl/fbintl.dll will be loaded and never free.  The following code attempt to free the fbintl.dll library
+    s := ExtractFilePath(FLibrary) + 'intl\fbintl.dll';
+    h := GetModuleHandle(PChar(s));
+    if h <> 0 then
+      FreeLibrary(h);
+  end;
 end;
 
 constructor TFirebirdLibrary2.Create(const aLibrary: string);
