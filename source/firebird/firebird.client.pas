@@ -449,6 +449,28 @@ type
     procedure BeforeDestruction; override;
   end;
 
+  TFirebirdSQLParser = class
+  private
+    FScript: string;
+    ci: integer; // CharacterIndex
+    FTerm: char;
+    FCommands: TStrings;
+    procedure SetScript(const Value: string);
+    function StripLines(s: string): string;
+    function CheckTERM(cmd: string): boolean;
+    function IsConsoleCommand(cmd: string): boolean;
+    function NextCommand:string;
+    function EOS: boolean; // EndOfScript;
+    procedure Parse;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure LoadFromFile(AFileName: string);
+    property Script: string read FScript write SetScript;
+    property Commands: TStrings read FCommands;
+    property Term: char read FTerm write FTerm default ';';
+  end;
+
 implementation
 
 uses firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
@@ -1376,6 +1398,139 @@ begin
       FreeLibrary(H);
     end;
   end;
+end;
+
+constructor TFirebirdSQLParser.Create;
+begin
+ FTerm := ';';
+ FCommands := TStringlist.Create;
+end;
+
+destructor TFirebirdSQLParser.Destroy;
+begin
+ FreeAndNil(FCommands);
+ inherited;
+end;
+
+function TFirebirdSQLParser.CheckTERM(cmd:string):boolean;
+var s:string;
+begin
+ result:=false;
+ s := uppercase(trim(cmd));
+ if pos('SET TERM ',s) = 1 then begin
+  if length(s) >= 10 then begin
+   FTerm := s[10];
+   result:=true;
+  end;
+ end;
+end;
+
+function TFirebirdSQLParser.EOS: boolean;
+begin
+ result:=ci>length(Script);
+end;
+
+function TFirebirdSQLParser.IsConsoleCommand(cmd:string):boolean;
+begin
+ cmd := uppercase(trim(cmd));
+ result:=(pos('SET ',cmd) = 1)
+       or(cmd='COMMIT WORK');
+end;
+
+procedure TFirebirdSQLParser.LoadFromFile(AFileName: string);
+var lScripts: TStringList;
+begin
+  lScripts := TStringList.Create;
+  try
+    lScripts.LoadFromFile(AFileName);
+    SetScript(lScripts.Text);
+  finally
+    lScripts.Free;
+  end;
+end;
+
+function TFirebirdSQLParser.NextCommand:string;
+var escapechar,escaped,onlyspace:boolean;
+    c,lastchar:char;incomment:boolean;
+begin
+ result:='';escaped := false;incomment:=false;lastchar:=#0;
+ onlyspace:=true;
+ while ci <= length(Script) do begin
+  c:=Script[ci];
+  if incomment then begin
+   escaped := false;
+   incomment := not ((c='/') and (lastchar='*'));
+   if not incomment then begin
+    if Length(result) > 0 then SetLength(result,Length(result)-1);
+    lastchar:=c;
+    inc(ci);
+    continue;
+   end;
+  end
+  else begin
+   incomment := ((c='*') and (lastchar='/'));
+   if incomment
+   then SetLength(result,Length(result)-1);
+  end;
+  if not incomment then begin
+   escapechar := {$if CompilerVersion <= 18.5}c in ['''','"']{$else}CharInSet(c, ['''','"']){$ifend};
+   if escapechar then escaped := not escaped;
+   if not escaped then begin
+    if c = FTerm then begin
+     inc(ci);
+     break;
+    end
+    else begin
+     if onlyspace then begin
+      if not {$if CompilerVersion <= 18.5}(c in [#13,#10,' ',#09]){$else}CharInSet(c, [#13,#10,' ',#09]){$ifend} then begin
+       onlyspace:=false;
+       result:='';
+      end;
+     end;
+    end;
+   end;
+   result:=result + c;
+  end;
+  lastchar:=c;
+  inc(ci);
+ end;
+end;
+
+procedure TFirebirdSQLParser.Parse;
+var cmd:string;
+begin
+ cmd := inttostr(length(script));
+ FCommands.Clear;
+ while not eos do begin
+  cmd := NextCommand;
+  cmd := trim(StripLines(cmd));
+  if length(cmd) > 0 then begin
+   if isConsoleCommand(cmd) then CheckTERM(cmd)
+   else FCommands.Add(cmd);
+  end;
+ end;
+end;
+
+procedure TFirebirdSQLParser.SetScript(const Value: string);
+begin
+ FScript := Value;
+ ci:=1;
+ Parse;
+end;
+
+function TFirebirdSQLParser.StripLines(s:string):string;
+var i:integer; l:TStringlist;
+begin
+ l := TStringlist.Create;
+ try
+  l.Text := s;
+  for i := l.Count-1 downto 0 do
+   if length(trim(l[i])) = 0 then l.delete(i);
+  i := length(l.Text)-2;
+  result:=copy(l.Text,1,i);
+ finally
+  l.free;
+ end;
 end;
 
 end.
