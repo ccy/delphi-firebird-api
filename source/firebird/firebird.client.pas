@@ -10,6 +10,24 @@ uses Windows, SysUtils, Classes,
 type
   TFBIntType = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
 
+  TFirebirdPB = record
+  strict private
+    FParams: TBytes;
+    function GetLength: Integer;
+    function IncSize(const aIncSize: Integer): TFirebirdPB;
+  public
+    function AddByte(const B: Byte): TFirebirdPB;
+    function AddLongint(const B: LongInt): TFirebirdPB;
+    function AddShortString(const aValue: string): TFirebirdPB;
+    function AddSmallInt(const B: SmallInt): TFirebirdPB;
+    function AddString(const aValue: string): TFirebirdPB;
+    class function GetDPB(const aUser, aPassword: string): TFirebirdPB;
+        static;
+    function Init(const aParams: array of byte): TFirebirdPB;
+    class operator Implicit(const A: TFirebirdPB): Pointer;
+    property Length: Integer read GetLength;
+  end;
+
   {$region 'Firebird Library: Debugger'}
   IFirebirdLibraryDebuggerListener = interface(IInterface)
   ['{5E724646-C4F6-499E-9C04-38AA81425B47}']
@@ -473,7 +491,7 @@ type
 
 implementation
 
-uses firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
+uses System.Math, firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
 
 procedure TFirebirdLibrary.AfterConstruction;
 begin
@@ -1531,6 +1549,95 @@ begin
  finally
   l.free;
  end;
+end;
+
+function TFirebirdPB.AddByte(const B: Byte): TFirebirdPB;
+var i: integer;
+begin
+  i := Length;
+  IncSize(SizeOf(B));
+  FParams[i] := B;
+  Result := Self;
+end;
+
+function TFirebirdPB.AddLongint(const B: LongInt): TFirebirdPB;
+var i: integer;
+    P: PLongint;
+begin
+  i := Length;
+  IncSize(SizeOf(B));
+  P := @FParams[i];
+  P^ := B;
+  Result := Self;
+end;
+
+function TFirebirdPB.AddShortString(const aValue: string): TFirebirdPB;
+var i: Integer;
+    S: string;
+begin
+  i := Length;
+  S := aValue.Substring(0, Min(High(Byte), aValue.Length));
+  AddByte(S.Length);
+  IncSize(S.Length);
+  Inc(i, SizeOf(Byte));
+  Move(PAnsiChar(AnsiString(S))^, FParams[i], S.Length);
+  Result := Self;
+end;
+
+function TFirebirdPB.AddSmallInt(const B: SmallInt): TFirebirdPB;
+var i: integer;
+    P: PSmallInt;
+begin
+  i := Length;
+  IncSize(SizeOf(B));
+  P := @FParams[i];
+  P^ := B;
+  Result := Self;
+end;
+
+function TFirebirdPB.AddString(const aValue: string): TFirebirdPB;
+var i: SmallInt;
+    S: string;
+begin
+  i := Length;
+  S := aValue.Substring(0, Min(High(SmallInt), aValue.Length));
+  AddSmallInt(S.Length);
+  IncSize(S.Length);
+  Inc(i, SizeOf(SmallInt));
+  Move(PAnsiChar(AnsiString(S))^, FParams[i], S.Length);
+  Result := Self;
+end;
+
+class function TFirebirdPB.GetDPB(const aUser, aPassword: string): TFirebirdPB;
+begin
+  Result := Result.Init([])
+           .AddByte(isc_dpb_version1)
+           .AddByte(isc_dpb_user_name)
+           .AddShortString(aUser)
+           .AddByte(isc_dpb_password)
+           .AddShortString(aPassword);
+end;
+
+function TFirebirdPB.GetLength: Integer;
+begin
+  Result := System.Length(FParams);
+end;
+
+function TFirebirdPB.IncSize(const aIncSize: Integer): TFirebirdPB;
+begin
+  SetLength(FParams, Length + aIncSize);
+  Result := Self;
+end;
+
+function TFirebirdPB.Init(const aParams: array of byte): TFirebirdPB;
+begin
+  SetLength(FParams, 0);
+  Result := Self;
+end;
+
+class operator TFirebirdPB.Implicit(const A: TFirebirdPB): Pointer;
+begin
+  Result := @A.FParams[0];
 end;
 
 end.
