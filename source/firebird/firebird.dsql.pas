@@ -1665,7 +1665,7 @@ begin
   pLen := @result_buffer[1];
   result_buffer[3 + pLen^] := 0;
 
-  Result := String(PAnsiChar(@result_buffer[3]));
+  Result := Trim(String(PAnsiChar(@result_buffer[3])));
 end;
 
 function TFirebird_DSQL.GetRowsAffected(const aStatusVector: IStatusVector; out
