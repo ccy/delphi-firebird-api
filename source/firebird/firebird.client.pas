@@ -488,7 +488,8 @@ type
 
 implementation
 
-uses System.Math, firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
+uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend}
+     , firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
 
 procedure TFirebirdLibrary.AfterConstruction;
 begin
@@ -980,7 +981,7 @@ begin
   sError := '';
   ptr := GetpValue;
   while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do begin
-    sLastMsg := String(StrPas(P));
+    sLastMsg := string({$if RtlVersion >= 20}AnsiStrings.{$ifend}StrPas(P));
     if sError <> '' then
       sError := sError + #13#10;
     sError := sError + sLastMsg;
@@ -1523,11 +1524,11 @@ var i: Integer;
     S: string;
 begin
   i := GetLength;
-  S := aValue.Substring(0, Min(High(Byte), aValue.Length));
-  AddByte(S.Length);
-  IncSize(S.Length);
+  S := Copy(aValue, 0, Min(High(Byte), Length(aValue)));
+  AddByte(Length(S));
+  IncSize(Length(S));
   Inc(i, SizeOf(Byte));
-  Move(PAnsiChar(AnsiString(S))^, FParams[i], S.Length);
+  Move(PAnsiChar(AnsiString(S))^, FParams[i], Length(S));
   Result := Self;
 end;
 
@@ -1547,11 +1548,11 @@ var i: SmallInt;
     S: string;
 begin
   i := GetLength;
-  S := aValue.Substring(0, Min(High(SmallInt), aValue.Length));
-  AddSmallInt(S.Length);
-  IncSize(S.Length);
+  S := Copy(aValue, 0, Min(High(SmallInt), Length(aValue)));
+  AddSmallInt(Length(S));
+  IncSize(Length(S));
   Inc(i, SizeOf(SmallInt));
-  Move(PAnsiChar(AnsiString(S))^, FParams[i], S.Length);
+  Move(PAnsiChar(AnsiString(S))^, FParams[i], Length(S));
   Result := Self;
 end;
 

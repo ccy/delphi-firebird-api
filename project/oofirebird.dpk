@@ -46,7 +46,6 @@ contains
   firebird.client in '..\source\firebird\firebird.client.pas',
   firebird.dsql in '..\source\firebird\firebird.dsql.pas',
   firebird.service in '..\source\firebird\firebird.service.pas',
-  firebird.charsets in '..\source\firebird\firebird.charsets.pas',
-  firebird.sql in '..\source\firebird\firebird.sql.pas';
+  firebird.charsets in '..\source\firebird\firebird.charsets.pas';
 
 end.
