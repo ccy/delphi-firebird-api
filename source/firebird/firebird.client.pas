@@ -1329,8 +1329,8 @@ var s: string;
     h: THandle;
 begin
   inherited;
-  Sleep(1); {$Message 'In firebird embedded, this delay will make the FreeLibrary safer and won't cause unexpected error for massive LoadLibrary / FreeLibrary calls'}
-  FreeLibrary(FHandle);
+  if not FreeLibrary(FHandle) then
+    RaiseLastOSError;
 
   // Check if the FLibrary still in used, otherwise attempt to free library fbintl.dll
   h := GetModuleHandle(PChar(FLibrary));
