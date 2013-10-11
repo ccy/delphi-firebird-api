@@ -165,8 +165,6 @@ type
     FDebugFactory: IFirebirdLibraryDebugFactory;
     FDebugger: IFirebirdLibraryDebugger;
     FProcs: TStringList;
-    function Call(const aProc: pointer; const aParams: array of const): ISC_STATUS;
-        deprecated; platform;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
     function GetProc(const aHandle: THandle; const aProcName: PChar): pointer;
     procedure DebugMsg(const aProc: pointer; const aParams: array of const;
@@ -506,56 +504,6 @@ procedure TFirebirdLibrary.BeforeDestruction;
 begin
   inherited;
   FProcs.Free;
-end;
-
-function TFirebirdLibrary.Call(const aProc: pointer; const aParams: array of
-    const): ISC_STATUS;
-{$ifdef Win32}
-var i: integer;
-    aInteger: integer;
-    aPointer: pointer;
-    aPChar: PAnsiChar;
-    sDebug: string;
-{$endif}
-begin
-{$ifdef Win32}
-  for i := High(aParams) downto Low(aParams) do begin
-    case aParams[i].VType of
-      vtInteger: begin
-        aInteger := aParams[i].VInteger;
-        asm
-          push dword [aInteger];
-        end;
-      end;
-      vtPointer: begin
-        aPointer := aParams[i].VPointer;
-        asm
-          push dword [aPointer];
-        end;
-      end;
-      vtPChar: begin
-        aPChar := aParams[i].VPChar;
-        asm
-          push dword [aPChar];
-        end;
-      end
-      else
-        raise Exception.CreateFmt('Unsupported data type: %d', [aParams[i].VType]);
-    end;
-  end;
-
-  asm
-    call aProc;
-    mov  [Result],eax;
-  end;
-
-  if FDebugger.HasListener then begin
-    i := FProcs.IndexOfObject(aProc);
-    Assert(i <> -1);
-    sDebug := GetDebugFactory.Get(FProcs[i], aProc, aParams, Result);
-    FDebugger.Notify(sDebug);
-  end;
-{$endif}
 end;
 
 function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
