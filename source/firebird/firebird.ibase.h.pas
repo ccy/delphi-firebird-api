@@ -1358,8 +1358,11 @@ BSTREAM* ISC_EXPORT Bopen2(ISC_QUAD*,
 (* Shutdown and cancel *)
 (***********************)
 
-//function ISC_EXPORT fb_shutdown(Word: ; integer: ): integer;
-//
+  Tfb_shutdown = function(
+    timeout:           Cardinal;
+    reason:            Integer
+  ): Integer; stdcall;
+
 //ISC_STATUS ISC_EXPORT fb_shutdown_callback(ISC_STATUS*,
 //             FB_SHUTDOWN_CALLBACK,
 //              integer,

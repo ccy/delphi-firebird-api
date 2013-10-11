@@ -60,6 +60,8 @@ type
   {$endregion}
 
   IFirebirdLibrary_DLL = interface(IInterface)
+    function fb_shutdown(timeout: Cardinal = 20000; const reason: Integer = 0):
+        Integer; stdcall;
     function isc_attach_database(status_vector: PISC_STATUS_ARRAY; file_length: SmallInt;
         file_name: PISC_SCHAR; public_handle: pisc_db_handle; dpb_length: SmallInt;
         dpb: PISC_SCHAR): ISC_STATUS; stdcall;
@@ -169,10 +171,12 @@ type
     FServerCharSet: string;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
     function GetEncoding: TEncoding;
-    function GetProc(const aHandle: THandle; const aProcName: PChar): pointer;
+    function GetProc(const aHandle: THandle; const aProcName: PChar; const
+        aRequired: Boolean = True): pointer;
     procedure DebugMsg(const aProc: pointer; const aParams: array of const;
         aResult: ISC_STATUS);
   private
+    Ffb_shutdown: Tfb_shutdown;
     Fisc_attach_database: Tisc_attach_database;
     Fisc_blob_info: Tisc_blob_info;
     Fisc_close_blob: Tisc_close_blob;
@@ -214,6 +218,8 @@ type
     Fisc_start_multiple: Tisc_start_multiple;
     Fisc_vax_integer: Tisc_vax_integer;
   protected  // IFirebirdLibrary_DLL
+    function fb_shutdown(timeout: Cardinal = 20000; const reason: Integer = 0):
+        Integer; stdcall;
     function isc_attach_database(status_vector: PISC_STATUS_ARRAY; file_length: SmallInt;
         file_name: PISC_SCHAR; public_handle: pisc_db_handle; dpb_length: SmallInt;
         dpb: PISC_SCHAR): ISC_STATUS; stdcall;
@@ -533,11 +539,12 @@ begin
 end;
 
 function TFirebirdLibrary.GetProc(const aHandle: THandle; const aProcName:
-    PChar): pointer;
+    PChar; const aRequired: Boolean = True): pointer;
 begin
   Result := GetProcAddress(aHandle, aProcName);
-  FProcs.AddObject(aProcName, Result);
-  if Result = nil then
+  if Result <> nil then
+    FProcs.AddObject(aProcName, Result)
+  else if aRequired then
     RaiseLastOSError;
 end;
 
@@ -857,7 +864,7 @@ end;
 procedure TFirebirdLibrary.Setup(const aHandle: THandle);
 begin
   FHandle := aHandle;
-
+  Ffb_shutdown                 := GetProc(aHandle, 'fb_shutdown', False);
   Fisc_attach_database         := GetProc(aHandle, 'isc_attach_database');
   Fisc_blob_info               := GetProc(aHandle, 'isc_blob_info');
   Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
@@ -930,6 +937,16 @@ procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
 begin
   if FDebugger.HasListener then
     FDebugger.Notify(GetDebugFactory.Get(FProcs[FProcs.IndexOfObject(aProc)], aProc, aParams, aResult));
+end;
+
+function TFirebirdLibrary.fb_shutdown(timeout: Cardinal = 20000; const reason:
+    Integer = 0): Integer;
+begin
+  Result := 0;
+  if Assigned(Ffb_shutdown) then begin
+    Result := Ffb_shutdown(timeout, reason);
+    DebugMsg(@Ffb_shutdown, [timeout, reason], Result);
+  end;
 end;
 
 class function TFirebirdLibraryFactory.New(const aLibrary: string; const
