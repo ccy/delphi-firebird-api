@@ -13,7 +13,6 @@ type
   TFirebirdPB = record
   strict private
     FParams: TBytes;
-    function GetLength: Integer;
     function IncSize(const aIncSize: Integer): TFirebirdPB;
   public
     function AddByte(const B: Byte): TFirebirdPB;
@@ -23,9 +22,9 @@ type
     function AddString(const aValue: string): TFirebirdPB;
     class function GetDPB(const aUser, aPassword: string): TFirebirdPB;
         static;
+    function GetLength: Integer;
     function Init(const aParams: array of byte): TFirebirdPB;
     class operator Implicit(const A: TFirebirdPB): Pointer;
-    property Length: Integer read GetLength;
   end;
 
   {$region 'Firebird Library: Debugger'}
@@ -1502,7 +1501,7 @@ end;
 function TFirebirdPB.AddByte(const B: Byte): TFirebirdPB;
 var i: integer;
 begin
-  i := Length;
+  i := GetLength;
   IncSize(SizeOf(B));
   FParams[i] := B;
   Result := Self;
@@ -1512,7 +1511,7 @@ function TFirebirdPB.AddLongint(const B: LongInt): TFirebirdPB;
 var i: integer;
     P: PLongint;
 begin
-  i := Length;
+  i := GetLength;
   IncSize(SizeOf(B));
   P := @FParams[i];
   P^ := B;
@@ -1523,7 +1522,7 @@ function TFirebirdPB.AddShortString(const aValue: string): TFirebirdPB;
 var i: Integer;
     S: string;
 begin
-  i := Length;
+  i := GetLength;
   S := aValue.Substring(0, Min(High(Byte), aValue.Length));
   AddByte(S.Length);
   IncSize(S.Length);
@@ -1536,7 +1535,7 @@ function TFirebirdPB.AddSmallInt(const B: SmallInt): TFirebirdPB;
 var i: integer;
     P: PSmallInt;
 begin
-  i := Length;
+  i := GetLength;
   IncSize(SizeOf(B));
   P := @FParams[i];
   P^ := B;
@@ -1547,7 +1546,7 @@ function TFirebirdPB.AddString(const aValue: string): TFirebirdPB;
 var i: SmallInt;
     S: string;
 begin
-  i := Length;
+  i := GetLength;
   S := aValue.Substring(0, Min(High(SmallInt), aValue.Length));
   AddSmallInt(S.Length);
   IncSize(S.Length);
@@ -1573,7 +1572,7 @@ end;
 
 function TFirebirdPB.IncSize(const aIncSize: Integer): TFirebirdPB;
 begin
-  SetLength(FParams, Length + aIncSize);
+  SetLength(FParams, GetLength + aIncSize);
   Result := Self;
 end;
 
