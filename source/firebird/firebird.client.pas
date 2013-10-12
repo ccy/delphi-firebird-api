@@ -494,8 +494,8 @@ type
 
 implementation
 
-uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend}
-     , firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
+uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend}, WindowsEx,
+     firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
 
 procedure TFirebirdLibrary.AfterConstruction;
 begin
@@ -1274,6 +1274,9 @@ begin
   inherited;
 
   if string(CmdLine).ToUpper.Contains('CORE_2978') then Exit;
+
+  if TProcessModules.GetLoadCount(FHandle) = 1 {CORE-4508} then
+    fb_shutdown;
 
   if not FreeLibrary(FHandle) then
     RaiseLastOSError;
