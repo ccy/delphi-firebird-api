@@ -79,15 +79,15 @@ type
     function isc_database_info(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
         info_len: SmallInt; info: PISC_SCHAR; res_len: SmallInt; res: PISC_SCHAR):
         ISC_STATUS; stdcall;
-    procedure isc_decode_sql_date(date: PISC_DATE; times_arg: pointer);
-    procedure isc_decode_sql_time(sql_time: PISC_TIME; times_args: pointer);
-    procedure isc_decode_timestamp(date: PISC_TIMESTAMP; times_arg: pointer);
+    procedure isc_decode_sql_date(date: PISC_DATE; times_arg: pointer); stdcall;
+    procedure isc_decode_sql_time(sql_time: PISC_TIME; times_args: pointer); stdcall;
+    procedure isc_decode_timestamp(date: PISC_TIMESTAMP; times_arg: pointer); stdcall;
     function isc_detach_database(status_vector: PISC_STATUS_ARRAY; public_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
     function isc_drop_database(status_vector: PISC_STATUS_ARRAY; db_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
     function isc_dsql_allocate_statement(status_vector: PISC_STATUS_ARRAY; db_handle:
-        pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS;
+        pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
     function isc_dsql_alloc_statement2(status_vector: PISC_STATUS_ARRAY; db_handle:
         pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
     function isc_dsql_describe(status_vector: PISC_STATUS_ARRAY; stmt_handle:
@@ -116,9 +116,9 @@ type
     function isc_dsql_sql_info(status_vector: PISC_STATUS_ARRAY; stmt_handle:
         pisc_stmt_handle; items_len: SmallInt; items: PISC_SCHAR; buffer_len:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
-    procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE);
-    procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME);
-    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP);
+    procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE); stdcall;
+    procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME); stdcall;
+    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP); stdcall;
     function isc_get_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
         pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer: PISC_SCHAR):
         ISC_STATUS; stdcall;
@@ -230,15 +230,15 @@ type
     function isc_database_info(status_vector: PISC_STATUS_ARRAY; db_handle:
         pisc_db_handle; info_len: SmallInt; info: PISC_SCHAR; res_len: SmallInt;
         res: PISC_SCHAR): ISC_STATUS; stdcall;
-    procedure isc_decode_sql_date(date: PISC_DATE; times_arg: pointer);
-    procedure isc_decode_sql_time(sql_time: PISC_TIME; times_args: pointer);
-    procedure isc_decode_timestamp(date: PISC_TIMESTAMP; times_arg: pointer);
+    procedure isc_decode_sql_date(date: PISC_DATE; times_arg: pointer); stdcall;
+    procedure isc_decode_sql_time(sql_time: PISC_TIME; times_args: pointer); stdcall;
+    procedure isc_decode_timestamp(date: PISC_TIMESTAMP; times_arg: pointer); stdcall;
     function isc_detach_database(status_vector: PISC_STATUS_ARRAY; public_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
     function isc_drop_database(status_vector: PISC_STATUS_ARRAY; db_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
     function isc_dsql_allocate_statement(status_vector: PISC_STATUS_ARRAY; db_handle:
-        pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS;
+        pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
     function isc_dsql_alloc_statement2(status_vector: PISC_STATUS_ARRAY; db_handle:
         pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
     function isc_dsql_describe(status_vector: PISC_STATUS_ARRAY; stmt_handle:
@@ -267,9 +267,9 @@ type
     function isc_dsql_sql_info(status_vector: PISC_STATUS_ARRAY; stmt_handle:
         pisc_stmt_handle; items_len: SmallInt; items: PISC_SCHAR; buffer_len:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
-    procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE);
-    procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME);
-    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP);
+    procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE); stdcall;
+    procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME); stdcall;
+    procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP); stdcall;
     function isc_get_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
         pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer: PISC_SCHAR):
         ISC_STATUS; stdcall;
