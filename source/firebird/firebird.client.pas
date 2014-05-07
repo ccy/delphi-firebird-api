@@ -35,10 +35,9 @@ type
 
   IFirebirdLibraryDebugger = interface(IInterface)
   ['{F9E55F0A-3843-44B3-AA64-5D2EC8211B94}']
-    procedure Add(const aListener: IFirebirdLibraryDebuggerListener);
-    function HasListener: boolean;
-    procedure Remove(const aListener: IFirebirdLibraryDebuggerListener);
+    function HasListener: Boolean;
     procedure Notify(const aDebugStr: string);
+    procedure SetListener(const aListener: IFirebirdLibraryDebuggerListener);
   end;
 
   IFirebirdLibraryDebugFactory = interface(IInterface)
@@ -49,13 +48,11 @@ type
 
   TFirebirdLibraryDebugger = class(TInterfacedObject, IFirebirdLibraryDebugger)
   private
-    FDebuggerListener: IInterfaceList;
-    function GetDebuggerListener: IInterfaceList;
+    FListener: IFirebirdLibraryDebuggerListener;
   protected
-    procedure Add(const aListener: IFirebirdLibraryDebuggerListener);
-    function HasListener: boolean;
-    procedure Remove(const aListener: IFirebirdLibraryDebuggerListener);
+    function HasListener: Boolean;
     procedure Notify(const aDebugStr: string);
+    procedure SetListener(const aListener: IFirebirdLibraryDebuggerListener);
   end;
   {$endregion}
 
@@ -155,6 +152,7 @@ type
 
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
+    function Clone: IFirebirdLibrary;
     procedure Setup(const aHandle: THandle);
     function TryGetODSMajor(out aODS: integer): boolean;
   end;
@@ -305,7 +303,9 @@ type
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
   protected // IFirebirdLibrary
     FAttached_DB: pisc_db_handle;
+    FHandle: THandle;
     FODSMajor: integer;
+    function Clone: IFirebirdLibrary;
     procedure Setup(const aHandle: THandle);
     function TryGetODSMajor(out aODS: integer): boolean;
   public
@@ -493,10 +493,15 @@ begin
   FProcs.Free;
 end;
 
+function TFirebirdLibrary.Clone: IFirebirdLibrary;
+begin
+  Result := TFirebirdLibraryFactory.New(FHandle);
+end;
+
 function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
 begin
   if FDebugFactory = nil then
-    FDebugFactory := TFirebirdClientDebugFactory.Create(IFirebirdLibrary(Self));
+    FDebugFactory := TFirebirdClientDebugFactory.Create(Clone);
   Result := FDebugFactory;
 end;
 
@@ -824,6 +829,8 @@ end;
 
 procedure TFirebirdLibrary.Setup(const aHandle: THandle);
 begin
+  FHandle := aHandle;
+
   Fisc_attach_database         := GetProc(aHandle, 'isc_attach_database');
   Fisc_blob_info               := GetProc(aHandle, 'isc_blob_info');
   Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
@@ -999,39 +1006,21 @@ begin
   Result := FError;
 end;
 
-{ TFirebirdClientDebugger }
-
-procedure TFirebirdLibraryDebugger.Add(
-  const aListener: IFirebirdLibraryDebuggerListener);
+function TFirebirdLibraryDebugger.HasListener: Boolean;
 begin
-  GetDebuggerListener.Add(aListener);
-end;
-
-function TFirebirdLibraryDebugger.GetDebuggerListener: IInterfaceList;
-begin
-  if FDebuggerListener = nil then
-    FDebuggerListener := TInterfaceList.Create;
-  Result := FDebuggerListener;
-end;
-
-function TFirebirdLibraryDebugger.HasListener: boolean;
-begin
-  Result := GetDebuggerListener.Count > 0;
+  Result := Assigned(FListener);
 end;
 
 procedure TFirebirdLibraryDebugger.Notify(const aDebugStr: string);
-var i: integer;
 begin
-  for i := 0 to GetDebuggerListener.Count - 1 do
-    (GetDebuggerListener[i] as IFirebirdLibraryDebuggerListener).Update(aDebugStr);
+  if HasListener then
+    FListener.Update(aDebugStr);
 end;
 
-procedure TFirebirdLibraryDebugger.Remove(
+procedure TFirebirdLibraryDebugger.SetListener(
   const aListener: IFirebirdLibraryDebuggerListener);
-var i: integer;
 begin
-  i := GetDebuggerListener.IndexOf(aListener);
-  GetDebuggerListener.Delete(i);
+  FListener := aListener;
 end;
 
 { TFirebirdError }
