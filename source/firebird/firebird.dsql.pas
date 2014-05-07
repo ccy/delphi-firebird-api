@@ -120,10 +120,10 @@ type
     procedure GetAnsiString(aValue: pointer; out aIsNull: boolean);
     procedure GetBCD(aValue: pointer; out aIsNull: boolean);
     function GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction; aValue: pointer;
+        pisc_db_handle; const aTransaction: TFirebirdTransaction; aValue: pointer;
         out aIsNull: boolean; aLength: LongWord): ISC_STATUS;
     function GetBlobSize(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction; out aBlobSize:
+        pisc_db_handle; const aTransaction: TFirebirdTransaction; out aBlobSize:
         longword; out aIsNull: boolean): ISC_STATUS;
     procedure GetDate(aValue: pointer; out aIsNull: boolean);
     procedure GetDouble(aValue: pointer; out aIsNull: boolean);
@@ -141,7 +141,7 @@ type
         aIsNull: boolean);
     procedure SetBCD(const aValue: pointer; const aIsNull: boolean);
     function SetBlob(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction; const aValue:
+        pisc_db_handle; const aTransaction: TFirebirdTransaction; const aValue:
         pointer; const aLength: Integer; const aIsNull: boolean): ISC_STATUS;
     procedure SetDate(const aValue: pointer; const aLength: Integer; const aIsNull:
         boolean);
@@ -248,13 +248,13 @@ type
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction): TFBIntType;
+        pisc_db_handle; const aTransaction: TFirebirdTransaction): TFBIntType;
     function GetPlan(const aStatusVector: IStatusVector): string;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): TFBIntType; overload;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParams: TXSQLDA): TFBIntType; overload;
-    function Transaction: IFirebirdTransaction;
+    function Transaction: TFirebirdTransaction;
     property IsStoredProc: Boolean read GetIsStoredProc;
     property i_SQLDA: TXSQLDA read Geti_SQLDA;
     property o_SQLDA: TXSQLDA read Geto_SQLDA;
@@ -272,7 +272,7 @@ type
     FStatementHandle: isc_stmt_handle;
     FTransactionPool: TFirebirdTransactionPool;
     FManageTransaction: boolean;
-    FTransaction: IFirebirdTransaction;
+    FTransaction: TFirebirdTransaction;
     FServerCharSet: WideString;
     FIsStoredProc: boolean;
     FManage_SQLDA_In: boolean;
@@ -294,12 +294,12 @@ type
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         LongWord): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
-        pisc_db_handle; const aTransaction: IFirebirdTransaction): TFBIntType;
+        pisc_db_handle; const aTransaction: TFirebirdTransaction): TFBIntType;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParamCount: Integer = 0): TFBIntType; overload;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
         aSQLDialect: word; const aParams: TXSQLDA): TFBIntType; overload;
-    function Transaction: IFirebirdTransaction;
+    function Transaction: TFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdLibrary; const
         aTransactionPool: TFirebirdTransactionPool; const aServerCharSet:
@@ -420,7 +420,7 @@ begin
 end;
 
 function TXSQLVAR.GetBlob(const aStatusVector: IStatusVector; const aDBHandle:
-    pisc_db_handle; const aTransaction: IFirebirdTransaction; aValue: pointer;
+    pisc_db_handle; const aTransaction: TFirebirdTransaction; aValue: pointer;
     out aIsNull: boolean; aLength: LongWord): ISC_STATUS;
 var hBlob: isc_blob_handle;
     pBlobID: PISC_QUAD;
@@ -466,7 +466,7 @@ begin
 end;
 
 function TXSQLVAR.GetBlobSize(const aStatusVector: IStatusVector; const
-    aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction; out
+    aDBHandle: pisc_db_handle; const aTransaction: TFirebirdTransaction; out
     aBlobSize: longword; out aIsNull: boolean): ISC_STATUS;
 var hBlob: isc_blob_handle;
     C: array[0..0] of byte;
@@ -880,7 +880,7 @@ begin
 end;
 
 function TXSQLVAR.SetBlob(const aStatusVector: IStatusVector; const aDBHandle:
-    pisc_db_handle; const aTransaction: IFirebirdTransaction; const aValue:
+    pisc_db_handle; const aTransaction: TFirebirdTransaction; const aValue:
     pointer; const aLength: Integer; const aIsNull: boolean): ISC_STATUS;
 var hBlob: isc_blob_handle;
     BlobID: ISC_QUAD;
@@ -1708,7 +1708,7 @@ begin
   Result := @FStatementHandle;
 end;
 
-function TFirebird_DSQL.Transaction: IFirebirdTransaction;
+function TFirebird_DSQL.Transaction: TFirebirdTransaction;
 begin
   Result := FTransaction;
 end;
@@ -1744,7 +1744,7 @@ begin
 end;
 
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
-    aDBHandle: pisc_db_handle; const aTransaction: IFirebirdTransaction):
+    aDBHandle: pisc_db_handle; const aTransaction: TFirebirdTransaction):
     TFBIntType;
 begin
   Assert(FState = S_INACTIVE);
