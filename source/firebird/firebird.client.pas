@@ -1217,9 +1217,11 @@ function TFirebirdTransactionPool.Commit(const aStatusVector: IStatusVector;
 var i: integer;
 begin
   Result := aTransaction.Commit(aStatusVector);
-  i := FItems.IndexOf(aTransaction);
-  Assert(i >= 0);
-  FItems.Delete(i);
+  if aStatusVector.Success then begin
+    i := FItems.IndexOf(aTransaction);
+    Assert(i >= 0);
+    FItems.Delete(i);
+  end;
 end;
 
 function TFirebirdTransactionPool.Count: integer;
@@ -1248,9 +1250,11 @@ function TFirebirdTransactionPool.RollBack(const aStatusVector: IStatusVector;
 var i: integer;
 begin
   Result := aTransaction.Rollback(aStatusVector);
-  i := FItems.IndexOf(aTransaction);
-  Assert(i >= 0);
-  FItems.Delete(i);
+  if aStatusVector.Success then begin
+    i := FItems.IndexOf(aTransaction);
+    Assert(i >= 0);
+    FItems.Delete(i);
+  end;
 end;
 
 procedure TFirebirdLibrary2.AfterConstruction;
