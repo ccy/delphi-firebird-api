@@ -4,7 +4,7 @@
         <MainSource>oofirebird.dpk</MainSource>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-        <ProjectVersion>15.3</ProjectVersion>
+        <ProjectVersion>15.4</ProjectVersion>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Base>True</Base>
         <AppType>Package</AppType>
@@ -53,6 +53,7 @@
     </PropertyGroup>
     <Import Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')" Project="..\..\build\optset\Base.optset"/>
     <PropertyGroup Condition="'$(Base)'!=''">
+        <SanitizedProjectName>oofirebird</SanitizedProjectName>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DllPrefixDefined>true</DllPrefixDefined>
