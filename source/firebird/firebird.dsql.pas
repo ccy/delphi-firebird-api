@@ -307,13 +307,6 @@ type
     procedure BeforeDestruction; override;
   end;
 
-  {$ifdef Unicode}
-  TFirebird_DSQL_Unicode = class helper for TFirebird_DSQL
-  protected
-    function GetEncoding: TEncoding;
-  end;
-  {$endif}
-
 implementation
 
 uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
@@ -1797,7 +1790,7 @@ begin
   FSQLDA_Out := TXSQLDA.Create(FClient);
 
   {$ifdef Unicode}
-  B := GetEncoding.GetBytes(aSQL);
+  B := FClient.GetEncoding.GetBytes(aSQL);
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(B), @B[0], FLast_SQLDialect, FSQLDA_Out.XSQLDA);
   {$else}
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SChar(aSQL), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
@@ -1826,16 +1819,5 @@ begin
 
   FState := S_PREPARED;
 end;
-
-{$ifdef Unicode}
-function TFirebird_DSQL_Unicode.GetEncoding: TEncoding;
-begin
-  if (FServerCharSet = 'NONE') or (FServerCharSet = 'UTF8') then
-    Result := TEncoding.UTF8
-  else
-    Result := TEncoding.Default;
-end;
-
-{$endif}
 
 end.

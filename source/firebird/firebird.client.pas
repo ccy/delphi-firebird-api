@@ -153,6 +153,7 @@ type
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
     function Clone: IFirebirdLibrary;
+    function GetEncoding: TEncoding;
     procedure Setup(const aHandle: THandle);
     function TryGetODSMajor(out aODS: integer): boolean;
   end;
@@ -162,7 +163,9 @@ type
     FDebugFactory: IFirebirdLibraryDebugFactory;
     FDebugger: IFirebirdLibraryDebugger;
     FProcs: TStringList;
+    FServerCharSet: string;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
+    function GetEncoding: TEncoding;
     function GetProc(const aHandle: THandle; const aProcName: PChar): pointer;
     procedure DebugMsg(const aProc: pointer; const aParams: array of const;
         aResult: ISC_STATUS);
@@ -309,6 +312,7 @@ type
     procedure Setup(const aHandle: THandle);
     function TryGetODSMajor(out aODS: integer): boolean;
   public
+    constructor Create(const aServerCharSet: string);
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
   end;
@@ -326,7 +330,7 @@ type
     FLibrary: string;
     FOldVars: IInterface;
   public
-    constructor Create(const aLibrary: string);
+    constructor Create(const aLibrary, aServerCharSet: string);
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
   end;
@@ -435,8 +439,10 @@ type
 
   TFirebirdLibraryFactory = class abstract
   public
-    class function New(const aLibrary: string): IFirebirdLibrary; overload;
-    class function New(const aHandle: THandle): IFirebirdLibrary; overload;
+    class function New(const aLibrary: string; const aServerCharSet: string =
+        'NONE'): IFirebirdLibrary; overload;
+    class function New(const aHandle: THandle; const aServerCharSet: string =
+        'NONE'): IFirebirdLibrary; overload;
   end;
 
   TFirebirdLibraryRootPath = class(TInterfacedObject)
@@ -495,7 +501,13 @@ end;
 
 function TFirebirdLibrary.Clone: IFirebirdLibrary;
 begin
-  Result := TFirebirdLibraryFactory.New(FHandle);
+  Result := TFirebirdLibraryFactory.New(FHandle, FServerCharSet);
+end;
+
+constructor TFirebirdLibrary.Create(const aServerCharSet: string);
+begin
+  inherited Create;
+  FServerCharSet := aServerCharSet;
 end;
 
 function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
@@ -503,6 +515,14 @@ begin
   if FDebugFactory = nil then
     FDebugFactory := TFirebirdClientDebugFactory.Create(Clone);
   Result := FDebugFactory;
+end;
+
+function TFirebirdLibrary.GetEncoding: TEncoding;
+begin
+  if (FServerCharSet = 'NONE') or (FServerCharSet = 'UTF8') then
+    Result := TEncoding.UTF8
+  else
+    Result := TEncoding.Default;
 end;
 
 function TFirebirdLibrary.GetProc(const aHandle: THandle; const aProcName:
@@ -905,17 +925,17 @@ begin
     FDebugger.Notify(GetDebugFactory.Get(FProcs[FProcs.IndexOfObject(aProc)], aProc, aParams, aResult));
 end;
 
-class function TFirebirdLibraryFactory.New(
-  const aLibrary: string): IFirebirdLibrary;
+class function TFirebirdLibraryFactory.New(const aLibrary: string; const
+    aServerCharSet: string = 'NONE'): IFirebirdLibrary;
 begin
-  Result := TFirebirdLibrary2.Create(aLibrary);
+  Result := TFirebirdLibrary2.Create(aLibrary, aServerCharSet);
 end;
 
-class function TFirebirdLibraryFactory.New(
-  const aHandle: THandle): IFirebirdLibrary;
+class function TFirebirdLibraryFactory.New(const aHandle: THandle; const
+    aServerCharSet: string = 'NONE'): IFirebirdLibrary;
 var L: IFirebirdLibrary;
 begin
-  L := TFirebirdLibrary.Create;
+  L := TFirebirdLibrary.Create(aServerCharSet);
   try
     L.Setup(aHandle);
   except
@@ -1241,9 +1261,9 @@ begin
   end;
 end;
 
-constructor TFirebirdLibrary2.Create(const aLibrary: string);
+constructor TFirebirdLibrary2.Create(const aLibrary, aServerCharSet: string);
 begin
-  inherited Create;
+  inherited Create(aServerCharSet);
   FLibrary := aLibrary;
 end;
 

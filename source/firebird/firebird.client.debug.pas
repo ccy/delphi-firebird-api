@@ -341,7 +341,7 @@ function TFirebirdClientDebugFactory.isc_dsql_prepare(const aProcName: string;
 var S: string;
 begin
 {$ifdef Unicode}
-  S := TEncoding.UTF8.GetString(TBytes(aParams[4].VPChar), 0, aParams[3].VInteger);
+  S := FClient.GetEncoding.GetString(TBytes(aParams[4].VPChar), 0, aParams[3].VInteger);
 {$else}
   SetString(S, aParams[4].VPChar, aParams[3].VInteger);
 {$endif}
