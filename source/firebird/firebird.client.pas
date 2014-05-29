@@ -7,6 +7,9 @@ uses Windows, SysUtils, Classes, System.Generics.Collections,
 
 {$Message 'http://tracker.firebirdsql.org/browse/CORE-1745: Firebird Embedded DLL create fb_xxxx.LCK cause problem on multi connection in same project'}
 
+const
+  FirebirdTransaction_WaitOnLocks = $0100;
+
 type
   TFBIntType = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
 
@@ -396,6 +399,9 @@ type
   TTransactionInfo = record
     ID: LongWord;
     Isolation: TTransactionIsolation;
+    WaitOnLocks: Boolean;
+    procedure Init(aIsolation: TTransactionIsolation = isoReadCommitted;
+        aWaitOnLocks: Boolean = False);
   end;
 
   TFirebirdTransaction = class(TObject)
@@ -422,9 +428,10 @@ type
     FDBHandle: pisc_db_handle;
     FFirebirdClient: IFirebirdLibrary;
     FItems: TObjectList<TFirebirdTransaction>;
+    FDefaultTransactionInfo: TTransactionInfo;
   public
     constructor Create(const aFirebirdClient: IFirebirdLibrary; const aDBHandle:
-        pisc_db_handle);
+        pisc_db_handle; const aDefaultTransactionInfo: TTransactionInfo);
     function Add: TFirebirdTransaction; overload;
     function Add(const aTransInfo: TTransactionInfo): TFirebirdTransaction;
         overload;
@@ -1100,7 +1107,11 @@ begin
     Fisc_tec[i] := isc_tpb_rec_version;
     Inc(i);
 
-    Fisc_tec[i] := isc_tpb_nowait;
+    if aTransInfo.WaitOnLocks then
+      Fisc_tec[i] := isc_tpb_wait
+    else
+      Fisc_tec[i] := isc_tpb_nowait;
+
     Inc(i);
   end;
 
@@ -1148,12 +1159,14 @@ begin
   Result := @FTransactionHandle;
 end;
 
-constructor TFirebirdTransactionPool.Create(
-  const aFirebirdClient: IFirebirdLibrary; const aDBHandle: pisc_db_handle);
+constructor TFirebirdTransactionPool.Create(const aFirebirdClient:
+    IFirebirdLibrary; const aDBHandle: pisc_db_handle; const
+    aDefaultTransactionInfo: TTransactionInfo);
 begin
   inherited Create;
   FFirebirdClient := aFirebirdClient;
   FDBHandle := aDBHandle;
+  FDefaultTransactionInfo := aDefaultTransactionInfo;
 end;
 
 function TFirebirdTransactionPool.CurrentTransaction: TFirebirdTransaction;
@@ -1177,11 +1190,8 @@ begin
 end;
 
 function TFirebirdTransactionPool.Add: TFirebirdTransaction;
-var T: TTransactionInfo;
 begin
-  T.ID := 0;
-  T.Isolation := isoReadCommitted;
-  Result := Add(T);
+  Result := Add(FDefaultTransactionInfo);
 end;
 
 procedure TFirebirdTransactionPool.AfterConstruction;
@@ -1554,6 +1564,14 @@ end;
 class operator TFirebirdPB.Implicit(const A: TFirebirdPB): Pointer;
 begin
   Result := @A.FParams[0];
+end;
+
+procedure TTransactionInfo.Init(aIsolation: TTransactionIsolation =
+    isoReadCommitted; aWaitOnLocks: Boolean = False);
+begin
+  ID := 0;
+  Isolation := aIsolation;
+  WaitOnLocks := aWaitOnLocks;
 end;
 
 end.
