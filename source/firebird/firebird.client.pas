@@ -519,7 +519,7 @@ end;
 
 function TFirebirdLibrary.GetEncoding: TEncoding;
 begin
-  if (FServerCharSet = 'NONE') or (FServerCharSet = 'UTF8') then
+  if (FServerCharSet = 'UTF8') then
     Result := TEncoding.UTF8
   else
     Result := TEncoding.Default;
