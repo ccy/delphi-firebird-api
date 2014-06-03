@@ -1255,6 +1255,9 @@ var s: string;
     h: THandle;
 begin
   inherited;
+
+  if string(CmdLine).ToUpper.Contains('CORE_2978') then Exit;
+
   if not FreeLibrary(FHandle) then
     RaiseLastOSError;
 
