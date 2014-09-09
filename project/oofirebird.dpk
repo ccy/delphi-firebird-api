@@ -50,6 +50,7 @@ contains
   firebird.service in '..\source\firebird\firebird.service.pas',
   firebird.charsets in '..\source\firebird\firebird.charsets.pas',
   firebird.sql in '..\source\firebird\firebird.sql.pas',
-  firebird.database in '..\source\firebird\firebird.database.pas';
+  firebird.database in '..\source\firebird\firebird.database.pas',
+  firebird.connection.params in '..\source\firebird\firebird.connection.params.pas';
 
 end.
