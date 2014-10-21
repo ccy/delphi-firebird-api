@@ -980,7 +980,7 @@ begin
     Assert(aLength = 8);
     D := PDouble(aValue)^;
     Move(D, sqldata^, sqllen);
-  end else if CheckType(SQL_INT64) then begin
+  end else if CheckType(SQL_INT64) or CheckType(SQL_LONG) then begin
     Assert(aLength = 8);
 
     iScaling := 1;
