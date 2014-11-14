@@ -1708,27 +1708,25 @@ end;
 
 function TFirebird_DSQL.Close(const aStatusVector: IStatusVector): TFBIntType;
 begin
-  if FState = S_INACTIVE then begin
-    Result := 0;
-    Exit;
-  end;
-
-  if FManageTransaction then begin
-    if (FState = S_EXECUTED) or (FState = S_EOF) then begin
-      FTransactionPool.Commit(aStatusVector, FTransaction);
-      FTransaction := nil;
-      if aStatusVector.CheckError(FClient, Result) then Exit;
-    end else begin
-      FTransactionPool.RollBack(aStatusVector, FTransaction);
-      FTransaction := nil;
-      if aStatusVector.CheckError(FClient, Result) then Exit;
+  if FState = S_INACTIVE then Exit(0);
+  try
+    if FManageTransaction then begin
+      if (FState = S_EXECUTED) or (FState = S_EOF) then begin
+        FTransactionPool.Commit(aStatusVector, FTransaction);
+        FTransaction := nil;
+        if aStatusVector.CheckError(FClient, Result) then Exit;
+      end else begin
+        FTransactionPool.RollBack(aStatusVector, FTransaction);
+        FTransaction := nil;
+        if aStatusVector.CheckError(FClient, Result) then Exit;
+      end;
     end;
+
+    FClient.isc_dsql_free_statement(aStatusVector.pValue, StatementHandle, DSQL_drop);
+    if aStatusVector.CheckError(FClient, Result) then Exit;
+  finally
+    FState := S_INACTIVE;
   end;
-
-  FClient.isc_dsql_free_statement(aStatusVector.pValue, StatementHandle, DSQL_drop);
-  if aStatusVector.CheckError(FClient, Result) then Exit;
-
-  FState := S_INACTIVE;
 end;
 
 function TFirebird_DSQL.GetIsStoredProc: Boolean;
