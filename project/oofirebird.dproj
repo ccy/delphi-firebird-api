@@ -4,7 +4,7 @@
         <MainSource>oofirebird.dpk</MainSource>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-        <ProjectVersion>15.4</ProjectVersion>
+        <ProjectVersion>16.1</ProjectVersion>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Base>True</Base>
         <AppType>Package</AppType>
@@ -94,7 +94,6 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="library.res"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="oortl.dcp"/>
