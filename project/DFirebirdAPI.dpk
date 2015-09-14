@@ -1,0 +1,52 @@
+package DFirebirdAPI;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE Debug}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Delphi Firebird API'}
+{$LIBSUFFIX '230'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  dbrtl,
+  JediApi_Dynamic;
+
+contains
+  firebird.ibase.h in '..\source\firebird.ibase.h.pas',
+  firebird.iberror.h in '..\source\firebird.iberror.h.pas',
+  firebird.inf_pub.h in '..\source\firebird.inf_pub.h.pas',
+  firebird.sqlda_pub.h in '..\source\firebird.sqlda_pub.h.pas',
+  firebird.time.h in '..\source\firebird.time.h.pas',
+  firebird.types_pub.h in '..\source\firebird.types_pub.h.pas',
+  firebird.consts_pub.h in '..\source\firebird.consts_pub.h.pas',
+  firebird.dsql in '..\source\firebird.dsql.pas',
+  firebird.charsets in '..\source\firebird.charsets.pas',
+  firebird.blr.h in '..\source\firebird.blr.h.pas',
+  firebird.client in '..\source\firebird.client.pas',
+  firebird.client.debug in '..\source\firebird.client.debug.pas';
+
+end.

@@ -1,10 +1,10 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{6E8C80A3-F64D-45CE-9302-56943BE3A8FC}</ProjectGuid>
-        <MainSource>oofirebird.dpk</MainSource>
+        <MainSource>DFirebirdAPI.dpk</MainSource>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-        <ProjectVersion>16.1</ProjectVersion>
+        <ProjectVersion>18.0</ProjectVersion>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Base>True</Base>
         <AppType>Package</AppType>
@@ -51,21 +51,22 @@
         <Cfg_2>true</Cfg_2>
         <Base>true</Base>
     </PropertyGroup>
-    <Import Condition="'$(Base)'!='' And Exists('..\..\build\optset\Base.optset')" Project="..\..\build\optset\Base.optset"/>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <SanitizedProjectName>oofirebird</SanitizedProjectName>
+        <DllSuffix>230</DllSuffix>
+        <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
+        <DCC_BplOutput>.\$(Platform)\$(Config)</DCC_BplOutput>
+        <DCC_DcpOutput>.\$(Platform)\$(Config)</DCC_DcpOutput>
+        <SanitizedProjectName>DFirebirdAPI</SanitizedProjectName>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DllPrefixDefined>true</DllPrefixDefined>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
-        <DCC_Description>E Stream Software - Firebird Library</DCC_Description>
+        <DCC_Description>Delphi Firebird API</DCC_Description>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
-        <DllPrefix>SQL.</DllPrefix>
-        <CfgDependentOn>..\..\build\optset\Base.optset</CfgDependentOn>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
+        <EnabledSysJars>android-support-v4.dex.jar;apk-expansion.dex.jar;cloud-messaging.dex.jar;fmx.dex.jar;google-analytics-v2.dex.jar;google-play-billing.dex.jar;google-play-licensing.dex.jar;google-play-services.dex.jar</EnabledSysJars>
         <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=preferExternal;largeHeap=False;theme=TitleBar</VerInfo_Keys>
         <BT_BuildType>Debug</BT_BuildType>
     </PropertyGroup>
@@ -78,14 +79,12 @@
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <Debugger_HostApplication>$(ActiveHostApplication)</Debugger_HostApplication>
     </PropertyGroup>
-    <Import Condition="'$(Cfg_1)'!='' And Exists('..\..\build\optset\Debug.optset')" Project="..\..\build\optset\Debug.optset"/>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
-        <CfgDependentOn>..\..\build\optset\Debug.optset</CfgDependentOn>
+        <DCC_Define>Debug;$(DCC_Define)</DCC_Define>
     </PropertyGroup>
-    <Import Condition="'$(Cfg_2)'!='' And Exists('..\..\build\optset\Release.optset')" Project="..\..\build\optset\Release.optset"/>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
+        <DCC_Define>Release;$(DCC_Define)</DCC_Define>
         <DCC_DebugInformation>0</DCC_DebugInformation>
-        <CfgDependentOn>..\..\build\optset\Release.optset</CfgDependentOn>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_OSX32)'!=''">
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
@@ -96,35 +95,29 @@
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
-        <DCCReference Include="oortl.dcp"/>
-        <DCCReference Include="..\source\firebird\firebird.ibase.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.iberror.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.inf_pub.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.sqlda_pub.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.time.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.types_pub.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.consts_pub.h.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.client.debug.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.client.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.dsql.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.service.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.charsets.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.sql.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.database.pas"/>
-        <DCCReference Include="..\source\firebird\firebird.connection.params.pas"/>
+        <DCCReference Include="JediApi_Dynamic.dcp"/>
+        <DCCReference Include="..\source\firebird.ibase.h.pas"/>
+        <DCCReference Include="..\source\firebird.iberror.h.pas"/>
+        <DCCReference Include="..\source\firebird.inf_pub.h.pas"/>
+        <DCCReference Include="..\source\firebird.sqlda_pub.h.pas"/>
+        <DCCReference Include="..\source\firebird.time.h.pas"/>
+        <DCCReference Include="..\source\firebird.types_pub.h.pas"/>
+        <DCCReference Include="..\source\firebird.consts_pub.h.pas"/>
+        <DCCReference Include="..\source\firebird.dsql.pas"/>
+        <DCCReference Include="..\source\firebird.charsets.pas"/>
+        <DCCReference Include="..\source\firebird.blr.h.pas"/>
+        <DCCReference Include="..\source\firebird.client.pas"/>
+        <DCCReference Include="..\source\firebird.client.debug.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
-            <DependentOn>..\..\build\optset\Release.optset</DependentOn>
         </BuildConfiguration>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
-            <DependentOn>..\..\build\optset\Base.optset</DependentOn>
         </BuildConfiguration>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_1</Key>
             <CfgParent>Base</CfgParent>
-            <DependentOn>..\..\build\optset\Debug.optset</DependentOn>
         </BuildConfiguration>
     </ItemGroup>
     <Import Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
@@ -165,12 +158,11 @@
                     <VersionInfoKeys Name="Comments"/>
                 </VersionInfoKeys>
                 <Source>
-                    <Source Name="MainSource">oofirebird.dpk</Source>
+                    <Source Name="MainSource">DFirebirdAPI.dpk</Source>
                 </Source>
             </Delphi.Personality>
             <Platforms>
                 <Platform value="Android">False</Platform>
-                <Platform value="iOSDevice">False</Platform>
                 <Platform value="iOSSimulator">False</Platform>
                 <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
