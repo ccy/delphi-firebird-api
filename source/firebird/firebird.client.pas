@@ -1523,13 +1523,15 @@ end;
 function TFirebirdPB.AddShortString(const aValue: string): TFirebirdPB;
 var i: Integer;
     S: string;
+    B: TBytes;
 begin
   i := GetLength;
   S := Copy(aValue, 0, Min(High(Byte), Length(aValue)));
-  AddByte(Length(S));
-  IncSize(Length(S));
+  B := TEncoding.Default.GetBytes(S);
+  AddByte(Length(B));
+  IncSize(Length(B));
   Inc(i, SizeOf(Byte));
-  Move(PAnsiChar(AnsiString(S))^, FParams[i], Length(S));
+  Move(B[0], FParams[i], Length(B));
   Result := Self;
 end;
 
@@ -1547,13 +1549,15 @@ end;
 function TFirebirdPB.AddString(const aValue: string): TFirebirdPB;
 var i: SmallInt;
     S: string;
+    B: TBytes;
 begin
   i := GetLength;
   S := Copy(aValue, 0, Min(High(SmallInt), Length(aValue)));
-  AddSmallInt(Length(S));
-  IncSize(Length(S));
+  B := TEncoding.Default.GetBytes(S);
+  AddSmallInt(Length(B));
+  IncSize(Length(B));
   Inc(i, SizeOf(SmallInt));
-  Move(PAnsiChar(AnsiString(S))^, FParams[i], Length(S));
+  Move(B[0], FParams[i], Length(B));
   Result := Self;
 end;
 
