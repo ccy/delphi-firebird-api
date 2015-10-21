@@ -1215,7 +1215,7 @@ begin
       iLen := FSize - 1;
     iUTF8Len := UnicodeToUtf8(PAnsiChar(sqldata) + 2, FsqlDataSize - 2, aValue, iLen) - 1;
     if iUTF8Len = -1 then begin
-      iUTF8Len := 1;
+      iUTF8Len := 0;
       p := sqldata;
       Inc(p, 2);
       p^ := #0;
