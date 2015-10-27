@@ -2,7 +2,7 @@ unit firebird.client;
 
 interface
 
-uses Windows, SysUtils, Classes, System.Generics.Collections,
+uses JwaWindows, Windows, SysUtils, Classes, System.Generics.Collections,
      firebird.types_pub.h, firebird.sqlda_pub.h, firebird.ibase.h;
 
 {$Message 'http://tracker.firebirdsql.org/browse/CORE-1745: Firebird Embedded DLL create fb_xxxx.LCK cause problem on multi connection in same project'}
@@ -157,6 +157,7 @@ type
 
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
+    procedure CORE_4508;
     function Clone: IFirebirdLibrary;
     function GetEncoding: TEncoding;
     procedure Setup(const aHandle: THandle);
@@ -317,6 +318,7 @@ type
     FAttached_DB: pisc_db_handle;
     FHandle: THandle;
     FODSMajor: integer;
+    procedure CORE_4508;
     function Clone: IFirebirdLibrary;
     procedure Setup(const aHandle: THandle);
     function TryGetODSMajor(out aODS: integer): boolean;
@@ -494,7 +496,7 @@ type
 
 implementation
 
-uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend}, WindowsEx,
+uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend},
      firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
 
 procedure TFirebirdLibrary.AfterConstruction;
@@ -510,6 +512,60 @@ procedure TFirebirdLibrary.BeforeDestruction;
 begin
   inherited;
   FProcs.Free;
+end;
+
+procedure TFirebirdLibrary.CORE_4508;
+type
+  PROCESS_BASIC_INFORMATION = record
+    ExitStatus:         NativeUInt;
+    PebBaseAddress:     {$if RtlVersion < 22}Pointer{$else}PVOID{$ifend};
+    AffinityMask:       NativeUInt;
+    BasePriority:       NativeUInt;
+    UniqueProcessId:    NativeUInt;
+    InheritedUniquePID: NativeUInt;
+  end;
+
+var M: string;
+    H: THandle;
+    PBI: PROCESS_BASIC_INFORMATION;
+    i: ULONG;
+    j: {$if RTLVersion < 23}DWORD{$else}NativeUInt{$ifend};
+    PEB: _PEB_WXP;
+    PebLDrData: TPebLdrData;
+    Current: TLdrDataTableEntry;
+    Index: Pointer;
+    iLoadCount: Integer;
+begin
+  {http://tracker.firebirdsql.org/browse/CORE-4508}
+
+  M := GetModuleName(FHandle);
+  if M.IsEmpty then Exit;
+
+  H := GetCurrentProcess;
+
+  ZeroMemory(@PBI, SizeOf(PBI));
+  if ZwQueryInformationProcess(H, ProcessBasicInformation, @PBI, SizeOf(PBI), @i) > 0 then Exit;
+
+  j := i;
+  ZeroMemory(@PEB, SizeOf(PEB));
+  Win32Check(ReadProcessMemory(H, PBI.PebBaseAddress, @PEB, SizeOf(PEB), j));
+  Win32Check(ReadProcessMemory(H, PEB.Ldr, @PebLDrData, sizeof(PebLDrData), j));
+
+  ZeroMemory(@Current, SizeOf(Current));
+  Index := PebLDrData.InLoadOrderModuleList.Flink;
+
+  while Win32Check(ReadProcessMemory(GetCurrentProcess, Index, @Current, SizeOf(Current), j)) and Assigned(Current.DllBase) do begin
+    if SameText(M, Current.FullDllName.Buffer) then begin
+      if TOSVersion.Check(6, 2) then
+        iLoadCount := Current.DdagNode.LoadCount
+      else
+        iLoadCount := Current.LoadCount;
+      if iLoadCount = 1 then
+        fb_shutdown;
+      Break;
+    end;
+    Index := Current.InLoadOrderLinks.Flink;
+  end;
 end;
 
 function TFirebirdLibrary.Clone: IFirebirdLibrary;
@@ -1275,8 +1331,7 @@ begin
 
   if string(CmdLine).ToUpper.Contains('CORE_2978') then Exit;
 
-  if TProcessModules.GetLoadCount(FHandle) = 1 {CORE-4508} then
-    fb_shutdown;
+  CORE_4508;
 
   if not FreeLibrary(FHandle) then
     RaiseLastOSError;
