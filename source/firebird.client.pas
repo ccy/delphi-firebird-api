@@ -496,10 +496,26 @@ type
     property Term: char read FTerm write FTerm default ';';
   end;
 
+function ExpandFileNameString(const aFileName: string): string;
+
 implementation
 
 uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend},
      firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
+
+function ExpandFileNameString(const aFileName: string): string;
+var P: PChar;
+    i: integer;
+begin
+  i := ExpandEnvironmentStrings(PChar(aFileName), nil, 0);
+  P := StrAlloc(i);
+  try
+    ExpandEnvironmentStrings(PChar(aFileName), P, i);
+    Result := StrPas(P);
+  finally
+    StrDispose(P);
+  end;
+end;
 
 procedure TFirebirdLibrary.AfterConstruction;
 begin
