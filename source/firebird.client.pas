@@ -169,7 +169,7 @@ type
   strict private
     FDebugFactory: IFirebirdLibraryDebugFactory;
     FDebugger: IFirebirdLibraryDebugger;
-    FProcs: TStringList;
+    FProcs: TDictionary<Pointer,string>;
     FServerCharSet: string;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
     function GetEncoding: TEncoding;
@@ -520,7 +520,7 @@ end;
 procedure TFirebirdLibrary.AfterConstruction;
 begin
   inherited;
-  FProcs := TStringList.Create;
+  FProcs := TDictionary<Pointer,string>.Create;
   FDebugger := TFirebirdLibraryDebugger.Create;
   FAttached_DB := nil;
   FODSMajor := -1;
@@ -634,7 +634,7 @@ function TFirebirdLibrary.GetProc(const aHandle: THandle; const aProcName:
 begin
   Result := GetProcAddress(aHandle, aProcName);
   if Result <> nil then
-    FProcs.AddObject(aProcName, Result)
+    FProcs.Add(Result, aProcName)
   else if aRequired then
     RaiseLastOSError;
 end;
@@ -1027,7 +1027,7 @@ procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
     of const; aResult: ISC_STATUS);
 begin
   if FDebugger.HasListener then
-    FDebugger.Notify(GetDebugFactory.Get(FProcs[FProcs.IndexOfObject(aProc)], aProc, aParams, aResult));
+    FDebugger.Notify(GetDebugFactory.Get(FProcs[aProc], aProc, aParams, aResult));
 end;
 
 function TFirebirdLibrary.fb_shutdown(timeout: Cardinal = 20000; const reason:
