@@ -157,6 +157,7 @@ type
 
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
+    procedure CORE_2186(aLibrary: string);
     procedure CORE_4508;
     function Clone: IFirebirdLibrary;
     function GetEncoding: TEncoding;
@@ -318,6 +319,7 @@ type
     FAttached_DB: pisc_db_handle;
     FHandle: THandle;
     FODSMajor: integer;
+    procedure CORE_2186(aLibrary: string);
     procedure CORE_4508;
     function Clone: IFirebirdLibrary;
     procedure Setup(const aHandle: THandle);
@@ -512,6 +514,23 @@ procedure TFirebirdLibrary.BeforeDestruction;
 begin
   inherited;
   FProcs.Free;
+end;
+
+procedure TFirebirdLibrary.CORE_2186(aLibrary: string);
+var H: THandle;
+    s: string;
+begin
+  // Check if the FLibrary still in used, otherwise attempt to free library fbintl.dll
+  H := GetModuleHandle(PChar(aLibrary));
+  if H = 0 then begin
+    {$Message 'Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186'}
+    // In Firebird version 2.X, when execute function isc_dsql_execute_immediate for CREATE DATABASE
+    // intl/fbintl.dll will be loaded and never free.  The following code attempt to free the fbintl.dll library
+    s := ExtractFilePath(aLibrary) + 'intl\fbintl.dll';
+    H := GetModuleHandle(PChar(s));
+    if H <> 0 then
+      FreeLibrary(H);
+  end;
 end;
 
 procedure TFirebirdLibrary.CORE_4508;
@@ -1324,8 +1343,6 @@ begin
 end;
 
 procedure TFirebirdLibrary2.BeforeDestruction;
-var s: string;
-    h: THandle;
 begin
   inherited;
 
@@ -1336,17 +1353,7 @@ begin
   if not FreeLibrary(FHandle) then
     RaiseLastOSError;
 
-  // Check if the FLibrary still in used, otherwise attempt to free library fbintl.dll
-  h := GetModuleHandle(PChar(FLibrary));
-  if h = 0 then begin
-    {$Message 'Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186'}
-    // In Firebird version 2.X, when execute function isc_dsql_execute_immediate for CREATE DATABASE
-    // intl/fbintl.dll will be loaded and never free.  The following code attempt to free the fbintl.dll library
-    s := ExtractFilePath(FLibrary) + 'intl\fbintl.dll';
-    h := GetModuleHandle(PChar(s));
-    if h <> 0 then
-      FreeLibrary(h);
-  end;
+  CORE_2186(FLibrary);
 end;
 
 constructor TFirebirdLibrary2.Create(const aLibrary, aServerCharSet: string);
