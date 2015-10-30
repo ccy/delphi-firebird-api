@@ -282,7 +282,7 @@ type
     FLast_SQL: string;
     FLast_SQLDialect: word;
     FLast_ParamCount: integer;
-    procedure DoDebug;
+    {$Hints Off}procedure DoDebug;{$Hints On}
   protected
     function Close(const aStatusVector: IStatusVector): TFBIntType;
     function Execute(const aStatusVector: IStatusVector): TFBIntType;
@@ -309,7 +309,7 @@ type
 
 implementation
 
-uses {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
+uses System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
@@ -913,7 +913,7 @@ begin
   end else if CheckType(SQL_TEXT) or CheckType(SQL_VARYING) then begin
     SetAnsiString(aValue, aLength, aIsNull);
   end else if CheckType(SQL_LONG) then begin
-    iLong := StrToInt(AnsiString(PAnsiChar(aValue)));
+    iLong := StrToInt(string(AnsiString(PAnsiChar(aValue))));
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else
     Assert(False);
@@ -1200,7 +1200,7 @@ var p: PAnsiChar;
 begin
   {$ifdef Unicode}
   if CheckCharSet(CS_NONE) then begin
-    R := PWideChar(aValue);
+    R := RawByteString(PWideChar(aValue));
     SetAnsiString(PAnsiChar(R), Length(R), aIsNull);
     Exit;
   end;
@@ -1293,7 +1293,7 @@ begin
       else
         Result := '';
     finally
-      StrDispose(P);
+      System.AnsiStrings.StrDispose(P);
     end;
   end;
 end;

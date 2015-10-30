@@ -5,6 +5,8 @@ interface
 uses JwaWindows, Windows, SysUtils, Classes, System.Generics.Collections,
      firebird.types_pub.h, firebird.sqlda_pub.h, firebird.ibase.h;
 
+{$WARN SYMBOL_PLATFORM OFF}
+
 {$Message 'http://tracker.firebirdsql.org/browse/CORE-1745: Firebird Embedded DLL create fb_xxxx.LCK cause problem on multi connection in same project'}
 
 const
