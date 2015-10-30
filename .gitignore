@@ -1,0 +1,6 @@
+*.local
+*.identcache
+*.dsk
+*.stat
+Win32/
+Win64/
