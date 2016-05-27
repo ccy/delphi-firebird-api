@@ -147,10 +147,8 @@ end;
 function TFirebirdClientDebugFactory.isc_commit_transaction(const aProcName:
     string; const aProc: pointer; const aParams: array of const; const aResult:
     longint): string;
-var P: PPointer;
 begin
-  P := aParams[1].VPointer;
-  Result := Format('%s tr_handle: %d', [aProcName, integer(P^)]);
+  Result := Format('%s tr_handle: %d', [aProcName, aParams[1].VInteger]);
 end;
 
 function TFirebirdClientDebugFactory.isc_create_blob(const aProcName: string;

@@ -667,9 +667,11 @@ end;
 
 function TFirebirdLibrary.isc_commit_transaction(status_vector: PISC_STATUS_ARRAY;
     tra_handle: pisc_tr_handle): ISC_STATUS;
+var H: Integer;
 begin
+  H := PInteger(tra_handle)^;
   Result := Fisc_commit_transaction(status_vector, tra_handle);
-  DebugMsg(@Fisc_commit_transaction, [status_vector, tra_handle], Result);
+  DebugMsg(@Fisc_commit_transaction, [status_vector, H], Result);
 end;
 
 function TFirebirdLibrary.isc_create_blob(status_vector: PISC_STATUS_ARRAY;
