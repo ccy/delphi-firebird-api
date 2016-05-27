@@ -109,6 +109,7 @@
         <DCCReference Include="..\source\firebird.client.pas"/>
         <DCCReference Include="..\source\firebird.client.debug.pas"/>
         <DCCReference Include="..\source\firebird.constants.h.pas"/>
+        <DCCReference Include="..\source\firebird.ods.h.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

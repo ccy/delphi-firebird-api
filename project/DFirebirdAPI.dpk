@@ -48,6 +48,7 @@ contains
   firebird.blr.h in '..\source\firebird.blr.h.pas',
   firebird.client in '..\source\firebird.client.pas',
   firebird.client.debug in '..\source\firebird.client.debug.pas',
-  firebird.constants.h in '..\source\firebird.constants.h.pas';
+  firebird.constants.h in '..\source\firebird.constants.h.pas',
+  firebird.ods.h in '..\source\firebird.ods.h.pas';
 
 end.
