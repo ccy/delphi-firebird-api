@@ -68,6 +68,7 @@ const blr_domain_name2 =   {(Byte)}19;
 const blr_not_nullable =   {(Byte)}20;
 const blr_column_name =    {(Byte)}21;
 const blr_column_name2 =   {(Byte)}22;
+const blr_bool =           {(Byte)}23;
 
 // first sub parameter for blr_domain_name[2]
 const blr_domain_type_of = {(Byte)}0;

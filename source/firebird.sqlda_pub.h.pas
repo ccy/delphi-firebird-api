@@ -87,7 +87,8 @@ const SQL_QUAD                  = 550;
 const SQL_TYPE_TIME             = 560;
 const SQL_TYPE_DATE             = 570;
 const SQL_INT64                 = 580;
-const SQL_BOOLEAN               = 590;
+const SQL_BOOLEAN               = 32764;
+const SQL_NULL                  = 32766;
 
 (* Historical alias for pre v6 code *)
 const SQL_DATE                  = SQL_TIMESTAMP;

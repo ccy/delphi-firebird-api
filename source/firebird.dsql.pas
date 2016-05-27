@@ -125,6 +125,7 @@ type
     function GetBlobSize(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: TFirebirdTransaction; out aBlobSize:
         longword; out aIsNull: boolean): ISC_STATUS;
+    procedure GetBoolean(aValue: pointer; out aIsNull: boolean);
     procedure GetDate(aValue: pointer; out aIsNull: boolean);
     procedure GetDouble(aValue: pointer; out aIsNull: boolean);
     procedure GetInt64(aValue: pointer; out aIsNull: boolean);
@@ -140,6 +141,7 @@ type
     procedure SetAnsiString(const aValue: pointer; const aLength: word; const
         aIsNull: boolean);
     procedure SetBCD(const aValue: pointer; const aIsNull: boolean);
+    procedure SetBoolean(const aValue: pointer; const aIsNull: boolean);
     function SetBlob(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: TFirebirdTransaction; const aValue:
         pointer; const aLength: Integer; const aIsNull: boolean): ISC_STATUS;
@@ -499,6 +501,21 @@ begin
   aIsNull := aBlobSize = 0;
 end;
 
+procedure TXSQLVAR.GetBoolean(aValue: pointer; out aIsNull: boolean);
+var B: Boolean;
+begin
+  Assert(Prepared);
+  aIsNull := IsNull;
+  if aIsNull then Exit;
+
+  if CheckType(SQL_BOOLEAN) then begin
+    Assert(sqllen = SizeOf(Boolean));
+    B := PBoolean(sqldata)^;
+    Move(B, aValue^, SizeOf(Boolean));
+  end else
+    Assert(False);
+end;
+
 procedure TXSQLVAR.GetDate(aValue: pointer; out aIsNull: boolean);
 var T: tm;
     D: ISC_DATE;
@@ -736,7 +753,6 @@ begin
   FSize := sqllen;
 
   iType := sqltype and not 1;
-  Assert(iType <> SQL_BOOLEAN);
 
   if iType = SQL_VARYING then begin
     iSize := 2{First 2 bytes indicate length of varchar string} + FSize + 1{Null Terminated for UnicodeToUtf8 used in SetWideString};
@@ -763,7 +779,8 @@ procedure TXSQLVAR.SetAnsiString(const aValue: pointer; const aLength: word;
 var p: PByte;
     iSmallInt: Smallint;
     iLong: Integer;
-    B: TBcd;
+    B: Boolean;
+    C: TBcd;
     D: double;
     V: variant;
     iLen: integer;
@@ -813,12 +830,15 @@ begin
     iLong := StrToInt(string(PAnsiChar(aValue)));
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else if CheckType(SQL_INT64) then begin
-    if not TryStrToBcd(string(PAnsiChar(aValue)), B) then begin
+    if not TryStrToBcd(string(PAnsiChar(aValue)), C) then begin
       D := StrToFloat(string(PAnsiChar(aValue)));
       V := VarFMTBcdCreate(D, 19, -sqlscale);
-      B := VarToBcd(V);
+      C := VarToBcd(V);
     end;
-    SetBCD(@B, aIsNull);
+    SetBCD(@C, aIsNull);
+  end else if CheckType(SQL_BOOLEAN) then begin
+    B := StrToBool(string(PAnsiChar(aValue)));
+    SetBoolean(@B, aIsNull);
   end else
     Assert(False);
 end;
@@ -915,6 +935,18 @@ begin
   end else if CheckType(SQL_LONG) then begin
     iLong := StrToInt(string(AnsiString(PAnsiChar(aValue))));
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
+  end else
+    Assert(False);
+end;
+
+procedure TXSQLVAR.SetBoolean(const aValue: pointer; const aIsNull: boolean);
+var B: Boolean;
+begin
+  IsNull := aIsNull;
+  if aIsNull then Exit;
+  if CheckType(SQL_BOOLEAN) then begin
+    B := PBoolean(aValue)^;
+    Move(B, sqldata^, sqllen);
   end else
     Assert(False);
 end;
