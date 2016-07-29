@@ -339,17 +339,20 @@ const isc_spb_lic_desc =              7;
  * Parameters for isc_action_svc_backup  *
  *****************************************)
 
-const isc_spb_bkp_file =                 5;
-const isc_spb_bkp_factor =               6;
-const isc_spb_bkp_length =               7;
-const isc_spb_bkp_ignore_checksums =     $01;
-const isc_spb_bkp_ignore_limbo =         $02;
-const isc_spb_bkp_metadata_only =        $04;
-const isc_spb_bkp_no_garbage_collect =   $08;
-const isc_spb_bkp_old_descriptions =     $10;
-const isc_spb_bkp_non_transportable =    $20;
-const isc_spb_bkp_convert =              $40;
-const isc_spb_bkp_expand =   $80;
+const isc_spb_bkp_file               = 5;
+const isc_spb_bkp_factor             = 6;
+const isc_spb_bkp_length             = 7;
+const isc_spb_bkp_skip_data          = 8;
+const isc_spb_bkp_stat               = 15;
+const isc_spb_bkp_ignore_checksums   = $01;
+const isc_spb_bkp_ignore_limbo       = $02;
+const isc_spb_bkp_metadata_only      = $04;
+const isc_spb_bkp_no_garbage_collect = $08;
+const isc_spb_bkp_old_descriptions   = $10;
+const isc_spb_bkp_non_transportable  = $20;
+const isc_spb_bkp_convert            = $40;
+const isc_spb_bkp_expand             = $80;
+const isc_spb_bkp_no_triggers	       = $8000;
 
 (********************************************
  * Parameters for isc_action_svc_properties *
@@ -438,17 +441,22 @@ const isc_spb_rpr_full =    $80;
  * Parameters for isc_action_svc_restore *
  *****************************************)
 
-const isc_spb_res_buffers =    9;
-const isc_spb_res_page_size =   10;
-const isc_spb_res_length =    11;
-const isc_spb_res_access_mode =   12;
-const isc_spb_res_deactivate_idx =  $0100;
-const isc_spb_res_no_shadow =   $0200;
-const isc_spb_res_no_validity =   $0400;
-const isc_spb_res_one_at_a_time =  $0800;
-const isc_spb_res_replace =    $1000;
-const isc_spb_res_create =    $2000;
-const isc_spb_res_use_all_space =  $4000;
+const isc_spb_res_skip_data        = isc_spb_bkp_skip_data;
+const isc_spb_res_buffers          = 9;
+const isc_spb_res_page_size        = 10;
+const isc_spb_res_length           = 11;
+const isc_spb_res_access_mode      = 12;
+const isc_spb_res_fix_fss_data     = 13;
+const isc_spb_res_fix_fss_metadata = 14;
+const isc_spb_res_stat             = isc_spb_bkp_stat;
+const isc_spb_res_metadata_only    = isc_spb_bkp_metadata_only;
+const isc_spb_res_deactivate_idx   = $0100;
+const isc_spb_res_no_shadow        = $0200;
+const isc_spb_res_no_validity      = $0400;
+const isc_spb_res_one_at_a_time    = $0800;
+const isc_spb_res_replace          = $1000;
+const isc_spb_res_create           = $2000;
+const isc_spb_res_use_all_space    = $4000;
 
 (******************************************
  * Parameters for isc_spb_res_access_mode  *
