@@ -1370,6 +1370,9 @@ begin
 
   CORE_4508;
 
+  if FHandle = 0 then
+    raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
+
   if not FreeLibrary(FHandle) then
     RaiseLastOSError;
 
