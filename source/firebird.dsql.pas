@@ -1473,11 +1473,11 @@ end;
 
 class function TXSQLVarFactory.New(const aLibrary: IFirebirdLibrary; const
     aPtr: pointer; aSQLVarReady: Boolean = False): TXSQLVar;
-var o: integer;
+var m, n: integer;
     C: TXSQLVARClass;
 begin
   C := TXSQLVAR;
-  if aLibrary.TryGetODSMajor(o) and (o = 10) then
+  if aLibrary.TryGetODS(m, n) and (m = 10) then
     C := TXSQLVAR_10;
   Result := C.Create(aLibrary, aPtr, aSQLVarReady);
 end;

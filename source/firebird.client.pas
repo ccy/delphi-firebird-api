@@ -164,7 +164,7 @@ type
     function Clone: IFirebirdLibrary;
     function GetEncoding: TEncoding;
     procedure Setup(const aHandle: THandle);
-    function TryGetODSMajor(out aODS: integer): boolean;
+    function TryGetODS(out aMajor, aMinor: integer): boolean;
   end;
 
   TFirebirdLibrary = class(TInterfacedObject, IFirebirdLibrary)
@@ -321,11 +321,12 @@ type
     FAttached_DB: pisc_db_handle;
     FHandle: THandle;
     FODSMajor: integer;
+    FODSMinor: integer;
     procedure CORE_2186(aLibrary: string);
     procedure CORE_4508;
     function Clone: IFirebirdLibrary;
     procedure Setup(const aHandle: THandle);
-    function TryGetODSMajor(out aODS: integer): boolean;
+    function TryGetODS(out aMajor, aMinor: integer): boolean;
   public
     constructor Create(const aServerCharSet: string);
     procedure AfterConstruction; override;
@@ -412,8 +413,9 @@ type
     ID: LongWord;
     Isolation: TTransactionIsolation;
     WaitOnLocks: Boolean;
+    WaitOnLocksTimeOut: Integer;
     procedure Init(aIsolation: TTransactionIsolation = isoReadCommitted;
-        aWaitOnLocks: Boolean = False);
+        aWaitOnLocks: Boolean = False; aWaitOnLocksTimeOut: Integer = -1);
   end;
 
   TFirebirdTransaction = class(TObject)
@@ -422,7 +424,7 @@ type
     FTransactionHandle: isc_tr_handle;
     FTransParam: isc_teb;
     FTransInfo: TTransactionInfo;
-    Fisc_tec: array[0..9] of ISC_UCHAR;
+    Fisc_tec: TArray<ISC_UCHAR>;
   protected
     function Active: boolean;
     function GetID: LongWord;
@@ -526,6 +528,7 @@ begin
   FDebugger := TFirebirdLibraryDebugger.Create;
   FAttached_DB := nil;
   FODSMajor := -1;
+  FODSMinor := -1;
 end;
 
 procedure TFirebirdLibrary.BeforeDestruction;
@@ -726,6 +729,7 @@ begin
   Result := Fisc_detach_database(status_vector, public_handle);
   FAttached_DB := nil;
   FODSMajor := -1;
+  FODSMinor := -1;
   DebugMsg(@Fisc_detach_database, [status_vector, public_handle], Result);
 end;
 
@@ -1002,29 +1006,35 @@ begin
   Fisc_vax_integer             := GetProc(aHandle, 'isc_vax_integer');
 end;
 
-function TFirebirdLibrary.TryGetODSMajor(out aODS: integer): boolean;
-var _DatabaseInfoCommand: AnsiChar;
-    local_buffer: array[0..511] of Byte;
-    L: integer;
+function TFirebirdLibrary.TryGetODS(out aMajor, aMinor: integer): boolean;
+var _DatabaseInfoCommand: TArray<AnsiChar>;
+    local_buffer: array[0..255] of Byte;
+    i: Integer;
+    L: SmallInt;
     V: IStatusVector;
 begin
-  if FODSMajor <> -1 then begin
-    Result := True;
-    aODS := FODSMajor;
-    Exit;
-  end;
-  Result := False;
-  if FAttached_DB = nil then Exit;
+  if (FODSMajor = -1) and Assigned(FAttached_DB) then begin
+    V := TStatusVector.Create;
+    _DatabaseInfoCommand := [AnsiChar(isc_info_ods_version), AnsiChar(isc_info_ods_minor_version)];
+    isc_database_info(V.pValue, FAttached_DB, Length(_DatabaseInfoCommand), @_DatabaseInfoCommand[0], SizeOf(local_buffer), @local_buffer);
+    if V.Success then begin
+      i := 1;
+      L := isc_vax_integer(@local_buffer[i], SizeOf(SmallInt));
+      Assert(L = SizeOf(LongInt));
+      Inc(i, SizeOf(L));
+      FODSMajor := isc_vax_integer(@local_buffer[i], SizeOf(Longint));
+      Inc(i, SizeOf(Longint));
 
-  V := TStatusVector.Create;
-  _DatabaseInfoCommand := AnsiChar(isc_info_ods_version);
-  isc_database_info(V.pValue, FAttached_DB, 1, @_DatabaseInfoCommand, SizeOf(local_buffer), @local_buffer);
-  if V.Success then begin
-    L := isc_vax_integer(@local_buffer[1], 2);
-    FODSMajor := isc_vax_integer(@local_buffer[3], L);
-    aODS := FODSMajor;
-    Result := True;
+      Inc(i);
+      L := isc_vax_integer(@local_buffer[i], SizeOf(SmallInt));
+      Assert(L = SizeOf(LongInt));
+      Inc(i, SizeOf(L));
+      FODSMinor := isc_vax_integer(@local_buffer[i], SizeOf(Longint));
+    end;
   end;
+  Result := FODSMajor <> -1;
+  aMajor := FODSMajor;
+  aMinor := FODSMinor;
 end;
 
 procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
@@ -1190,47 +1200,48 @@ end;
 constructor TFirebirdTransaction.Create(const aFirebirdClient:
     IFirebirdLibrary; const aDBHandle: pisc_db_handle; const aTransInfo:
     TTransactionInfo);
-var i: integer;
-    b: byte;
+var b: byte;
+    m, n: Integer;
+    iTimeOut: ISC_LONG;
+    TimeOut: array[0..3] of Byte absolute iTimeOut;
 begin
   inherited Create;
   FClient := aFirebirdClient;
 
   FTransInfo := aTransInfo;
 
-  i := 0;
-  Fisc_tec[i] := isc_tpb_version3;
-  Inc(i);
-
-  Fisc_tec[i] := isc_tpb_write;
-  Inc(i);
+  Fisc_tec := [isc_tpb_version3];
+  Fisc_tec := Fisc_tec + [isc_tpb_write];
 
   b := 0;
   case aTransInfo.Isolation of
     isoReadCommitted:  b := isc_tpb_read_committed;
     isoRepeatableRead: b := isc_tpb_concurrency;
   end;
-  if b <> 0 then begin
-    Fisc_tec[i] := b;
-    Inc(i);
-  end;
+  if b <> 0 then
+    Fisc_tec := Fisc_tec + [b];
 
   if aTransInfo.Isolation = isoReadCommitted then begin
-    Fisc_tec[i] := isc_tpb_rec_version;
-    Inc(i);
+    Fisc_tec := Fisc_tec + [isc_tpb_rec_version];
 
-    if aTransInfo.WaitOnLocks then
-      Fisc_tec[i] := isc_tpb_wait
-    else
-      Fisc_tec[i] := isc_tpb_nowait;
+    if aTransInfo.WaitOnLocks then begin
+      Fisc_tec := Fisc_tec + [isc_tpb_wait];
 
-    Inc(i);
+      if (aTransInfo.WaitOnLocksTimeOut <> -1) and aFirebirdClient.TryGetODS(m, n)
+        and (((m = 11) and (n >= 1)) or (m >= 12)) then begin
+        iTimeOut := aTransInfo.WaitOnLocksTimeOut;
+        Fisc_tec := Fisc_tec + [isc_tpb_lock_timeout];
+        Fisc_tec := Fisc_tec + [SizeOf(ISC_LONG)];
+        Fisc_tec := Fisc_tec + [TimeOut[0], TimeOut[1], TimeOut[2], TimeOut[3]];
+      end;
+    end else
+      Fisc_tec := Fisc_tec + [isc_tpb_nowait];
   end;
 
   FTransactionHandle := nil;
   FTransParam.database := aDBHandle;
-  FTransParam.tpb_len := i;
-  FTransParam.tpb := @Fisc_tec;
+  FTransParam.tpb_len := Length(Fisc_tec);
+  FTransParam.tpb := @Fisc_tec[0];
 end;
 
 function TFirebirdTransaction.GetID: LongWord;
@@ -1679,11 +1690,13 @@ begin
 end;
 
 procedure TTransactionInfo.Init(aIsolation: TTransactionIsolation =
-    isoReadCommitted; aWaitOnLocks: Boolean = False);
+    isoReadCommitted; aWaitOnLocks: Boolean = False; aWaitOnLocksTimeOut:
+    Integer = -1);
 begin
   ID := 0;
   Isolation := aIsolation;
   WaitOnLocks := aWaitOnLocks;
+  WaitOnLocksTimeOut := aWaitOnLocksTimeOut;
 end;
 
 end.
