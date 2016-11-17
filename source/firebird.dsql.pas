@@ -1109,6 +1109,12 @@ begin
   if Value then begin
     if not IsNullable then
       FXSQLVAR.sqltype := FXSQLVAR.sqltype + 1;
+
+    if CheckType(SQL_VARYING) then
+      PWord(sqldata)^ := 0
+    else if CheckType(SQL_TEXT) then
+      PByte(sqldata)^ := 0;
+
     sqlind^ := -1
   end else
     sqlind^ := 0;
