@@ -178,6 +178,7 @@ type
     property sqlscale: smallint read Get_sqlscale;
     property sqlsubtype: smallint read Get_sqlsubtype;
     property sqltype: smallint read Get_sqltype write Set_sqltype;
+    property XSQLVAR: PXSQLVAR read FXSQLVAR;
   end;
 
   TXSQLVAR_10 = class(TXSQLVAR)
