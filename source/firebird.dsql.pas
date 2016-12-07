@@ -213,9 +213,9 @@ type
 
   TXSQLDA = class(TObject)
   strict private
-    FVars: TList;
-    FXSQLDA: PXSQLDA;
     FClient: IFirebirdLibrary;
+    FVars: TArray<TXSQLVAR>;
+    FXSQLDA: PXSQLDA;
     procedure Clear;
   private
     function GetVars(Index: Integer): TXSQLVAR;
@@ -231,7 +231,6 @@ type
     procedure BeforeDestruction; override;
     procedure Prepare;
     property Count: integer read GetCount write SetCount;
-  public
     property sqld: smallint read Get_sqld;
     property sqln: smallint read Get_sqln;
     property Vars[Index: Integer]: TXSQLVAR read GetVars; default;
@@ -1493,25 +1492,20 @@ constructor TXSQLDA.Create(const aLibrary: IFirebirdLibrary; const aVarCount:
 begin
   inherited Create;
   FClient := aLibrary;
-  FVars := TList.Create;
   SetCount(aVarCount);
 end;
-
-{ TXSQLDA }
 
 procedure TXSQLDA.BeforeDestruction;
 begin
   inherited;
   Clear;
-  FVars.Free;
 end;
 
 procedure TXSQLDA.Clear;
-var i: integer;
+var o: TXSQLVAR;
 begin
-  for i := 0 to FVars.Count - 1 do
-    TXSQLVar(FVars[i]).Free;
-  FVars.Clear;
+  for o in FVars do o.Free;
+  FVars := [];
   FreeMem(FXSQLDA);
   FXSQLDA := nil;
 end;
@@ -1523,12 +1517,7 @@ end;
 
 function TXSQLDA.GetVars(Index: Integer): TXSQLVAR;
 begin
-  {$if CompilerVersion > 18}
-    Result := TXSQLVar(FVars[Index]);
-  {$else}
-    Assert(Index > 0);
-    Result := TXSQLVar(FVars[Index - 1]);
-  {$ifend}
+  Result := FVars[Index];
 end;
 
 function TXSQLDA.Get_sqld: smallint;
@@ -1543,40 +1532,33 @@ end;
 
 function TXSQLDA.Get_Version: smallint;
 begin
-  Result := FxSQLDA.version;
+  Result := FXSQLDA.version;
 end;
 
 procedure TXSQLDA.Prepare;
-var i: integer;
-    V: TXSQLVAR;
+var V: TXSQLVAR;
 begin
   Assert(sqln >= sqld);
-  for i := 0 to FVars.Count - 1 do begin
-    V := TXSQLVAR(FVars[i]);
+  for V in FVars do
     if not V.Prepared then
       V.Prepare;
-  end;
 end;
 
 procedure TXSQLDA.SetCount(const aValue: integer);
-var o: TXSQLVAR;
-    iLen: integer;
-    i: Integer;
-    iVarSize: integer;
+var i: Integer;
     p: PByte;
 begin
   Clear;
-  iLen := XSQLDA_LENGTH(aValue);
-  GetMem(FXSQLDA, iLen);
+
+  GetMem(FXSQLDA, XSQLDA_LENGTH(aValue));
   FXSQLDA.version := SQLDA_VERSION1;
   FXSQLDA.sqln := aValue;
 
-  iVarSize := SizeOf(XSQLVAR);
-  for i := 1 to aValue do begin
+  SetLength(FVars, aValue);
+  for i := 0 to aValue - 1 do begin
     p := @FXSQLDA.sqlvar;
-    Inc(p, (i - 1) * iVarSize);
-    o := TXSQLVARFactory.New(FClient, p);
-    FVars.Add(o);
+    Inc(p, i * SizeOf(XSQLVAR));
+    FVars[i] := TXSQLVARFactory.New(FClient, p);
   end;
 end;
 
