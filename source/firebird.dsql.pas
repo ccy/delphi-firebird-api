@@ -311,7 +311,7 @@ type
 
 implementation
 
-uses System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
+uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
@@ -782,6 +782,7 @@ var p: PByte;
     B: Boolean;
     C: TBcd;
     D: double;
+    T: TTimeStamp;
     V: variant;
     iLen: integer;
 begin
@@ -839,6 +840,12 @@ begin
   end else if CheckType(SQL_BOOLEAN) then begin
     B := StrToBool(string(PAnsiChar(aValue)));
     SetBoolean(@B, aIsNull);
+  end else if CheckType(SQL_TYPE_DATE) or CheckType(SQL_TYPE_TIME) then begin
+    T := DateTimeToTimeStamp(VarToDateTime(string(PAnsiChar(aValue))));
+    SetDate(@T, SizeOf(T), aIsNull);
+  end else if CheckType(SQL_TIMESTAMP) then begin
+    T := DateTimeToTimeStamp(VarToDateTime(string(PAnsiChar(aValue))));
+    SetDate(@T, SizeOf(T), aIsNull);
   end else
     Assert(False);
 end;
@@ -967,7 +974,7 @@ begin
     S.Time := 0;
     S.Date := PInteger(aValue)^;
   end else if aLength = 8 then
-    S := MSecsToTimeStamp(PDouble(aValue)^)
+    S := TTimeStamp(aValue^)
   else
     Assert(False);
 
