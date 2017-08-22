@@ -961,10 +961,11 @@ end;
 procedure TXSQLVAR.SetDate(const aValue: pointer; const aLength: Integer; const
     aIsNull: boolean);
 var T: tm;
-    Yr, Mn, Dy: word;
+    yy, mmm, dd, hh, mm, ss, MSec: word;
     D: ISC_DATE;
     E: ISC_TIMESTAMP;
     S: TTimeStamp;
+    M: TDateTime;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -978,14 +979,16 @@ begin
   else
     Assert(False);
 
-  DecodeDate(TimeStampToDateTime(S), Yr, Mn, Dy);
+  M := TimeStampToDateTime(S);
+  DecodeDate(M, yy, mmm, dd);
+  DecodeTime(M, hh, mm, ss, MSec);
   with T do begin
-    tm_sec := 0;
-    tm_min := 0;
-    tm_hour := 0;
-    tm_mday := Dy;
-    tm_mon := Mn - 1;
-    tm_year := Yr - 1900;
+    tm_sec := ss;
+    tm_min := mm;
+    tm_hour := hh;
+    tm_mday := dd;
+    tm_mon := mmm - 1;
+    tm_year := yy - 1900;
   end;
 
   if CheckType(SQL_TYPE_DATE) then begin
