@@ -652,6 +652,7 @@ var iLen: word;
     W: PWideChar;
 begin
   Assert(Prepared);
+  PWideChar(aValue)^ := #0;
   aIsNull := IsNull;
   if aIsNull then Exit;
 
