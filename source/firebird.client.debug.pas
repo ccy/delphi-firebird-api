@@ -2,7 +2,7 @@ unit firebird.client.debug;
 
 interface
 
-uses Windows, firebird.sqlda_pub.h, firebird.client;
+uses Winapi.Windows, firebird.sqlda_pub.h, firebird.client;
 
 type{$M+}
   TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdLibraryDebugFactory)
@@ -85,7 +85,7 @@ type{$M+}
 
 implementation
 
-uses SysUtils,
+uses System.SysUtils,
      firebird.time.h, firebird.types_pub.h,
      firebird.dsql;
 

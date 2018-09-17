@@ -2,7 +2,7 @@ unit firebird.client;
 
 interface
 
-uses JwaWindows, Windows, SysUtils, Classes, System.Generics.Collections,
+uses JwaWindows, Winapi.Windows, System.SysUtils, System.Classes, System.Generics.Collections,
      firebird.types_pub.h, firebird.sqlda_pub.h, firebird.ibase.h;
 
 {$WARN SYMBOL_PLATFORM OFF}
@@ -504,7 +504,7 @@ function ExpandFileNameString(const aFileName: string): string;
 
 implementation
 
-uses Math{$if RTLVersion >= 20}, AnsiStrings{$ifend},
+uses System.Math{$if RTLVersion >= 20}, System.AnsiStrings{$ifend},
      firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
 
 function ExpandFileNameString(const aFileName: string): string;
@@ -1124,7 +1124,7 @@ begin
   sError := '';
   ptr := GetpValue;
   while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do begin
-    sLastMsg := string({$if RtlVersion >= 20}AnsiStrings.{$ifend}StrPas(P));
+    sLastMsg := string({$if RtlVersion >= 20}System.AnsiStrings.{$ifend}StrPas(P));
     if sError <> '' then
       sError := sError + #13#10;
     sError := sError + sLastMsg;

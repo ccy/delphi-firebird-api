@@ -2,7 +2,7 @@ unit firebird.dsql;
 
 interface
 
-uses SysUtils, Classes, Windows, FmtBcd, SqlTimSt,
+uses System.SysUtils, System.Classes, Winapi.Windows, Data.FmtBcd, Data.SqlTimSt,
      firebird.sqlda_pub.h, firebird.ibase.h, firebird.types_pub.h, firebird.iberror.h,
      firebird.inf_pub.h, firebird.time.h, firebird.charsets,
      firebird.client;
@@ -311,7 +311,7 @@ type
 
 implementation
 
-uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} Math, StrUtils;
+uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} System.Math, System.StrUtils;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
