@@ -272,19 +272,31 @@ const isc_spb_sql_role_name =             isc_dpb_sql_role_name;
  * Service action items      *
  *****************************)
 
-const isc_action_svc_backup =          1; (* Starts database backup process on the server *)
-const isc_action_svc_restore =         2; (* Starts database restore process on the server *)
-const isc_action_svc_repair =          3; (* Starts database repair process on the server *)
-const isc_action_svc_add_user =        4; (* Adds a new user to the security database *)
-const isc_action_svc_delete_user =     5; (* Deletes a user record from the security database *)
-const isc_action_svc_modify_user =     6; (* Modifies a user record in the security database *)
-const isc_action_svc_display_user =    7; (* Displays a user record from the security database *)
-const isc_action_svc_properties =      8; (* Sets database properties *)
-const isc_action_svc_add_license =     9; (* Adds a license to the license file *)
-const isc_action_svc_remove_license = 10; (* Removes a license from the license file *)
-const isc_action_svc_db_stats =       11; (* Retrieves database statistics *)
-const isc_action_svc_get_ib_log =     12; (* Retrieves the InterBase log file from the server *)
-const isc_action_svc_get_fb_log =     12; (* Retrieves the Firebird log file from the server *)
+const isc_action_svc_backup            = 1;  (* Starts database backup process on the server *)
+const isc_action_svc_restore           = 2;  (* Starts database restore process on the server *)
+const isc_action_svc_repair            = 3;  (* Starts database repair process on the server *)
+const isc_action_svc_add_user          = 4;  (* Adds a new user to the security database *)
+const isc_action_svc_delete_user       = 5;  (* Deletes a user record from the security database *)
+const isc_action_svc_modify_user       = 6;  (* Modifies a user record in the security database *)
+const isc_action_svc_display_user      = 7;  (* Displays a user record from the security database *)
+const isc_action_svc_properties        = 8;  (* Sets database properties *)
+const isc_action_svc_add_license       = 9;  (* Adds a license to the license file *)
+const isc_action_svc_remove_license    = 10; (* Removes a license from the license file *)
+const isc_action_svc_db_stats          = 11; (* Retrieves database statistics *)
+const isc_action_svc_get_ib_log        = 12; (* Retrieves the InterBase log file from the server *)
+const isc_action_svc_get_fb_log        = 12; (* Retrieves the Firebird log file from the server *)
+const isc_action_svc_nbak              = 20; // Incremental nbackup
+const isc_action_svc_nrest             = 21; // Incremental database restore
+const isc_action_svc_trace_start       = 22; // Start trace session
+const isc_action_svc_trace_stop        = 23; // Stop trace session
+const isc_action_svc_trace_suspend     = 24; // Suspend trace session
+const isc_action_svc_trace_resume      = 25; // Resume trace session
+const isc_action_svc_trace_list        = 26; // List existing sessions
+const isc_action_svc_set_mapping       = 27; // Set auto admins mapping in security database
+const isc_action_svc_drop_mapping      = 28; // Drop auto admins mapping in security database
+const isc_action_svc_display_user_adm  = 29; // Displays user(s) from security database with admin info
+const isc_action_svc_validate          = 30; // Starts database online validation
+const isc_action_svc_last              = 31; // keep it last !
 
 (*****************************
  * Service information items *
@@ -309,7 +321,7 @@ const isc_info_svc_get_licensed_users = 65; (* Retrieves the number of users lic
 const isc_info_svc_limbo_trans        = 66; (* Retrieve the limbo transactions *)
 const isc_info_svc_running            = 67; (* Checks to see if a service is running on an attachment *)
 const isc_info_svc_get_users          = 68; (* Returns the user information from isc_action_svc_display_users *)
-const isc_info_svc_auth_block	        = 69;	(* Sets authentication block for service query() call *)
+const isc_info_svc_auth_block         = 69; (* Sets authentication block for service query() call *)
 const isc_info_svc_stdin              = 78; (* Returns maximum size of data, needed as stdin for service *)
 
 (******************************************************
@@ -352,7 +364,7 @@ const isc_spb_bkp_old_descriptions   = $10;
 const isc_spb_bkp_non_transportable  = $20;
 const isc_spb_bkp_convert            = $40;
 const isc_spb_bkp_expand             = $80;
-const isc_spb_bkp_no_triggers	       = $8000;
+const isc_spb_bkp_no_triggers        = $8000;
 
 (********************************************
  * Parameters for isc_action_svc_properties *
@@ -409,33 +421,33 @@ const isc_spb_prp_am_readwrite = 40;
  * Parameters for isc_action_svc_repair  *
  *****************************************)
 
-const isc_spb_rpr_commit_trans =  15;
-const isc_spb_rpr_rollback_trans =  34;
+const isc_spb_rpr_commit_trans      = 15;
+const isc_spb_rpr_rollback_trans    = 34;
 const isc_spb_rpr_recover_two_phase = 17;
-const isc_spb_tra_id =     18;
-const isc_spb_single_tra_id =   19;
-const isc_spb_multi_tra_id =   20;
-const isc_spb_tra_state =    21;
-const isc_spb_tra_state_limbo =   22;
-const isc_spb_tra_state_commit =  23;
-const isc_spb_tra_state_rollback =  24;
-const isc_spb_tra_state_unknown =  25;
-const isc_spb_tra_host_site =   26;
-const isc_spb_tra_remote_site =   27;
-const isc_spb_tra_db_path =    28;
-const isc_spb_tra_advise =    29;
-const isc_spb_tra_advise_commit =  30;
-const isc_spb_tra_advise_rollback =  31;
-const isc_spb_tra_advise_unknown =  33;
+const isc_spb_tra_id                = 18;
+const isc_spb_single_tra_id         = 19;
+const isc_spb_multi_tra_id          = 20;
+const isc_spb_tra_state             = 21;
+const isc_spb_tra_state_limbo       = 22;
+const isc_spb_tra_state_commit      = 23;
+const isc_spb_tra_state_rollback    = 24;
+const isc_spb_tra_state_unknown     = 25;
+const isc_spb_tra_host_site         = 26;
+const isc_spb_tra_remote_site       = 27;
+const isc_spb_tra_db_path           = 28;
+const isc_spb_tra_advise            = 29;
+const isc_spb_tra_advise_commit     = 30;
+const isc_spb_tra_advise_rollback   = 31;
+const isc_spb_tra_advise_unknown    = 33;
 
-const isc_spb_rpr_validate_db =   $01;
-const isc_spb_rpr_sweep_db =   $02;
-const isc_spb_rpr_mend_db =    $04;
-const isc_spb_rpr_list_limbo_trans = $08;
-const isc_spb_rpr_check_db =   $10;
-const isc_spb_rpr_ignore_checksum =  $20;
-const isc_spb_rpr_kill_shadows =  $40;
-const isc_spb_rpr_full =    $80;
+const isc_spb_rpr_validate_db       = $01;
+const isc_spb_rpr_sweep_db          = $02;
+const isc_spb_rpr_mend_db           = $04;
+const isc_spb_rpr_list_limbo_trans  = $08;
+const isc_spb_rpr_check_db          = $10;
+const isc_spb_rpr_ignore_checksum   = $20;
+const isc_spb_rpr_kill_shadows      = $40;
+const isc_spb_rpr_full              = $80;
 
 (*****************************************
  * Parameters for isc_action_svc_restore *
@@ -491,6 +503,14 @@ const isc_spb_sts_nocreation =  $80;
 
 (* Not available in Firebird 1.5 *)
 
+(***************************************)
+(* Parameters for isc_action_svc_nbak  *)
+(***************************************)
+
+const isc_spb_nbk_level       = 5;
+const isc_spb_nbk_file        = 6;
+const isc_spb_nbk_direct      = 7;
+const isc_spb_nbk_no_triggers = $01;
 
 (**********************************************)
 (* Dynamic Data Definition Language operators *)

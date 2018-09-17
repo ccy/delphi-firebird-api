@@ -91,6 +91,48 @@ type
     hdr_data: array[0..0] of Byte;    // Misc data
   end;
 
+// Header page clumplets
+
+// Data items have the format
+//
+//	<type_byte> <length_byte> <data...>
+
+const HDR_end              = 0;
+const HDR_root_file_name   = 1;  // Original name of root file
+const HDR_file             = 2;  // Secondary file
+const HDR_last_page        = 3;  // Last logical page number of file
+const HDR_sweep_interval   = 4;  // Transactions between sweeps
+const HDR_crypt_checksum   = 5;  // Checksum of critical crypt parameters
+const HDR_difference_file  = 6;  // Delta file that is used during backup lock
+const HDR_backup_guid      = 7;  // UID generated on each switch into backup mode
+const HDR_crypt_key        = 8;  // Name of a key used to crypt database
+const HDR_crypt_hash       = 9;  // Validator of key correctness
+const HDR_max              = 10; // Maximum HDR_clump value
+
+// Header page flags
+
+const hdr_active_shadow    = $1;  // 1 file is an active shadow file
+const hdr_force_write      = $2;  // 2 database is forced write
+const hdr_crypt_process    = $4;  // 4 Encryption status is changing now
+const hdr_no_reserve       = $8;  // 8 don't reserve space for versions
+const hdr_SQL_dialect_3    = $10; // 16 database SQL dialect 3
+const hdr_read_only        = $20; // 32 Database is ReadOnly. If not set, DB is RW
+const hdr_encrypted        = $40; // 64 Database is encrypted
+const hdr_backup_mask      = $C00;
+const hdr_shutdown_mask    = $1080;
+
+// Values for backup mask
+const hdr_nbak_normal     = $000;  // Normal mode. Changes are simply written to main files
+const hdr_nbak_stalled    = $400;  // 1024 Main files are locked. Changes are written to diff file
+const hdr_nbak_merge      = $800;  // 2048 Merging changes from diff file into main files
+const hdr_nbak_unknown    = $FFFF; // State is unknown. Needs to be read from disk
+
+// Values for shutdown mask
+const hdr_shutdown_none   = $0;
+const hdr_shutdown_multi  = $80;
+const hdr_shutdown_full   = $1000;
+const hdr_shutdown_single = $1080;
+
 implementation
 
 function ENCODE_ODS(Major, Minor: UInt16): UInt16;
