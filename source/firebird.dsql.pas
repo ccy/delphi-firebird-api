@@ -90,6 +90,7 @@ type
     FSQLVarReady: boolean;
     FPrepared: boolean;
     FXSQLVAR: PXSQLVAR;
+    class var FormatSettings_US: TFormatSettings;
     class var LCID_US: TLocaleID;
     class constructor Create;
   private
@@ -349,6 +350,7 @@ end;
 
 class constructor TXSQLVAR.Create;
 begin
+  FormatSettings_US := TFormatSettings.Create('en-us');
   LCID_US := Languages.LocaleIDFromName['en-us'];
 end;
 
@@ -842,7 +844,7 @@ begin
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else if CheckType(SQL_INT64) then begin
     if not TryStrToBcd(string(PAnsiChar(aValue)), C) then begin
-      D := StrToFloat(string(PAnsiChar(aValue)));
+      D := StrToFloat(string(PAnsiChar(aValue)), FormatSettings_US);
       V := VarFMTBcdCreate(D, 19, -sqlscale);
       C := VarToBcd(V);
     end;
@@ -1303,7 +1305,7 @@ begin
     SetInteger(@iLong, SizeOf(iLong), aIsNull);
   end else if CheckType(SQL_INT64) then begin
     if not TryStrToBcd(WideString(PWideChar(aValue)), B) then begin
-      D := StrToFloat(WideString(PWideChar(aValue)));
+      D := StrToFloat(WideString(PWideChar(aValue)), FormatSettings_US);
       V := VarFMTBcdCreate(D, 19, -sqlscale);
       B := VarToBcd(V);
     end;
