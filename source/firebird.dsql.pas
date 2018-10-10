@@ -90,6 +90,8 @@ type
     FSQLVarReady: boolean;
     FPrepared: boolean;
     FXSQLVAR: PXSQLVAR;
+    class var LCID_US: TLocaleID;
+    class constructor Create;
   private
     FSize: word;
     FsqlDataSize: smallint;
@@ -98,6 +100,7 @@ type
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
     function GetPrepared: boolean;
+    function VarDateFromStrEx(strIn: string): TDateTime;
   protected
     function Get_aliasname: string;
     function Get_aliasname_length: smallint;
@@ -311,7 +314,8 @@ type
 
 implementation
 
-uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend} System.Math, System.StrUtils;
+uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}
+     System.Math, System.StrUtils, Winapi.ActiveX;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
@@ -341,6 +345,11 @@ end;
 function TXSQLVAR.CheckType(const aExpectedType: smallint): boolean;
 begin
   Result := (sqltype and not 1) = aExpectedType;
+end;
+
+class constructor TXSQLVAR.Create;
+begin
+  LCID_US := Languages.LocaleIDFromName['en-us'];
 end;
 
 procedure TXSQLVAR.GetAnsiString(aValue: pointer; out aIsNull: boolean);
@@ -842,10 +851,10 @@ begin
     B := StrToBool(string(PAnsiChar(aValue)));
     SetBoolean(@B, aIsNull);
   end else if CheckType(SQL_TYPE_DATE) or CheckType(SQL_TYPE_TIME) then begin
-    T := DateTimeToTimeStamp(VarToDateTime(string(PAnsiChar(aValue))));
+    T := DateTimeToTimeStamp(VarDateFromStrEx(string(PAnsiChar(aValue))));
     SetDate(@T, SizeOf(T), aIsNull);
   end else if CheckType(SQL_TIMESTAMP) then begin
-    T := DateTimeToTimeStamp(VarToDateTime(string(PAnsiChar(aValue))));
+    T := DateTimeToTimeStamp(VarDateFromStrEx(string(PAnsiChar(aValue))));
     SetDate(@T, SizeOf(T), aIsNull);
   end else
     Assert(False);
@@ -1313,6 +1322,12 @@ procedure TXSQLVAR.Set_sqltype(Value: smallint);
 begin
   Assert(not Prepared);
   FXSQLVAR.sqltype := Value;
+end;
+
+function TXSQLVAR.VarDateFromStrEx(strIn: string): TDateTime;
+begin
+  if VarDateFromStr(strIn, SysLocale.DefaultLCID, 0, Double(Result)) <> 0 then
+    CheckOSError(VarDateFromStr(strIn, LCID_US, 0, Double(Result)));
 end;
 
 function TXSQLVAR_10.GetTextLen: SmallInt;
