@@ -37,6 +37,13 @@ const rel_virtual = 3;
 const rel_global_temp_preserve = 4;
 const rel_global_temp_delete = 5;
 
+// backup states
+
+const	backup_state_unknown = -1;
+const	backup_state_normal = 0;
+const	backup_state_stalled = 1;
+const	backup_state_merge = 2;
+
 implementation
 
 end.
