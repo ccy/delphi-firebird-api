@@ -2,10 +2,10 @@ unit firebird.dsql;
 
 interface
 
-uses System.SysUtils, System.Classes, Winapi.Windows, Data.FmtBcd, Data.SqlTimSt,
-     firebird.sqlda_pub.h, firebird.ibase.h, firebird.types_pub.h, firebird.iberror.h,
-     firebird.inf_pub.h, firebird.time.h, firebird.charsets,
-     firebird.client;
+uses
+  Winapi.Windows, System.Classes, System.SysUtils, Data.FMTBcd, Data.SqlTimSt,
+  firebird.charsets, firebird.client, firebird.ibase.h, firebird.iberror.h,
+  firebird.inf_pub.h, firebird.sqlda_pub.h, firebird.time.h, firebird.types_pub.h;
 
 const
   CharSetBytes: array[CS_NONE..CS_GB18030] of byte = (
@@ -316,7 +316,7 @@ type
 implementation
 
 uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}
-     System.Math, System.StrUtils, Winapi.ActiveX;
+     System.Math, System.StrUtils, Winapi.ActiveX, firebird.dsc.h;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
@@ -1431,19 +1431,19 @@ begin
       else
         Result := string(AsAnsiString);
     end else if CheckType(SQL_SHORT) then begin
-      if sqlsubtype = 0 then begin
-        Result := IntToStr(AsInt16);
-      end else if (sqlsubtype = 1) or (sqlsubtype = 2) then
+      if sqlsubtype = dsc_num_type_none then
+        Result := IntToStr(AsInt16)
+      else
         Result := BcdToStr(AsBcd);
       bQuote := False;
     end else if CheckType(SQL_LONG) then begin
-      if sqlsubtype = 0 then begin
-        Result := IntToStr(AsInt32);
-      end else if (sqlsubtype = 1) or (sqlsubtype = 2) then
+      if sqlsubtype = dsc_num_type_none then
+        Result := IntToStr(AsInt32)
+      else
         Result := BcdToStr(AsBcd);
       bQuote := False;
     end else if CheckType(SQL_INT64) then begin
-      if (sqlsubtype = 0) and (sqlscale = 0) then
+      if (sqlsubtype = dsc_num_type_none) and (sqlscale = 0) then
         Result := {$if CompilerVersion <= 18.5} BcdToStr(AsBcd) {$else} IntToStr(AsInt64) {$ifend}
       else
         Result := BcdToStr(AsBcd);

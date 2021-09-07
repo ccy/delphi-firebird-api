@@ -50,6 +50,7 @@ contains
   firebird.client.debug in '..\source\firebird.client.debug.pas',
   firebird.constants.h in '..\source\firebird.constants.h.pas',
   firebird.ods.h in '..\source\firebird.ods.h.pas',
-  firebird.burp.h in '..\source\firebird.burp.h.pas';
+  firebird.burp.h in '..\source\firebird.burp.h.pas',
+  firebird.dsc.h in '..\source\firebird.dsc.h.pas';
 
 end.
