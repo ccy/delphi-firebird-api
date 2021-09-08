@@ -381,34 +381,14 @@ end;
 
 procedure TXSQLVAR.GetBCD(aValue: pointer; out aIsNull: boolean);
 
-  procedure TestNegative(aValue: pointer; const aScale: word; aData: string);
-  var a, i, iLen: integer;
-      bNeg: boolean;
+  function NormalizeBcdData(aData: string; aScale: SmallInt): string; inline;
   begin
-    if aScale > 0 then begin
-      bNeg := aData[1] = '-';
-      if bNeg then
-        Delete(aData, 1, 1);
+    var Index := 0;
+    if aData.StartsWith('-') then Index := 1;
+    for var i := 1 to Abs(aScale) - aData.Length + Index do
+      aData.Insert(Index, '0');
 
-      iLen := Length(aData);
-      for i := 1 to aScale - iLen do begin
-        aData := '0' + aData;
-        Inc(iLen);
-      end;
-
-      Inc(iLen);  // To hold extra DecimalSeparator
-      SetLength(aData, iLen);
-      a := iLen;
-      for i := iLen downto iLen - aScale + 1 do begin
-        aData[i] := aData[i-1];
-        Dec(a);
-      end;
-      aData[a] := {$if RTLVersion>=22}FormatSettings.{$ifend}DecimalSeparator;;
-
-      if bNeg then
-        aData := '-' + aData;
-    end;
-    PBCD(aValue)^ := StrToBcd(aData);
+    Result := aData.Insert(aData.Length - Abs(aScale), {$if RTLVersion>=22}FormatSettings.{$ifend}DecimalSeparator);
   end;
 
 begin
@@ -416,11 +396,11 @@ begin
   aIsNull := IsNull;
   if aIsNull then Exit;
   if CheckType(SQL_INT64) then
-    TestNegative(aValue, -sqlscale, IntToStr(PInt64(sqldata)^))
+    PBCD(aValue)^ := NormalizeBcdData(IntToStr(PInt64(sqldata)^), sqlscale)
   else if CheckType(SQL_LONG) then
-    TestNegative(aValue, -sqlscale, IntToStr(PInteger(sqldata)^))
+    PBCD(aValue)^ := NormalizeBcdData(IntToStr(PInteger(sqldata)^), sqlscale)
   else if CheckType(SQL_SHORT) then
-    TestNegative(aValue, -sqlscale, IntToStr(PSmallInt(sqldata)^))
+    PBCD(aValue)^ := NormalizeBcdData(IntToStr(PSmallInt(sqldata)^), sqlscale)
   else
     Assert(False);
 end;
