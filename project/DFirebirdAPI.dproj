@@ -74,7 +74,6 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DllSuffix>270</DllSuffix>
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_BplOutput>.\$(Platform)\$(Config)</DCC_BplOutput>
         <DCC_DcpOutput>.\$(Platform)\$(Config)</DCC_DcpOutput>
