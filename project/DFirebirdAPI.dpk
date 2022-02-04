@@ -32,7 +32,8 @@ package DFirebirdAPI;
 requires
   rtl,
   dbrtl,
-  JediApi_Dynamic;
+  JediApi_Dynamic,
+  Int128;
 
 contains
   firebird.ibase.h in '..\source\firebird.ibase.h.pas',

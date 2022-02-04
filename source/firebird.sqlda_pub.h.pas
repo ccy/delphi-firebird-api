@@ -87,6 +87,13 @@ const SQL_QUAD                  = 550;
 const SQL_TYPE_TIME             = 560;
 const SQL_TYPE_DATE             = 570;
 const SQL_INT64                 = 580;
+const SQL_TIMESTAMP_TZ_EX       = 32748;
+const SQL_TIME_TZ_EX            = 32750;
+const SQL_INT128                = 32752;
+const SQL_TIMESTAMP_TZ          = 32754;
+const SQL_TIME_TZ               = 32756;
+const SQL_DEC16                 = 32760;
+const SQL_DEC34                 = 32762;
 const SQL_BOOLEAN               = 32764;
 const SQL_NULL                  = 32766;
 

@@ -259,10 +259,20 @@ const isc_spb_verbose =                   107;
 const isc_spb_options =                   108;
 const isc_spb_address_path =              109;
 const isc_spb_process_id =                110;
-const isc_spb_trusted_auth =     111;
+const isc_spb_trusted_auth =              111;
 const isc_spb_process_name =              112;
 const isc_spb_trusted_role =              113;
-
+const isc_spb_verbint =                   114;
+const isc_spb_auth_block =                115;
+const isc_spb_auth_plugin_name =          116;
+const isc_spb_auth_plugin_list =          117;
+const isc_spb_utf8_filename	=             118;
+const isc_spb_client_version =            119;
+const isc_spb_remote_protocol =           120;
+const isc_spb_host_name =                 121;
+const isc_spb_os_user =                   122;
+const isc_spb_config =                    123;
+const isc_spb_expected_db =               124;
 
 const isc_spb_connect_timeout =           isc_dpb_connect_timeout;
 const isc_spb_dummy_packet_interval =     isc_dpb_dummy_packet_interval;
@@ -296,7 +306,8 @@ const isc_action_svc_set_mapping       = 27; // Set auto admins mapping in secur
 const isc_action_svc_drop_mapping      = 28; // Drop auto admins mapping in security database
 const isc_action_svc_display_user_adm  = 29; // Displays user(s) from security database with admin info
 const isc_action_svc_validate          = 30; // Starts database online validation
-const isc_action_svc_last              = 31; // keep it last !
+const isc_action_svc_nfix              = 31; // Fixup database after file system copy
+const isc_action_svc_last              = 32; // keep it last !
 
 (*****************************
  * Service information items *
@@ -1027,6 +1038,7 @@ const fb_dbg_arg_input =   0;
 const fb_dbg_arg_output =   1;
 
 //endif // ifndef INCLUDE_CONSTS_PUB_H
-implementation
+
+implementation
 
 end.

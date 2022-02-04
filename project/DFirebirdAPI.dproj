@@ -186,6 +186,7 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="JediApi_Dynamic.dcp"/>
+        <DCCReference Include="Int128.dcp"/>
         <DCCReference Include="..\source\firebird.ibase.h.pas"/>
         <DCCReference Include="..\source\firebird.iberror.h.pas"/>
         <DCCReference Include="..\source\firebird.inf_pub.h.pas"/>

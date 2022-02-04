@@ -315,8 +315,10 @@ type
 
 implementation
 
-uses System.Variants, System.AnsiStrings, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}
-     System.Math, System.StrUtils, Winapi.ActiveX, firebird.dsc.h;
+uses
+  Winapi.ActiveX, System.AnsiStrings, System.Math, System.StrUtils,
+  System.Variants, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}
+  firebird.dsc.h, int128impl;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
@@ -401,6 +403,8 @@ begin
     PBCD(aValue)^ := NormalizeBcdData(IntToStr(PInteger(sqldata)^), sqlscale)
   else if CheckType(SQL_SHORT) then
     PBCD(aValue)^ := NormalizeBcdData(IntToStr(PSmallInt(sqldata)^), sqlscale)
+  else if CheckType(SQL_INT128) then
+    PBCD(aValue)^ := NormalizeBcdData(PInt128(sqldata)^, sqlscale)
   else
     Assert(False);
 end;
@@ -829,6 +833,13 @@ begin
       C := VarToBcd(V);
     end;
     SetBCD(@C, aIsNull);
+  end else if CheckType(SQL_INT128) then begin
+    if not TryStrToBcd(string(PAnsiChar(aValue)), C) then begin
+      D := StrToFloat(string(PAnsiChar(aValue)), FormatSettings_US);
+      V := VarFMTBcdCreate(D, 38, -sqlscale);
+      C := VarToBcd(V);
+    end;
+    SetBCD(@C, aIsNull);
   end else if CheckType(SQL_BOOLEAN) then begin
     B := StrToBool(string(PAnsiChar(aValue)));
     SetBoolean(@B, aIsNull);
@@ -847,6 +858,7 @@ var B: PBcd;
     i: integer;
     iScaling: INT64;
     iBigInt: INT64;
+    i128: Int128;
     iLong: integer;
     iShort: Smallint;
     S: string;
@@ -858,7 +870,7 @@ begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
-    BcdMultiply(B^, IntToStr(iScaling), B^);
+    BcdMultiply(B^, StrToBcd(IntToStr(iScaling)), B^);
     S := BcdToStr(B^);
     i := Pos({$if RTLVersion>=22}FormatSettings.{$ifend}DecimalSeparator, S);
     if i = 1 then
@@ -874,7 +886,7 @@ begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
-    BcdMultiply(B^, IntToStr(iScaling), B^);
+    BcdMultiply(B^, StrToBcd(IntToStr(iScaling)), B^);
     S := BcdToStr(B^);
     iLong := StrToInt(S);
     Move(iLong, sqldata^, sqllen)
@@ -883,10 +895,26 @@ begin
     iScaling := 1;
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
-    BcdMultiply(B^, IntToStr(iScaling), B^);
+    BcdMultiply(B^, StrToBcd(IntToStr(iScaling)), B^);
     S := BcdToStr(B^);
     iShort:= StrToInt(S);
     Move(iShort, sqldata^, sqllen)
+  end else if CheckType(SQL_INT128) then begin
+    B := aValue;
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+    BcdMultiply(B^, StrToBcd(IntToStr(iScaling)), B^);
+    S := BcdToStr(B^);
+    i := Pos({$if RTLVersion>=22}FormatSettings.{$ifend}DecimalSeparator, S);
+    if i = 1 then
+      S := '0'
+    else if i > 1 then begin
+      SetLength(S, i - 1);
+      if S = '-' then S := '0';
+    end;
+    i128 := S;
+    Move(i128, sqldata^, sqllen)
   end else
     Assert(False);
 end;
@@ -1004,18 +1032,18 @@ begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   if CheckType(SQL_FLOAT) then begin
-    Assert((aLength = 4) or (aLength = 8));
+    Assert((aLength = 4) or (aLength = SizeOf(Double)));
     if aLength = 8 then
       S := PDouble(aValue)^
     else
       S := PSingle(aValue)^;
     Move(S, sqldata^, sqllen);
   end else if CheckType(SQL_DOUBLE) then begin
-    Assert(aLength = 8);
+    Assert(aLength = SizeOf(Double));
     D := PDouble(aValue)^;
     Move(D, sqldata^, sqllen);
   end else if CheckType(SQL_INT64) or CheckType(SQL_LONG) then begin
-    Assert(aLength = 8);
+    Assert(aLength = SizeOf(Double));
 
     iScaling := 1;
     for i := -1 downto sqlscale do
@@ -1027,6 +1055,20 @@ begin
     iValue := iValue * iScaling + iDec;
 
     Move(iValue, sqldata^, sqllen);
+  end else if CheckType(SQL_INT128) then begin
+    Assert(aLength = SizeOf(Double));
+
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    D := PDouble(aValue)^;
+    iValue := Trunc(D);
+    iDec := Trunc(SimpleRoundTo((D - iValue) * iScaling, 0));
+    var i128: Int128 := iValue;
+    i128 := i128 * iScaling + iDec;
+
+    Move(i128, sqldata^, sqllen);
   end else
     Assert(False);
 end;
@@ -1034,7 +1076,8 @@ end;
 procedure TXSQLVAR.SetInt64(const aValue: pointer; const aLength: Integer;
   const aIsNull: boolean);
 var i, iScaling: integer;
-    iValue: INT64;
+    i64: INT64;
+    i128: Int128;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -1043,9 +1086,17 @@ begin
     for i := -1 downto sqlscale do
       iScaling := iScaling * 10;
 
-    iValue := PInt64(aValue)^;
-    iValue := iValue * iScaling;
-    Move(iValue, sqldata^, sqllen);
+    i64 := PInt64(aValue)^;
+    i64 := i64 * iScaling;
+    Move(i64, sqldata^, sqllen);
+  end else if CheckType(SQL_INT128) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    i128 := PInt64(aValue)^;
+    i128 := i128 * iScaling;
+    Move(i128, sqldata^, sqllen);
   end else
     Assert(False);
 end;
@@ -1084,6 +1135,7 @@ procedure TXSQLVAR.SetInteger(const aValue: pointer; const aLength: Integer;
 var i, iScaling: integer;
     i16: Smallint;
     i64: INT64;
+    i128: Int128;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -1101,6 +1153,14 @@ begin
     i64 := PInteger(aValue)^;
     i64 := i64 * iScaling;
     Move(i64, sqldata^, sqllen);
+  end else if CheckType(SQL_INT128) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    i128 := PInteger(aValue)^;
+    i128 := i128 * iScaling;
+    Move(i128, sqldata^, sqllen);
   end else
     Assert(False);
 end;
@@ -1127,6 +1187,7 @@ procedure TXSQLVAR.SetShort(const aValue: pointer; const aLength: Integer;
 var i, iScaling: integer;
     i32: integer;
     i64: INT64;
+    i128: Int128;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
@@ -1144,6 +1205,14 @@ begin
     i64 := PSmallInt(aValue)^;
     i64 := i64 * iScaling;
     Move(i64, sqldata^, sqllen);
+  end else if CheckType(SQL_INT128) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    i128 := PSmallInt(aValue)^;
+    i128 := i128 * iScaling;
+    Move(i128, sqldata^, sqllen);
   end else
     Assert(False);
 end;
