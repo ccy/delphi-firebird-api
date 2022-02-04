@@ -1,5 +1,9 @@
 unit firebird.ods.h;
-interface(*
+
+
+interface
+
+(*
  * PROGRAM:  JRD Access Method
  * MODULE:    ods.h
  * DESCRIPTION:  On disk structure definitions
@@ -36,6 +40,7 @@ const ODS_VERSION10 = 10;  // V6.0 features. SQL delimited idetifier,
                            // SQLDATE, and 64-bit exact numeric type
 const ODS_VERSION11 = 11;  // Firebird 2.x features
 const ODS_VERSION12 = 12;  // Firebird 3.x features
+const ODS_VERSION13	= 13;  // Firebird 4.x features
 
 function ENCODE_ODS(Major, Minor: UInt16): UInt16; inline;
 
@@ -49,6 +54,7 @@ const ODS_11_0      = ODS_VERSION11 shl 4 + 0;
 const ODS_11_1      = ODS_VERSION11 shl 4 + 1;
 const ODS_11_2      = ODS_VERSION11 shl 4 + 2;
 const ODS_12_0      = ODS_VERSION12 shl 4 + 0;
+const ODS_13_0      = ODS_VERSION13 shl 4 + 0;
 
 type
   pag = record
