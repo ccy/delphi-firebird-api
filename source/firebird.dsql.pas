@@ -136,6 +136,7 @@ type
     procedure GetInteger(aValue: pointer; out aIsNull: boolean);
     function GetIsNull: boolean;
     procedure GetShort(aValue: pointer; out aIsNull: boolean);
+    procedure GetSingle(aValue: pointer; out aIsNull: boolean);
     function GetTextLen: SmallInt; virtual;
     procedure GetTime(aValue: pointer; out aIsNull: boolean);
     procedure GetTimeStamp(aValue: pointer; out aIsNull: boolean);
@@ -160,6 +161,8 @@ type
     procedure SetInteger(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetShort(const aValue: pointer; const aLength: Integer; const
+        aIsNull: boolean);
+    procedure SetSingle(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetTime(const aValue: pointer; const aIsNull: boolean);
     procedure SetTimeStamp(const aValue: pointer; const aIsNull: boolean);
@@ -591,6 +594,21 @@ begin
   aIsNull := IsNull;
   if not aIsNull then
     Move(FXSQLVar.sqldata^, aValue^, sqllen);
+end;
+
+procedure TXSQLVAR.GetSingle(aValue: pointer; out aIsNull: boolean);
+var s: Single;
+begin
+  Assert(Prepared);
+  aIsNull := IsNull;
+  if aIsNull then Exit;
+
+  if CheckType(SQL_FLOAT) then begin
+    Assert(sqllen = SizeOf(Single));
+    s := PSingle(sqldata)^;
+    Move(s, aValue^, SizeOf(s));
+  end else
+    Assert(False);
 end;
 
 function TXSQLVAR.GetSize: smallint;
@@ -1212,6 +1230,51 @@ begin
 
     i128 := PSmallInt(aValue)^;
     i128 := i128 * iScaling;
+    Move(i128, sqldata^, sqllen);
+  end else
+    Assert(False);
+end;
+
+procedure TXSQLVAR.SetSingle(const aValue: pointer; const aLength: Integer;
+  const aIsNull: boolean);
+var S: Single;
+    D: Double;
+    iScaling: Int64;
+    i: integer;
+    iValue: INT64;
+    iDec: INT64;
+begin
+  IsNull := aIsNull;
+  if aIsNull then Exit;
+  Assert(aLength = SizeOf(Single));
+  if CheckType(SQL_FLOAT) then begin
+    S := PSingle(aValue)^;
+    Move(S, sqldata^, SizeOf(S));
+  end else if CheckType(SQL_DOUBLE) then begin
+    D := PSingle(aValue)^;
+    Move(D, sqldata^, SizeOf(D));
+  end else if CheckType(SQL_INT64) or CheckType(SQL_LONG) or CheckType(SQL_SHORT) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    S := PSingle(aValue)^;
+    iValue := Trunc(S);
+    iDec := Trunc((S - iValue) * iScaling);
+    iValue := iValue * iScaling + iDec;
+
+    Move(iValue, sqldata^, sqllen);
+  end else if CheckType(SQL_INT128) then begin
+    iScaling := 1;
+    for i := -1 downto sqlscale do
+      iScaling := iScaling * 10;
+
+    S := PSingle(aValue)^;
+    iValue := Trunc(S);
+    iDec := Trunc((S - iValue) * iScaling);
+    var i128: Int128 := iValue;
+    i128 := i128 * iScaling + iDec;
+
     Move(i128, sqldata^, sqllen);
   end else
     Assert(False);
