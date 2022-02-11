@@ -163,7 +163,6 @@ type
     procedure CORE_2186(aLibrary: string);
     procedure CORE_4508;
     function Clone: IFirebirdLibrary;
-    function GetEncoding: TEncoding;
     procedure Setup(const aHandle: THandle);
     function TryGetODS(out aMajor, aMinor: integer): boolean;
   end;
@@ -174,8 +173,8 @@ type
     FDebugger: IFirebirdLibraryDebugger;
     FProcs: TDictionary<Pointer,string>;
     FServerCharSet: string;
+    FEncoding: TEncoding;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
-    function GetEncoding: TEncoding;
     function GetProc(const aHandle: THandle; const aProcName: PChar; const
         aRequired: Boolean = True): pointer;
     procedure DebugMsg(const aProc: pointer; const aParams: array of const;
@@ -798,21 +797,17 @@ constructor TFirebirdLibrary.Create(const aServerCharSet: string);
 begin
   inherited Create;
   FServerCharSet := aServerCharSet;
+  if SameText(FServerCharSet, 'UTF8') then
+    FEncoding := TEncoding.UTF8
+  else
+    FEncoding := TEncoding.Default;
 end;
 
 function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
 begin
   if FDebugFactory = nil then
-    FDebugFactory := TFirebirdClientDebugFactory.Create(Clone);
+    FDebugFactory := TFirebirdClientDebugFactory.Create(Clone, FEncoding);
   Result := FDebugFactory;
-end;
-
-function TFirebirdLibrary.GetEncoding: TEncoding;
-begin
-  if (FServerCharSet = 'UTF8') then
-    Result := TEncoding.UTF8
-  else
-    Result := TEncoding.Default;
 end;
 
 function TFirebirdLibrary.GetProc(const aHandle: THandle; const aProcName:

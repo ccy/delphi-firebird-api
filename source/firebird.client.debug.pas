@@ -2,18 +2,21 @@ unit firebird.client.debug;
 
 interface
 
-uses Winapi.Windows, firebird.sqlda_pub.h, firebird.client;
+uses
+  Winapi.Windows, System.SysUtils,
+  firebird.client, firebird.sqlda_pub.h;
 
 type{$M+}
   TFirebirdClientDebugFactory = class(TInterfacedObject, IFirebirdLibraryDebugFactory)
   private
     FClient: IFirebirdLibrary;
+    FEncoding: TEncoding;
     function XSQLDA_DebugMsg(const X: PXSQLDA): string;
   protected
     function Get(const aProcName: string; const aProc: pointer; const aParams:
         array of const; const aResult: longint): string;
   public
-    constructor Create(const aClient: IFirebirdLibrary);
+    constructor Create(const aClient: IFirebirdLibrary; aEncoding: TEncoding);
   published
     function isc_attach_database(const aProcName: string; const aProc: pointer;
         const aParams: array of const; const aResult: longint): string;
@@ -85,15 +88,15 @@ type{$M+}
 
 implementation
 
-uses System.SysUtils,
-     firebird.time.h, firebird.types_pub.h,
-     firebird.dsql;
+uses
+  firebird.dsql, firebird.time.h, firebird.types_pub.h;
 
-constructor TFirebirdClientDebugFactory.Create(const aClient:
-    IFirebirdLibrary);
+constructor TFirebirdClientDebugFactory.Create(const aClient: IFirebirdLibrary;
+    aEncoding: TEncoding);
 begin
   inherited Create;
   FClient := aClient;
+  FEncoding := aEncoding;
 end;
 
 function TFirebirdClientDebugFactory.Get(const aProcName: string; const aProc:
@@ -339,7 +342,7 @@ function TFirebirdClientDebugFactory.isc_dsql_prepare(const aProcName: string;
 var S: string;
 begin
 {$ifdef Unicode}
-  S := FClient.GetEncoding.GetString(TBytes(aParams[4].VPChar), 0, aParams[3].VInteger);
+  S := FEncoding.GetString(TBytes(aParams[4].VPChar), 0, aParams[3].VInteger);
 {$else}
   SetString(S, aParams[4].VPChar, aParams[3].VInteger);
 {$endif}
