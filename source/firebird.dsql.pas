@@ -282,7 +282,7 @@ type
     FTransactionPool: TFirebirdTransactionPool;
     FManageTransaction: boolean;
     FTransaction: TFirebirdTransaction;
-    FServerCharSet: WideString;
+    FEncoding: TEncoding;
     FIsStoredProc: boolean;
     FManage_SQLDA_In: boolean;
     function StatementHandle: pisc_stmt_handle;
@@ -1710,7 +1710,10 @@ begin
   inherited Create;
   FClient := aClientLibrary;
   FTransactionPool := aTransactionPool;
-  FServerCharSet := aServerCharSet;
+  if SameText(aServerCharSet, 'UTF8') then
+    FEncoding := TEncoding.UTF8
+  else
+    FEncoding := TEncoding.Default;
   FIsStoredProc := aIsStoredProc;
 
   FState := S_INACTIVE;
@@ -1949,7 +1952,7 @@ begin
   FSQLDA_Out := TXSQLDA.Create(FClient);
 
   {$ifdef Unicode}
-  B := FClient.GetEncoding.GetBytes(aSQL);
+  B := FEncoding.GetBytes(aSQL);
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(B), @B[0], FLast_SQLDialect, FSQLDA_Out.XSQLDA);
   {$else}
   FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SChar(aSQL), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
