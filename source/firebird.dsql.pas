@@ -140,6 +140,7 @@ type
     function GetTextLen: SmallInt; virtual;
     procedure GetTime(aValue: pointer; out aIsNull: boolean);
     procedure GetTimeStamp(aValue: pointer; out aIsNull: boolean);
+    procedure GetTimeStampOffset(aValue: pointer; out aIsNull: boolean);
     procedure GetWideString(aValue: pointer; out aIsNull: boolean);
     function IsNullable: boolean;
     procedure Prepare;
@@ -166,6 +167,7 @@ type
         aIsNull: boolean);
     procedure SetTime(const aValue: pointer; const aIsNull: boolean);
     procedure SetTimeStamp(const aValue: pointer; const aIsNull: boolean);
+    procedure SetTimeStampOffset(const aValue: pointer; const aIsNull: boolean);
     procedure SetUInt8(const aValue: pointer; const aLength: Integer; const
         aIsNull: boolean);
     procedure SetWideString(const aValue: pointer; const aLength: word; const
@@ -209,6 +211,7 @@ type
     function AsInt64: Int64;
     function AsQuoatedSQLValue: WideString;
     function AsSQLTimeStamp: TSQLTimeStamp;
+    function AsSQLTimeStampOffset: TSQLTimeStampOffset;
     function AsTime: TDateTime;
     function AsWideString: WideString;
   end;
@@ -319,9 +322,10 @@ type
 implementation
 
 uses
-  Winapi.ActiveX, System.AnsiStrings, System.Math, System.StrUtils,
-  System.Variants, {$if CompilerVersion <=18.5}WideStrUtils, {$ifend}
-  firebird.dsc.h, int128d;
+  Winapi.ActiveX, System.AnsiStrings, System.DateUtils, System.Math,
+  System.StrUtils, System.Variants, System.TimeSpan,
+  Int128d, firebird.dsc.h,
+  firebird.delphi;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
     pointer; aSQLVarReady: Boolean = False);
@@ -515,28 +519,17 @@ begin
 end;
 
 procedure TXSQLVAR.GetDate(aValue: pointer; out aIsNull: boolean);
-var T: tm;
-    D: ISC_DATE;
-    G: ISC_TIMESTAMP;
-    C: TDateTime;
-    E: integer;
 begin
   Assert(Prepared);
   aIsNull := IsNull;
   if aIsNull then Exit;
 
   if CheckType(SQL_TYPE_DATE) then begin
-    Move(sqldata^, D, sqllen);
-    FClient.isc_decode_sql_date(@D, @T);
-    C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
-    E := DateTimeToTimeStamp(C).Date;
-    Move(E, aValue^, sqllen);
+    var E: TTimeStamp := ISC_DATE(sqldata^);
+    Move(E.Date, aValue^, sqllen);
   end else if CheckType(SQL_TIMESTAMP) then begin
-    Move(sqldata^, G, sqllen);
-    FClient.isc_decode_timestamp(@G, @T);
-    C := EncodeDate(T.tm_year + 1900, T.tm_mon + 1, T.tm_mday);
-    E := DateTimeToTimeStamp(C).Date;
-    Move(E, aValue^, sqllen);
+    var E: TTimeStamp := ISC_TIMESTAMP(sqldata^);
+    Move(E.Date, aValue^, sqllen);
   end else
     Assert(False);
 end;
@@ -623,39 +616,33 @@ begin
 end;
 
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
-var T: tm;
-    D: ISC_TIME;
-    C: TDateTime;
-    E: integer;
 begin
   Assert(Prepared and CheckType(SQL_TYPE_TIME));
   aIsNull := IsNull;
   if not aIsNull then begin
-    Move(sqldata^, D, sqllen);
-    FClient.isc_decode_sql_time(@D, @T);
-    C := EncodeTime(T.tm_hour, T.tm_min, T.tm_sec, 0);
-    E := DateTimeToTimeStamp(C).Time;
-    Move(E, aValue^, sqllen);
+    var E: TTimeStamp := ISC_TIME(sqldata^);
+    Move(E.Time, aValue^, sqllen);
   end;
 end;
 
 procedure TXSQLVAR.GetTimeStamp(aValue: pointer; out aIsNull: boolean);
-var T: tm;
-    D: ISC_TIMESTAMP;
-    S: TSQLTimeStamp;
 begin
   Assert(Prepared and CheckType(SQL_TIMESTAMP));
   aIsNull := IsNull;
   if not aIsNull then begin
-    Move(sqldata^, D, sqllen);
-    FClient.isc_decode_timestamp(@D, @T);
-    S.Year := T.tm_year + 1900;
-    S.Month := T.tm_mon + 1;
-    S.Day := T.tm_mday;
-    S.Hour := T.tm_hour;
-    S.Minute := T.tm_min;
-    S.Second := T.tm_sec;
-    S.Fractions := 0;
+    var S: TSQLTimeStamp := ISC_TIMESTAMP(sqldata^);
+    Move(S, aValue^, SizeOf(S));
+  end;
+end;
+
+procedure TXSQLVAR.GetTimeStampOffset(aValue: pointer; out aIsNull: boolean);
+begin
+  Assert(Prepared and CheckType(SQL_TIMESTAMP_TZ));
+  aIsNull := IsNull;
+  if not aIsNull then begin
+    var D: ISC_TIMESTAMP_TZ_IANA := ISC_TIMESTAMP_TZ(sqldata^);
+    D.Setup(FClient.GetTimeZoneOffset);
+    var S: TSQLTimeStampOffset := D;
     Move(S, aValue^, SizeOf(S));
   end;
 end;
@@ -867,6 +854,9 @@ begin
   end else if CheckType(SQL_TIMESTAMP) then begin
     T := DateTimeToTimeStamp(VarDateFromStrEx(string(PAnsiChar(aValue))));
     SetDate(@T, SizeOf(T), aIsNull);
+  end else if CheckType(SQL_TIMESTAMP_TZ) then begin
+    var o := StrToSQLTimeStampOffset(string(PAnsiChar(aValue)));
+    SetTimeStampOffset(@o, aIsNull);
   end else
     Assert(False);
 end;
@@ -998,43 +988,31 @@ end;
 
 procedure TXSQLVAR.SetDate(const aValue: pointer; const aLength: Integer; const
     aIsNull: boolean);
-var T: tm;
-    yy, mmm, dd, hh, mm, ss, MSec: word;
-    D: ISC_DATE;
-    E: ISC_TIMESTAMP;
-    S: TTimeStamp;
-    M: TDateTime;
+var S: TTimeStamp;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
-  Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP));
+  Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP) or CheckType(SQL_TIMESTAMP_TZ));
 
   if aLength = 4 then begin
-    S.Time := 0;
     S.Date := PInteger(aValue)^;
+    S.Time := 0;
   end else if aLength = 8 then
     S := TTimeStamp(aValue^)
   else
     Assert(False);
 
-  M := TimeStampToDateTime(S);
-  DecodeDate(M, yy, mmm, dd);
-  DecodeTime(M, hh, mm, ss, MSec);
-  with T do begin
-    tm_sec := ss;
-    tm_min := mm;
-    tm_hour := hh;
-    tm_mday := dd;
-    tm_mon := mmm - 1;
-    tm_year := yy - 1900;
-  end;
-
   if CheckType(SQL_TYPE_DATE) then begin
-    FClient.isc_encode_sql_date(@T, @D);
+    var D: ISC_DATE := S;
     Move(D, sqldata^, sqllen);
   end else begin
-    FClient.isc_encode_timestamp(@T, @E);
-    Move(E, sqldata^, sqllen);
+    if CheckType(SQL_TIMESTAMP) then begin
+      var D: ISC_TIMESTAMP := S;
+      Move(D, sqldata^, sqllen);
+    end else if CheckType(SQL_TIMESTAMP_TZ) then begin
+      var D: ISC_TIMESTAMP_TZ := S;
+      Move(D, sqldata^, sqllen);
+    end;
   end;
 end;
 
@@ -1281,50 +1259,45 @@ begin
 end;
 
 procedure TXSQLVAR.SetTime(const aValue: pointer; const aIsNull: boolean);
-var T: tm;
-    iHour, iMinute, iSecond, iMSec: word;
-    D: ISC_TIME;
+var D: ISC_TIME;
     S: TTimeStamp;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
   Assert(CheckType(SQL_TYPE_TIME));
 
+  S.Date := DateDelta;
   S.Time := PInteger(aValue)^;
-  S.Date := 1;
-  DecodeTime(TimeStampToDateTime(S), iHour, iMinute, iSecond, iMSec);
-  with T do begin
-    tm_sec := iSecond;
-    tm_min := iMinute;
-    tm_hour := iHour;
-    tm_mday := 0;
-    tm_mon := 0;
-    tm_year := 0;
-  end;
-  FClient.isc_encode_sql_time(@T, @D);
-  Move(D, sqldata^, sqllen)
+  D := S;
+  Move(D, sqldata^, sqllen);
 end;
 
 procedure TXSQLVAR.SetTimeStamp(const aValue: pointer;
   const aIsNull: boolean);
-var T: tm;
-    D: ISC_TIMESTAMP;
-    S: PSQLTimeStamp;
 begin
   IsNull := aIsNull;
   if aIsNull then Exit;
-  Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP));
+  Assert(CheckType(SQL_TYPE_DATE) or CheckType(SQL_TIMESTAMP) or CheckType(SQL_TIMESTAMP_TZ));
 
-  S := PSQLTimeStamp(aValue);
-  with T do begin
-    tm_sec := S^.Second;
-    tm_min := S^.Minute;
-    tm_hour := S^.Hour;
-    tm_mday := S^.Day;
-    tm_mon := S^.Month - 1;
-    tm_year := S^.Year - 1900;
+  var S := PSQLTimeStamp(aValue)^;
+
+  if CheckType(SQL_TIMESTAMP_TZ) then begin
+    var D: ISC_TIMESTAMP_TZ := S;
+    Move(D, sqldata^, sqllen);
+  end else begin
+    var D: ISC_TIMESTAMP := S;
+    Move(D, sqldata^, sqllen)
   end;
-  FClient.isc_encode_timestamp(@T, @D);
+end;
+
+procedure TXSQLVAR.SetTimeStampOffset(const aValue: pointer;
+  const aIsNull: boolean);
+begin
+  IsNull := aIsNull;
+  if aIsNull then Exit;
+  Assert(CheckType(SQL_TIMESTAMP_TZ));
+
+  var D: ISC_TIMESTAMP_TZ := TSQLTimeStampOffset(aValue^);
   Move(D, sqldata^, sqllen)
 end;
 
@@ -1566,6 +1539,8 @@ begin
       Result := TimeToStr(AsTime);
     end else if CheckType(SQL_TIMESTAMP) then begin
       Result := SQLTimeStampToStr('dd mmm yy hh:mm:ss', AsSQLTimeStamp);
+    end else if CheckType(SQL_TIMESTAMP_TZ) then begin
+      Result := SQLTimeStampOffsetToStr('dd mmm yy hh:mm:ss', AsSQLTimeStampOffset);
     end else if CheckType(SQL_FLOAT) or CheckType(SQL_DOUBLE) then begin
       Result := FloatToStr(AsDouble);
       bQuote := False;
@@ -1583,6 +1558,14 @@ begin
   GetTimeStamp(@Result, bIsNull);
   if bIsNull then
     Result := NullSQLTimeStamp;
+end;
+
+function TXSQLVAREx.AsSQLTimeStampOffset: TSQLTimeStampOffset;
+var bIsNull: boolean;
+begin
+  GetTimeStampOffset(@Result, bIsNull);
+  if bIsNull then
+    Result := NullSQLTimeStampOffset;
 end;
 
 function TXSQLVAREx.AsTime: TDateTime;

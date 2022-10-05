@@ -225,6 +225,7 @@
         <DCCReference Include="..\source\firebird.ods.h.pas"/>
         <DCCReference Include="..\source\firebird.burp.h.pas"/>
         <DCCReference Include="..\source\firebird.dsc.h.pas"/>
+        <DCCReference Include="..\source\firebird.delphi.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

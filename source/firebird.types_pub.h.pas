@@ -134,17 +134,50 @@ type ISC_UINT64 = UInt64;
 (*******************************************************************)
 
 //ifndef ISC_TIMESTAMP_DEFINED
-type ISC_DATE = integer;
+type ISC_DATE = record Value: Integer; end;
 type PISC_DATE = ^ISC_DATE;
-type ISC_TIME = integer;
+
+type ISC_TIME = record Value: Integer; end;
 type PISC_TIME = ^ISC_TIME;
-type  ISC_TIMESTAMP = record
+
+type
+  ISC_TIME_TZ = record
+    utc_time: ISC_TIME;
+    time_zone: ISC_USHORT;
+  end;
+  PISC_TIME_TZ = ^ISC_TIME_TZ;
+
+type
+  ISC_TIME_TZ_EX = record
+    utc_time: ISC_TIME;
+    time_zone: ISC_USHORT;
+    ext_offset: ISC_SHORT;
+  end;
+  PISC_TIME_TZ_EX = ^ISC_TIME_TZ_EX;
+
+type
+  ISC_TIMESTAMP = record
    timestamp_date: ISC_DATE;
    timestamp_time: ISC_TIME;
   end;
   PISC_TIMESTAMP = ^ISC_TIMESTAMP;
 //const ISC_TIMESTAMP_DEFINED =;
 //endif (* ISC_TIMESTAMP_DEFINED *)
+
+type
+  ISC_TIMESTAMP_TZ = record
+   utc_timestamp: ISC_TIMESTAMP;
+   time_zone: ISC_USHORT;
+  end;
+  PISC_TIMESTAMP_TZ = ^ISC_TIMESTAMP_TZ;
+
+type
+  ISC_TIMESTAMP_TZ_EX = record
+   utc_timestamp: ISC_TIMESTAMP;
+   time_zone: ISC_USHORT;
+   ext_offset: ISC_SHORT;
+  end;
+  PISC_TIMESTAMP_TZ_EX = ^ISC_TIMESTAMP_TZ_EX;
 
 (*******************************************************************)
 (* Blob Id support                                                 *)
@@ -155,8 +188,10 @@ type PISC_TIME = ^ISC_TIME;
     gds_quad_low: ISC_ULONG;
   end;
 
-type  GDS_QUAD = GDS_QUAD_t;
-type  ISC_QUAD = GDS_QUAD_t;
+type
+  GDS_QUAD = GDS_QUAD_t;
+type
+  ISC_QUAD = GDS_QUAD_t;
   PISC_QUAD = ^ISC_QUAD;
 
 //const isc_quad_high = gds_quad_high;

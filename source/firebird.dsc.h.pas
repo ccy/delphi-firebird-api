@@ -48,6 +48,8 @@ const dsc_num_type_none    = 0;  // defined as SMALLINT or INTEGER
 const dsc_num_type_numeric = 1;  // defined as NUMERIC(n,m)
 const dsc_num_type_decimal = 2;  // defined as DECIMAL(n,m)
 
+const ISC_TIME_SECONDS_PRECISION = 10000;
+
 implementation
 
 end.

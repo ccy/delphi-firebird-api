@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h;
+  firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h,
+  firebird.delphi;
 
 {$WARN SYMBOL_PLATFORM OFF}
 
@@ -163,6 +164,8 @@ type
     procedure CORE_2186(aLibrary: string);
     procedure CORE_4508;
     function Clone: IFirebirdLibrary;
+    function GetTimeZoneOffset: TGetTimeZoneOffSet;
+    procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
     procedure Setup(const aHandle: THandle);
     function TryGetODS(out aMajor, aMinor: integer): boolean;
   end;
@@ -325,8 +328,14 @@ type
     procedure CORE_2186(aLibrary: string);
     procedure CORE_4508;
     function Clone: IFirebirdLibrary;
+    function GetTimeZoneOffset: TGetTimeZoneOffSet;
+    procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
     procedure Setup(const aHandle: THandle);
     function TryGetODS(out aMajor, aMinor: integer): boolean;
+  strict private
+    FTimeZones: TDictionary<Word, TTimeZoneOffset>;
+    FSetupTimeZoneHandler: TSetupTimeZoneHandler;
+    function DoGetTimeZoneOffset(aFBTimeZoneID: Word): TTimeZoneOffset;
   public
     constructor Create(const aServerCharSet: string);
     procedure AfterConstruction; override;
@@ -504,8 +513,9 @@ function ExpandFileNameString(const aFileName: string): string;
 
 implementation
 
-uses System.Math{$if RTLVersion >= 20}, System.AnsiStrings{$ifend},
-     firebird.inf_pub.h, firebird.consts_pub.h, firebird.client.debug;
+uses
+  System.AnsiStrings, System.Math,
+  firebird.client.debug, firebird.consts_pub.h, firebird.inf_pub.h;
 
 function ExpandFileNameString(const aFileName: string): string;
 var P: PChar;
@@ -529,12 +539,14 @@ begin
   FAttached_DB := nil;
   FODSMajor := -1;
   FODSMinor := -1;
+  FTimeZones := nil;
 end;
 
 procedure TFirebirdLibrary.BeforeDestruction;
 begin
   inherited;
   FProcs.Free;
+  FreeAndNil(FTimeZones);
 end;
 
 procedure TFirebirdLibrary.CORE_2186(aLibrary: string);
@@ -818,6 +830,11 @@ begin
     FProcs.Add(Result, aProcName)
   else if aRequired then
     RaiseLastOSError;
+end;
+
+function TFirebirdLibrary.GetTimeZoneOffset: TGetTimeZoneOffSet;
+begin
+  Result := DoGetTimeZoneOffset;
 end;
 
 function TFirebirdLibrary.isc_attach_database(status_vector: PISC_STATUS_ARRAY;
@@ -1182,6 +1199,17 @@ begin
   Fisc_vax_integer             := GetProc(aHandle, 'isc_vax_integer');
 end;
 
+procedure TFirebirdLibrary.SetupTimeZoneHandler(
+  aHandler: TSetupTimeZoneHandler);
+begin
+  if Assigned(aHandler) then
+    FSetupTimeZoneHandler := aHandler
+  else begin
+    FreeAndNil(FTimeZones);
+    FSetupTimeZoneHandler := nil;
+  end;
+end;
+
 function TFirebirdLibrary.TryGetODS(out aMajor, aMinor: integer): boolean;
 var _DatabaseInfoCommand: TArray<AnsiChar>;
     local_buffer: array[0..255] of Byte;
@@ -1218,6 +1246,18 @@ procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
 begin
   if FDebugger.HasListener then
     FDebugger.Notify(GetDebugFactory.Get(FProcs[aProc], aProc, aParams, aResult));
+end;
+
+function TFirebirdLibrary.DoGetTimeZoneOffset(
+  aFBTimeZoneID: Word): TTimeZoneOffset;
+begin
+  if (FTimeZones = nil) and Assigned(FSetupTimeZoneHandler) then begin
+    FTimeZones := TDictionary<Word, TTimeZoneOffset>.Create;
+    FSetupTimeZoneHandler(FTimeZones.Add);
+  end;
+
+  if not FTimeZones.TryGetValue(aFBTimeZoneID, Result) then
+    Result := TTimeZoneOffset.Default;
 end;
 
 function TFirebirdLibrary.fb_shutdown(timeout: Cardinal = 20000; const reason:
