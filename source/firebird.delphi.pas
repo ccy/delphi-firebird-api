@@ -72,7 +72,7 @@ type
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, System.TimeSpan;
 
 class procedure ISC_DATE_Helper.decode_date(nday: Integer; out year, month,
     day: Word);
