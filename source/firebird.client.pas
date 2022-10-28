@@ -13,6 +13,7 @@ uses
 
 const
   FirebirdTransaction_WaitOnLocks = $0100;
+  FirebirdTransaction_ReadOnly = $0200;
 
 type
   TFBIntType = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
@@ -423,8 +424,10 @@ type
     Isolation: TTransactionIsolation;
     WaitOnLocks: Boolean;
     WaitOnLocksTimeOut: Integer;
+    ReadOnly: Boolean;
     procedure Init(aIsolation: TTransactionIsolation = isoReadCommitted;
-        aWaitOnLocks: Boolean = False; aWaitOnLocksTimeOut: Integer = -1);
+        aWaitOnLocks: Boolean = False; aWaitOnLocksTimeOut: Integer = -1;
+        aReadOnly: Boolean = False);
   end;
 
   TFirebirdTransaction = class(TObject)
@@ -1427,7 +1430,11 @@ begin
   FTransInfo := aTransInfo;
 
   Fisc_tec := [isc_tpb_version3];
-  Fisc_tec := Fisc_tec + [isc_tpb_write];
+
+  if aTransInfo.ReadOnly then
+    Fisc_tec := Fisc_tec + [isc_tpb_read]
+  else
+    Fisc_tec := Fisc_tec + [isc_tpb_write];
 
   b := 0;
   case aTransInfo.Isolation of
@@ -1907,12 +1914,13 @@ end;
 
 procedure TTransactionInfo.Init(aIsolation: TTransactionIsolation =
     isoReadCommitted; aWaitOnLocks: Boolean = False; aWaitOnLocksTimeOut:
-    Integer = -1);
+    Integer = -1; aReadOnly: Boolean = False);
 begin
   ID := 0;
   Isolation := aIsolation;
   WaitOnLocks := aWaitOnLocks;
   WaitOnLocksTimeOut := aWaitOnLocksTimeOut;
+  ReadOnly := aReadOnly;
 end;
 
 end.
