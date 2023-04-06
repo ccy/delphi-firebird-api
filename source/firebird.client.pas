@@ -162,8 +162,8 @@ type
 
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
-    procedure CORE_2186(aLibrary: string);
-    procedure CORE_4508;
+    procedure CORE_2186(aLibrary: string); deprecated;
+    procedure CORE_4508; deprecated;
     function Clone: IFirebirdLibrary;
     function GetTimeZoneOffset: TGetTimeZoneOffSet;
     procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
@@ -326,8 +326,8 @@ type
     FHandle: THandle;
     FODSMajor: integer;
     FODSMinor: integer;
-    procedure CORE_2186(aLibrary: string);
-    procedure CORE_4508;
+    procedure CORE_2186(aLibrary: string); deprecated;
+    procedure CORE_4508; deprecated;
     function Clone: IFirebirdLibrary;
     function GetTimeZoneOffset: TGetTimeZoneOffSet;
     procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
@@ -1602,15 +1602,11 @@ begin
 
   if string(CmdLine).ToUpper.Contains('CORE_2978') then Exit;
 
-  CORE_4508;
-
   if FHandle = 0 then
     raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
 
   if not FreeLibrary(FHandle) then
     RaiseLastOSError;
-
-  CORE_2186(FLibrary);
 end;
 
 constructor TFirebirdLibrary2.Create(const aLibrary, aServerCharSet: string);
