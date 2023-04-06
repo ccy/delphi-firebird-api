@@ -1600,8 +1600,6 @@ procedure TFirebirdLibrary2.BeforeDestruction;
 begin
   inherited;
 
-  if string(CmdLine).ToUpper.Contains('CORE_2978') then Exit;
-
   if FHandle = 0 then
     raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
 
