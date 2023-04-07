@@ -132,6 +132,7 @@ const isc_dpb_set_db_replica =            92;
 const isc_dpb_set_bind =                  93;
 const isc_dpb_decfloat_round =            94;
 const isc_dpb_decfloat_traps =            95;
+const isc_dpb_clear_map =                 96;
 
 (**************************************************)
 (* clumplet tags used inside isc_dpb_address_path *)
@@ -618,13 +619,16 @@ const isc_spb_sts_encryption      = $100;
 (* Parameters for isc_action_svc_nbak  *)
 (***************************************)
 
-const isc_spb_nbk_level       = 5;
-const isc_spb_nbk_file        = 6;
-const isc_spb_nbk_direct      = 7;
-const isc_spb_nbk_guid        = 8;
-const isc_spb_nbk_no_triggers = $01;
-const isc_spb_nbk_inplace     = $02;
-const isc_spb_nbk_sequence    = $04;
+const isc_spb_nbk_level         = 5;
+const isc_spb_nbk_file          = 6;
+const isc_spb_nbk_direct        = 7;
+const isc_spb_nbk_guid          = 8;
+const isc_spb_nbk_clean_history = 9;
+const isc_spb_nbk_keep_days     = 10;
+const isc_spb_nbk_keep_rows     = 11;
+const isc_spb_nbk_no_triggers   = $01;
+const isc_spb_nbk_inplace       = $02;
+const isc_spb_nbk_sequence      = $04;
 
 (***************************************
  * Parameters for isc_action_svc_trace *
