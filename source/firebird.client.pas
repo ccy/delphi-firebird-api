@@ -483,8 +483,8 @@ type
 
   TFirebirdLibraryFactory = class abstract
   public
-    class function New(const aLibrary: string; const aServerCharSet: string =
-        'NONE'): IFirebirdLibrary; overload;
+    class function New(const aLibrary: string; aTryReuse: Boolean = False; const
+        aServerCharSet: string = 'NONE'): IFirebirdLibrary; overload;
     class function New(const aHandle: THandle; const aServerCharSet: string =
         'NONE'): IFirebirdLibrary; overload;
   end;
@@ -1294,10 +1294,17 @@ begin
   end;
 end;
 
-class function TFirebirdLibraryFactory.New(const aLibrary: string; const
-    aServerCharSet: string = 'NONE'): IFirebirdLibrary;
+class function TFirebirdLibraryFactory.New(const aLibrary: string; aTryReuse:
+    Boolean = False; const aServerCharSet: string = 'NONE'): IFirebirdLibrary;
 begin
-  Result := TFirebirdLibrary2.Create(aLibrary, aServerCharSet);
+  Result := nil;
+  if aTryReuse then begin
+    var H := GetModuleHandle(PChar(aLibrary));
+    if H <> 0 then
+      Result := TFirebirdLibraryFactory.New(H, aServerCharSet);
+  end;
+  if Result = nil then
+    Result := TFirebirdLibrary2.Create(aLibrary, aServerCharSet);
 end;
 
 class function TFirebirdLibraryFactory.New(const aHandle: THandle; const
