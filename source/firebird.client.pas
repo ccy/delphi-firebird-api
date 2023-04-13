@@ -18,6 +18,10 @@ const
 type
   TFBIntType = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
 
+  TFirebird = record
+    const service_mgr = 'service_mgr';
+  end;
+
   TFirebirdPB = record
   strict private
     FParams: TBytes;
