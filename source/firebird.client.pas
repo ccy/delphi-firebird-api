@@ -4,8 +4,7 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h,
-  firebird.delphi;
+  firebird.delphi, firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h;
 
 {$WARN SYMBOL_PLATFORM OFF}
 
@@ -20,6 +19,8 @@ type
 
   TFirebird = record
     const service_mgr = 'service_mgr';
+    const DefaultDBAPassword = 'masterkey';
+    const FB_Config_Providers = 'Providers';
   end;
 
   TFirebirdPB = record
@@ -523,13 +524,68 @@ type
     property Term: char read FTerm write FTerm default ';';
   end;
 
+  TFirebirdEngine = record
+  strict private
+    FFileName: string;
+    FMajor: Cardinal;
+    FMinor: Cardinal;
+    FBuild: Cardinal;
+  private
+    function GetEncodedODS: UInt16;
+    function GetVersion: string;
+  public
+    class function Loopback: TFirebirdEngine; static;
+    class function Remote: TFirebirdEngine; static;
+    class operator Implicit(Value: string): TFirebirdEngine;
+    class operator Implicit(Value: TFirebirdEngine): string;
+    function SupportedPageSizes: TArray<Integer>;
+    property FileName: string read FFileName;
+    property Major: Cardinal read FMajor;
+    property Minor: Cardinal read FMinor;
+    property Build: Cardinal read FBuild;
+    property EncodedODS: UInt16 read GetEncodedODS;
+    property Version: string read GetVersion;
+  end;
+
+  TFirebirdEngines = class
+  type
+    TEngines = TArray<TFirebirdEngine>;
+
+    TEnumerator = record
+    type
+      TGetCurrent = TFunc<Integer, TFirebirdEngine>;
+    strict private
+      FCount: Integer;
+      FCurrent: Integer;
+      FGetCurrent: TGetCurrent;
+    public
+      constructor Create(aGetCurrent: TGetCurrent; aCount: Integer);
+      function GetCurrent: TFirebirdEngine;
+      function MoveNext: Boolean;
+      property Current: TFirebirdEngine read GetCurrent;
+    end;
+
+  strict private
+    FEngines: TEngines;
+    function Get(aIndex: Integer): TFirebirdEngine;
+  public
+    constructor Create(aRoot_Or_fbclient: string);
+    function Count: Integer;
+    function GetEnumerator: TEnumerator;
+    function GetProviders: string; overload; inline;
+    class function GetProviders(aRoot_Or_fbclient: string): string; overload; inline;
+    function GetProviders(aEngines: array of TFirebirdEngine): string; overload;
+    property Items[Index: Integer]: TFirebirdEngine read Get; default;
+  end;
+
 function ExpandFileNameString(const aFileName: string): string;
 
 implementation
 
 uses
-  System.AnsiStrings, System.Math,
-  firebird.client.debug, firebird.consts_pub.h, firebird.inf_pub.h;
+  System.AnsiStrings, System.Generics.Defaults, System.IOUtils, System.Math,
+  firebird.client.debug, firebird.consts_pub.h, firebird.inf_pub.h,
+  firebird.ods.h;
 
 function ExpandFileNameString(const aFileName: string): string;
 var P: PChar;
@@ -1943,6 +1999,157 @@ begin
   WaitOnLocks := aWaitOnLocks;
   WaitOnLocksTimeOut := aWaitOnLocksTimeOut;
   ReadOnly := aReadOnly;
+end;
+
+function TFirebirdEngine.GetEncodedODS: UInt16;
+begin
+  case FMajor of
+    3: Result := ODS_12_0;
+    4: Result := ODS_13_0;
+  else
+    raise Exception.CreateFmt('Unsupported version %s', [GetVersion]);
+  end;
+end;
+
+class operator TFirebirdEngine.Implicit(Value: string): TFirebirdEngine;
+begin
+  Result.FFileName := Value;
+  if not GetProductVersion(Value, Result.FMajor, Result.FMinor, Result.FBuild) then begin
+    Result.FMajor := 0;
+    Result.FMinor := 0;
+    Result.FBuild := 0;
+  end;
+end;
+
+function TFirebirdEngine.GetVersion: string;
+begin
+  Result := Format('%d.%d.%d', [FMajor, FMinor, FBuild]);
+end;
+
+class operator TFirebirdEngine.Implicit(Value: TFirebirdEngine): string;
+begin
+  if TFile.Exists(Value.FFileName) then
+    Result := TPath.GetFileNameWithoutExtension(Value.FFileName)
+  else
+    Result := Value.FFileName;
+end;
+
+class function TFirebirdEngine.Loopback: TFirebirdEngine;
+begin
+  Result := 'Loopback';
+end;
+
+class function TFirebirdEngine.Remote: TFirebirdEngine;
+begin
+  Result := 'Remote';
+end;
+
+function TFirebirdEngine.SupportedPageSizes: TArray<Integer>;
+begin
+  var i := MIN_PAGE_SIZE;
+  var m := MAX_PAGE_SIZE;
+  if FMajor < 4 then m := m shr 1;
+
+  while i <= m do begin
+    Result := Result + [i];
+    i := i shl 1;
+  end;
+end;
+
+constructor TFirebirdEngines.TEnumerator.Create(aGetCurrent: TGetCurrent;
+    aCount: Integer);
+begin
+  FCurrent := -1;
+  FGetCurrent := aGetCurrent;
+  FCount := aCount;
+end;
+
+function TFirebirdEngines.TEnumerator.GetCurrent: TFirebirdEngine;
+begin
+  Result := FGetCurrent(FCurrent);
+end;
+
+function TFirebirdEngines.TEnumerator.MoveNext: Boolean;
+begin
+  Inc(FCurrent);
+  Result := FCurrent < FCount;
+end;
+
+function TFirebirdEngines.Count: Integer;
+begin
+  Result := Length(FEngines);
+end;
+
+constructor TFirebirdEngines.Create(aRoot_Or_fbclient: string);
+begin
+  aRoot_Or_fbclient := ExpandFileNameString(aRoot_Or_fbclient);
+  if not (TFileAttribute.faDirectory in TPath.GetAttributes(aRoot_Or_fbclient)) then
+    aRoot_Or_fbclient := TPath.GetDirectoryName(aRoot_Or_fbclient);
+
+  SetLength(FEngines, 0);
+
+  var plugins := IncludeTrailingPathDelimiter(aRoot_Or_fbclient) + 'plugins';
+  if TDirectory.Exists(plugins) then begin
+    var A := TDirectory.GetFiles(plugins, 'engine*.dll');
+
+    TArray.Sort<string>(A, TDelegatedComparer<string>.Construct(
+      function(const Left, Right: string): Integer
+      begin
+        Result := TComparer<string>.Default.Compare(Right, Left);
+      end
+    ));
+
+    for var s in A do
+      FEngines := FEngines + [s];
+  end;
+end;
+
+function TFirebirdEngines.Get(aIndex: Integer): TFirebirdEngine;
+begin
+  Result := FEngines[aIndex];
+end;
+
+function TFirebirdEngines.GetEnumerator: TEnumerator;
+begin
+  Result := TEnumerator.Create(Get, Count);
+end;
+
+class function TFirebirdEngines.GetProviders(
+  aRoot_Or_fbclient: string): string;
+begin
+  var o := Create(aRoot_Or_fbclient);
+  try
+    Result := o.GetProviders;
+  finally
+    o.Free;
+  end;
+end;
+
+function TFirebirdEngines.GetProviders(aEngines: array of TFirebirdEngine):
+    string;
+var A: array of TFirebirdEngine;
+begin
+  if Length(aEngines) > 0 then begin
+    SetLength(A, Length(aEngines));
+    TArray.Copy<TFirebirdEngine>(aEngines, A, Length(A));
+  end else if Length(FEngines) > 0 then begin
+    SetLength(A, Length(FEngines));
+    TArray.Copy<TFirebirdEngine>(FEngines, A, Length(A));
+  end else
+    Exit('');
+
+  A := [TFirebirdEngine.Remote] + A + [TFirebirdEngine.Loopback];
+
+  var s: TArray<string>;
+  for var e in A do
+    s := s + [e];
+
+  Result := TFirebird.FB_Config_Providers + '=' + string.Join(',', s);
+end;
+
+function TFirebirdEngines.GetProviders: string;
+begin
+  Result := GetProviders([]);
 end;
 
 end.
