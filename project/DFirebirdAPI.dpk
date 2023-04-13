@@ -52,6 +52,8 @@ contains
   firebird.ods.h in '..\source\firebird.ods.h.pas',
   firebird.burp.h in '..\source\firebird.burp.h.pas',
   firebird.dsc.h in '..\source\firebird.dsc.h.pas',
-  firebird.delphi in '..\source\firebird.delphi.pas';
+  firebird.delphi in '..\source\firebird.delphi.pas',
+  Firebird in '..\source\Firebird.pas',
+  Firebird.helper in '..\source\Firebird.helper.pas';
 
 end.

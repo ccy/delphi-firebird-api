@@ -115,6 +115,7 @@
         <GenPackage>true</GenPackage>
         <DCC_UnitSearchPath>..\..\delphi-int128\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DllSuffix>$(Auto)</DllSuffix>
+        <DCC_Namespace>System;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <EnabledSysJars>android-support-v4.dex.jar;apk-expansion.dex.jar;cloud-messaging.dex.jar;fmx.dex.jar;google-analytics-v2.dex.jar;google-play-billing.dex.jar;google-play-licensing.dex.jar;google-play-services.dex.jar</EnabledSysJars>
@@ -226,6 +227,8 @@
         <DCCReference Include="..\source\firebird.burp.h.pas"/>
         <DCCReference Include="..\source\firebird.dsc.h.pas"/>
         <DCCReference Include="..\source\firebird.delphi.pas"/>
+        <DCCReference Include="..\source\Firebird.pas"/>
+        <DCCReference Include="..\source\Firebird.helper.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
