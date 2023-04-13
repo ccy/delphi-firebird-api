@@ -73,6 +73,9 @@ type
     function isc_blob_info(status_vector: PISC_STATUS_ARRAY; isc_blob_handle:
         pisc_blob_handle; item_length: SmallInt; items: PISC_SCHAR; buffer_length:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
+    function isc_create_database(status_vector: PISC_STATUS_ARRAY; fileLength:
+        Word; filename: PISC_SCHAR; publicHandle: pisc_db_handle; dpbLength: Word;
+        dpb: PISC_SCHAR; db_type: Word): Integer; stdcall;
     function isc_close_blob(status_vector: PISC_STATUS_ARRAY; blob_handle:
         pisc_blob_handle): ISC_STATUS; stdcall;
     function isc_commit_transaction(status_vector: PISC_STATUS_ARRAY; tra_handle:
@@ -191,6 +194,7 @@ type
     Fisc_commit_transaction: Tisc_commit_transaction;
     Fisc_create_blob: Tisc_create_blob;
     Fisc_create_blob2: Tisc_create_blob2;
+    Fisc_create_database: Tisc_create_database;
     Fisc_database_info: Tisc_database_info;
     Fisc_decode_sql_date: Tisc_decode_sql_date;
     Fisc_decode_sql_time: Tisc_decode_sql_time;
@@ -245,6 +249,9 @@ type
         pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
         blob_id: PISC_QUAD; bpb_length: SmallInt; bpb: PISC_SCHAR): ISC_STATUS;
         stdcall;
+    function isc_create_database(status_vector: PISC_STATUS_ARRAY; fileLength:
+        Word; filename: PISC_SCHAR; publicHandle: pisc_db_handle; dpbLength: Word;
+        dpb: PISC_SCHAR; db_type: Word): Integer; stdcall;
     function isc_database_info(status_vector: PISC_STATUS_ARRAY; db_handle:
         pisc_db_handle; info_len: SmallInt; info: PISC_SCHAR; res_len: SmallInt;
         res: PISC_SCHAR): ISC_STATUS; stdcall;
@@ -890,6 +897,15 @@ begin
   DebugMsg(@Fisc_create_blob2, [status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb], Result);
 end;
 
+function TFirebirdLibrary.isc_create_database(
+  status_vector: PISC_STATUS_ARRAY; fileLength: Word; filename: PISC_SCHAR;
+  publicHandle: pisc_db_handle; dpbLength: Word; dpb: PISC_SCHAR;
+  db_type: Word): Integer;
+begin
+  Result := Fisc_create_database(status_vector, fileLength, filename, publicHandle, dpbLength, dpb, db_type);
+  DebugMsg(@Fisc_create_database, [status_vector, fileLength, filename, publicHandle, dpbLength, dpb, db_type], Result);
+end;
+
 function TFirebirdLibrary.isc_database_info(status_vector: PISC_STATUS_ARRAY;
     db_handle: pisc_db_handle; info_len: SmallInt; info: PISC_SCHAR; res_len:
     SmallInt; res: PISC_SCHAR): ISC_STATUS;
@@ -1166,6 +1182,7 @@ begin
   Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
   Fisc_create_blob             := GetProc(aHandle, 'isc_create_blob');
   Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
+  Fisc_create_database         := GetProc(aHandle, 'isc_create_database');
   Fisc_database_info           := GetProc(aHandle, 'isc_database_info');
   Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
   Fisc_decode_sql_time         := GetProc(aHandle, 'isc_decode_sql_time');
