@@ -23,6 +23,95 @@ type
     const FB_Config_Providers = 'Providers';
   end;
 
+type
+  TFirebirdConf = record
+  type
+    TConfigType = (TYPE_BOOLEAN, TYPE_INTEGER, TYPE_STRING);
+    TConfigEntry = record
+      data_type: TConfigType;
+      key: string;
+     is_global: Boolean;
+      default_value: string;  // For reference only, don't use this value
+    end;
+  const
+    entries: array[0..72] of TConfigEntry = (
+      (data_type: TYPE_INTEGER; key: 'TempBlockSize';                  is_global: true;  default_value: '1048576') // bytes
+    , (data_type: TYPE_INTEGER; key: 'TempCacheLimit';                 is_global: false; default_value: '-1') // bytes
+    , (data_type: TYPE_BOOLEAN; key: 'RemoteFileOpenAbility';          is_global: true;  default_value: 'false')
+    , (data_type: TYPE_INTEGER; key: 'GuardianOption';                 is_global: true;  default_value: 'true')
+    , (data_type: TYPE_INTEGER; key: 'CpuAffinityMask';                is_global: true;  default_value: '0')
+    , (data_type: TYPE_INTEGER; key: 'TcpRemoteBufferSize';            is_global: true;  default_value: '8192')  // bytes
+    , (data_type: TYPE_BOOLEAN; key: 'TcpNoNagle';                     is_global: false; default_value: 'true')
+    , (data_type: TYPE_BOOLEAN; key: 'TcpLoopbackFastPath';            is_global: false; default_value: 'false')
+    , (data_type: TYPE_INTEGER; key: 'DefaultDbCachePages';            is_global: false; default_value: '-1')  // pages
+    , (data_type: TYPE_INTEGER; key: 'ConnectionTimeout';              is_global: false; default_value: '180')  // seconds
+    , (data_type: TYPE_INTEGER; key: 'DummyPacketInterval';            is_global: false; default_value: '0')   // seconds
+    , (data_type: TYPE_STRING;  key: 'DefaultTimeZone';                is_global: true;  default_value: 'nullptr')
+    , (data_type: TYPE_INTEGER; key: 'LockMemSize';                    is_global: false; default_value: '1048576') // bytes
+    , (data_type: TYPE_INTEGER; key: 'LockHashSlots';                  is_global: false; default_value: '8191')  // slots
+    , (data_type: TYPE_INTEGER; key: 'LockAcquireSpins';               is_global: false; default_value: '0')
+    , (data_type: TYPE_INTEGER; key: 'EventMemSize';                   is_global: false; default_value: '65536')  // bytes
+    , (data_type: TYPE_INTEGER; key: 'DeadlockTimeout';                is_global: false; default_value: '10')  // seconds
+    , (data_type: TYPE_STRING;  key: 'RemoteServiceName';              is_global: false; default_value: 'FB_SERVICE_NAME')
+    , (data_type: TYPE_INTEGER; key: 'RemoteServicePort';              is_global: false; default_value: '0')
+    , (data_type: TYPE_STRING;  key: 'RemotePipeName';                 is_global: false; default_value: 'FB_PIPE_NAME')
+    , (data_type: TYPE_STRING;  key: 'IpcName';                        is_global: false; default_value: 'FB_IPC_NAME')
+    , (data_type: TYPE_INTEGER; key: 'MaxUnflushedWrites';             is_global: false; default_value: '100')
+    , (data_type: TYPE_INTEGER; key: 'MaxUnflushedWriteTime';          is_global: false; default_value: '5')
+    , (data_type: TYPE_INTEGER; key: 'ProcessPriorityLevel';           is_global: true;  default_value: '0')
+    , (data_type: TYPE_INTEGER; key: 'RemoteAuxPort';                  is_global: false; default_value: ' 0')
+    , (data_type: TYPE_STRING;  key: 'RemoteBindAddress';              is_global: true;  default_value: '0')
+    , (data_type: TYPE_STRING;  key: 'ExternalFileAccess';             is_global: false; default_value: 'None') // locations of external files for tables
+    , (data_type: TYPE_STRING;  key: 'DatabaseAccess';                 is_global: true;  default_value: 'Full') // locations of databases
+    , (data_type: TYPE_STRING;  key: 'UdfAccess';                      is_global: true;  default_value: 'None') // locations of UDFs
+    , (data_type: TYPE_STRING;  key: 'TempDirectories';                is_global: true;  default_value: '0')
+    , (data_type: TYPE_BOOLEAN; key: 'BugcheckAbort';                  is_global: true;  default_value: 'true') // whether to abort engine when internal error is found
+    , (data_type: TYPE_INTEGER; key: 'TraceDSQL';                      is_global: true;  default_value: '0')   // bitmask
+    , (data_type: TYPE_BOOLEAN; key: 'LegacyHash';                     is_global: true;  default_value: 'true')  // let use old passwd hash verification
+    , (data_type: TYPE_STRING;  key: 'GCPolicy';                       is_global: false; default_value: 'nullptr') // garbage collection policy
+    , (data_type: TYPE_BOOLEAN; key: 'Redirection';                    is_global: true;  default_value: 'false')
+    , (data_type: TYPE_INTEGER; key: 'DatabaseGrowthIncrement';        is_global: false; default_value: '128 * 1048576') // bytes
+    , (data_type: TYPE_INTEGER; key: 'FileSystemCacheThreshold';       is_global: false; default_value: '65536')  // page buffers
+    , (data_type: TYPE_BOOLEAN; key: 'RelaxedAliasChecking';           is_global: true;  default_value: 'false')  // if true relax strict alias checking rules in DSQL a bit
+    , (data_type: TYPE_STRING;  key: 'AuditTraceConfigFile';           is_global: true;  default_value: '')  // location of audit trace configuration file
+    , (data_type: TYPE_INTEGER; key: 'MaxUserTraceLogSize';            is_global: true;  default_value: '10')  // maximum size of user session trace log
+    , (data_type: TYPE_INTEGER; key: 'FileSystemCacheSize';            is_global: true;  default_value: '0')   // percent
+    , (data_type: TYPE_STRING;  key: 'Providers';                      is_global: false; default_value: '"Remote, " CURRENT_ENGINE ", Loopback"')
+    , (data_type: TYPE_STRING;  key: 'AuthServer';                     is_global: false; default_value: 'Srp256"')
+    , (data_type: TYPE_STRING;  key: 'AuthClient';                     is_global: false; default_value: 'Srp256, Srp, Win_Sspi, Legacy_Auth"')
+    , (data_type: TYPE_STRING;  key: 'UserManager';                    is_global: false; default_value: 'Srp"')
+    , (data_type: TYPE_STRING;  key: 'TracePlugin';                    is_global: false; default_value: 'fbtrace"')
+    , (data_type: TYPE_STRING;  key: 'SecurityDatabase';               is_global: false; default_value: 'nullptr') // sec/db alias - rely on ConfigManager::getDefaultSecurityDb(
+    , (data_type: TYPE_STRING;  key: 'ServerMode';                     is_global: true;  default_value: 'nullptr') // actual value differs in boot/regular cases and set at setupDefaultConfig(
+    , (data_type: TYPE_STRING;  key: 'WireCrypt';                      is_global: false; default_value: 'nullptr')
+    , (data_type: TYPE_STRING;  key: 'WireCryptPlugin';                is_global: false; default_value: 'ChaCha64, ChaCha, Arc4"')
+    , (data_type: TYPE_STRING;  key: 'KeyHolderPlugin';                is_global: false; default_value: '')
+    , (data_type: TYPE_BOOLEAN; key: 'RemoteAccess';                   is_global: false; default_value: 'true')
+    , (data_type: TYPE_BOOLEAN; key: 'IPv6V6Only';                     is_global: false; default_value: 'false')
+    , (data_type: TYPE_BOOLEAN; key: 'WireCompression';                is_global: false; default_value: 'false')
+    , (data_type: TYPE_INTEGER; key: 'MaxIdentifierByteLength';        is_global: false; default_value: '(int)MAX_SQL_IDENTIFIER_LEN')
+    , (data_type: TYPE_INTEGER; key: 'MaxIdentifierCharLength';        is_global: false; default_value: '(int)METADATA_IDENTIFIER_CHAR_LEN')
+    , (data_type: TYPE_BOOLEAN; key: 'AllowEncryptedSecurityDatabase'; is_global: false; default_value: 'false')
+    , (data_type: TYPE_INTEGER; key: 'StatementTimeout';               is_global: false; default_value: '0')
+    , (data_type: TYPE_INTEGER; key: 'ConnectionIdleTimeout';          is_global: false; default_value: '0')
+    , (data_type: TYPE_INTEGER; key: 'OnDisconnectTriggerTimeout';     is_global: false; default_value: '180')
+    , (data_type: TYPE_INTEGER; key: 'ClientBatchBuffer';              is_global: false; default_value: '128 * 1024')
+    , (data_type: TYPE_STRING;  key: 'OutputRedirectionFile';          is_global: true;  default_value: '-"')
+    , (data_type: TYPE_INTEGER; key: 'ExtConnPoolSize';                is_global: true;  default_value: '0')
+    , (data_type: TYPE_INTEGER; key: 'ExtConnPoolLifeTime';            is_global: true;  default_value: '7200')
+    , (data_type: TYPE_INTEGER; key: 'SnapshotsMemSize';               is_global: false; default_value: '65536')  // bytes
+    , (data_type: TYPE_INTEGER; key: 'TipCacheBlockSize';              is_global: false; default_value: '4194304') // bytes
+    , (data_type: TYPE_BOOLEAN; key: 'ReadConsistency';                is_global: false; default_value: 'true')
+    , (data_type: TYPE_BOOLEAN; key: 'ClearGTTAtRetaining';            is_global: false; default_value: 'false')
+    , (data_type: TYPE_STRING;  key: 'DataTypeCompatibility';          is_global: false; default_value: 'nullptr')
+    , (data_type: TYPE_BOOLEAN; key: 'UseFileSystemCache';             is_global: false; default_value: 'true')
+    , (data_type: TYPE_INTEGER; key: 'InlineSortThreshold';            is_global: false; default_value: '1000')  // bytes
+    , (data_type: TYPE_STRING;  key: 'TempTableDirectory';             is_global: false; default_value: '')
+    , (data_type: TYPE_BOOLEAN; key: 'UseLegacyKernelObjectsNames';    is_global: true;  default_value: 'false')
+    );
+  end;
+
+type
   TFirebirdPB = record
   strict private
     FParams: TBytes;
