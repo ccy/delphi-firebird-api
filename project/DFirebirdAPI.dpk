@@ -53,6 +53,8 @@ contains
   firebird.burp.h in '..\source\firebird.burp.h.pas',
   firebird.dsc.h in '..\source\firebird.dsc.h.pas',
   firebird.delphi in '..\source\firebird.delphi.pas',
+  firebird.dsc_pub.h in '..\source\firebird.dsc_pub.h.pas',
+  firebird.charsets.h in '..\source\firebird.charsets.h.pas',
   Firebird in '..\source\Firebird.pas',
   Firebird.helper in '..\source\Firebird.helper.pas';
 

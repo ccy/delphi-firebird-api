@@ -27,8 +27,8 @@ uses firebird.types_pub.h;
  * Contributor(s): ______________________________________.
  *)
 
-//ifndef DSQL_SQLDA_PUB_H
-//const DSQL_SQLDA_PUB_H =;
+//ifndef FIREBIRD_IMPL_SQLDA_PUB_H
+//const FIREBIRD_IMPL_SQLDA_PUB_H =;
 
 (* Definitions for DSQL free_statement routine *)
 
@@ -104,7 +104,7 @@ const SQL_DATE                  = SQL_TIMESTAMP;
 (* SQL Dialects            *)
 (***************************)
 
-const SQL_DIALECT_V5            = 1;          (* meaning is same as DIALECT_xsqlda *)
+const SQL_DIALECT_V5            = 1;
 const SQL_DIALECT_V6_TRANSITION = 2;          (* flagging anything that is delimited
                                                  by Double quotes as an error and
                                                  flagging keyword DATE as an error *)
