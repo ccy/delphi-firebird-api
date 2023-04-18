@@ -227,6 +227,8 @@
         <DCCReference Include="..\source\firebird.burp.h.pas"/>
         <DCCReference Include="..\source\firebird.dsc.h.pas"/>
         <DCCReference Include="..\source\firebird.delphi.pas"/>
+        <DCCReference Include="..\source\firebird.dsc_pub.h.pas"/>
+        <DCCReference Include="..\source\firebird.charsets.h.pas"/>
         <DCCReference Include="..\source\Firebird.pas"/>
         <DCCReference Include="..\source\Firebird.helper.pas"/>
         <DCCReference Include="..\source\firebird.client.deprecated.pas"/>

@@ -27,8 +27,8 @@ uses firebird.types_pub.h;
  * Contributor(s): ______________________________________.
  *)
 
-//ifndef DSQL_SQLDA_PUB_H
-//const DSQL_SQLDA_PUB_H =;
+//ifndef FIREBIRD_IMPL_SQLDA_PUB_H
+//const FIREBIRD_IMPL_SQLDA_PUB_H =;
 
 (* Definitions for DSQL free_statement routine *)
 

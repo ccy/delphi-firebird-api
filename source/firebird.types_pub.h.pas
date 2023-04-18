@@ -28,12 +28,12 @@ interface
  *  Contributor(s): ______________________________________.
  *)
 
-//ifndef INCLUDE_TYPES_PUB_H
-//const INCLUDE_TYPES_PUB_H =;
+//ifndef FIREBIRD_IMPL_TYPES_PUB_H
+//const FIREBIRD_IMPL_TYPES_PUB_H =;
 
 //include <stddef.h>
 
-//if defined(__GNUC__)
+//if defined(__GNUC__) || defined (__HP_cc) || defined (__HP_aCC)
 //include <inttypes.h>
 //else
 
@@ -57,6 +57,42 @@ type intptr_t = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
 //type   FB_API_HANDLE = Word;
 //else
 type FB_API_HANDLE = Pointer;
+     PFB_API_HANDLE = ^FB_API_HANDLE;
+//endif
+
+type isc_att_handle = FB_API_HANDLE;
+     pisc_att_handle = ^isc_att_handle;
+type isc_blob_handle = FB_API_HANDLE;
+     pisc_blob_handle = ^isc_blob_handle;
+type isc_db_handle = FB_API_HANDLE;
+     pisc_db_handle = ^isc_db_handle;
+type isc_req_handle = FB_API_HANDLE;
+     pisc_req_handle = ^isc_req_handle;
+type isc_stmt_handle = FB_API_HANDLE;
+     pisc_stmt_handle = ^isc_stmt_handle;
+type isc_svc_handle = FB_API_HANDLE;
+     pisc_svc_handle = ^isc_svc_handle;
+type isc_tr_handle = FB_API_HANDLE;
+     pisc_tr_handle = ^isc_tr_handle;
+
+(******************************************************************)
+(* Sizes of memory blocks                                         *)
+(******************************************************************)
+
+//ifdef FB_USE_SIZE_T
+(* NS: This is how things were done in original Firebird port to 64-bit platforms
+   Basic classes use these quantities. However in many places in the engine and
+   external libraries 32-bit quantities are used to hold sizes of objects.
+   This produces many warnings. This also produces incredibly dirty interfaces,
+   when functions take size_t as argument, but only handle 32 bits internally
+   without any bounds checking.                                                    *)
+//type FB_SIZE_T = size_t;
+//type FB_SSIZE_T = intptr_t;
+//else
+(* NS: This is more clean way to handle things for now. We admit that engine is not
+   prepared to handle 64-bit memory blocks in most places, and it is not necessary really. *)
+type FB_SIZE_T = Cardinal;
+type FB_SSIZE_T = integer;
 //endif
 
 (******************************************************************)
@@ -65,6 +101,7 @@ type FB_API_HANDLE = Pointer;
 
 type ISC_STATUS = intptr_t;
 type PISC_STATUS = ^ISC_STATUS;
+     PPISC_STATUS = ^PISC_STATUS;
 
 const ISC_STATUS_LENGTH = 20;
 type ISC_STATUS_ARRAY = array[0..ISC_STATUS_LENGTH - 1] of ISC_STATUS;
@@ -72,7 +109,8 @@ type ISC_STATUS_ARRAY = array[0..ISC_STATUS_LENGTH - 1] of ISC_STATUS;
      PPISC_STATUS_ARRAY = ^PISC_STATUS_ARRAY;
 
 (* SQL State as defined in the SQL Standard. *)
-const FB_SQLSTATE_SIZE = 6;
+const FB_SQLSTATE_LENGTH = 5;
+const FB_SQLSTATE_SIZE = FB_SQLSTATE_LENGTH + 1;
 type FB_SQLSTATE_STRING = array[0..FB_SQLSTATE_SIZE-1] of Char;
 
 (******************************************************************)
@@ -96,8 +134,8 @@ type FB_SQLSTATE_STRING = array[0..FB_SQLSTATE_SIZE-1] of Char;
  *)
 
 //if defined(_LP64) or defined(__LP64__) or defined(__arch64__)
-//type    ISC_LONG = integer;
-//type   ISC_ULONG = Word;
+//type ISC_LONG = integer;
+//type ISC_ULONG = Word;
 //else
 type ISC_LONG = integer;
 type PISC_LONG = ^ISC_LONG;
@@ -117,6 +155,10 @@ type ISC_SCHAR = AnsiChar;
 type PISC_SCHAR = ^ISC_SCHAR;
 type PPISC_SCHAR = ^PISC_SCHAR;
 
+type FB_BOOLEAN = ISC_UCHAR;
+const FB_FALSE = '\0';
+const FB_TRUE = '\1';
+
 (*******************************************************************)
 (* 64 bit Integers                                                 *)
 (*******************************************************************)
@@ -133,11 +175,10 @@ type ISC_UINT64 = UInt64;
 (* Time & Date support                                             *)
 (*******************************************************************)
 
-//ifndef ISC_TIMESTAMP_DEFINED
-type ISC_DATE = record Value: Integer; end;
+type ISC_DATE = Integer;
 type PISC_DATE = ^ISC_DATE;
 
-type ISC_TIME = record Value: Integer; end;
+type ISC_TIME = Cardinal;
 type PISC_TIME = ^ISC_TIME;
 
 type
@@ -161,8 +202,6 @@ type
    timestamp_time: ISC_TIME;
   end;
   PISC_TIMESTAMP = ^ISC_TIMESTAMP;
-//const ISC_TIMESTAMP_DEFINED =;
-//endif (* ISC_TIMESTAMP_DEFINED *)
 
 type
   ISC_TIMESTAMP_TZ = record
@@ -197,9 +236,30 @@ type
 //const isc_quad_high = gds_quad_high;
 //const isc_quad_low = gds_quad_low;
 
-//type  integer (FB_SHUTDOWN_CALLBACK)( integer reason,  integer mask, Pointer  arg);
+type
+  FB_SHUTDOWN_CALLBACK = function(
+    const reason: Integer;
+    const mask: Integer;
+    arg: Pointer
+  ): Integer;
 
-//endif (* INCLUDE_TYPES_PUB_H *)
+  FB_DEC16_t = record
+    fb_data: array[0..0] of ISC_UINT64;
+  end;
+
+  FB_DEC34_t = record
+    fb_data: array[0..1] of ISC_UINT64;
+  end;
+
+  FB_I128_t = record
+    fb_data: array[0..1] of ISC_UINT64;
+  end;
+
+  FB_DEC16 = FB_DEC16_t;
+  FB_DEC34 = FB_DEC34_t;
+  FB_I128 = FB_I128_t;
+
+//endif (* FIREBIRD_IMPL_TYPES_PUB_H *)
 
 implementation
 

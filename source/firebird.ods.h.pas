@@ -35,11 +35,17 @@ interface
  *
  *)
 
+//ifndef JRD_ODS_H
+//const JRD_ODS_H =;
+
+//include "../jrd/RecordNumber.h"
+//include "../common/classes/fb_string.h"
+
  // This macro enables the ability of the engine to connect to databases
 // from ODS 8 up to the latest.  If this macro is undefined, the engine
 // only opens a database of the current ODS major version.
 
-//#define ODS_8_TO_CURRENT
+//const ODS_8_TO_CURRENT =;
 
 (**********************************************************************
 **
@@ -129,17 +135,17 @@ const ODS_CURRENT13   = 0;
 
 function ENCODE_ODS(Major, Minor: UInt16): UInt16; inline;
 
-const ODS_8_0       = ODS_VERSION8 shl 4 + 0;
-const ODS_8_1       = ODS_VERSION8 shl 4 + 1;
-const ODS_9_0       = ODS_VERSION9 shl 4 + 0;
-const ODS_9_1       = ODS_VERSION9 shl 4 + 1;
-const ODS_10_0      = ODS_VERSION10 shl 4 + 0;
-const ODS_10_1      = ODS_VERSION10 shl 4 + 1;
-const ODS_11_0      = ODS_VERSION11 shl 4 + 0;
-const ODS_11_1      = ODS_VERSION11 shl 4 + 1;
-const ODS_11_2      = ODS_VERSION11 shl 4 + 2;
-const ODS_12_0      = ODS_VERSION12 shl 4 + 0;
-const ODS_13_0      = ODS_VERSION13 shl 4 + 0;
+const ODS_8_0       = (ODS_VERSION8 shl 4) or 0;
+const ODS_8_1       = (ODS_VERSION8 shl 4) or 1;
+const ODS_9_0       = (ODS_VERSION9 shl 4) or 0;
+const ODS_9_1       = (ODS_VERSION9 shl 4) or 1;
+const ODS_10_0      = (ODS_VERSION10 shl 4) or 0;
+const ODS_10_1      = (ODS_VERSION10 shl 4) or 1;
+const ODS_11_0      = (ODS_VERSION11 shl 4) or 0;
+const ODS_11_1      = (ODS_VERSION11 shl 4) or 1;
+const ODS_11_2      = (ODS_VERSION11 shl 4) or 2;
+const ODS_12_0      = (ODS_VERSION12 shl 4) or 0;
+const ODS_13_0      = (ODS_VERSION13 shl 4) or 0;
 
 const ODS_FIREBIRD_FLAG = $8000;
 
@@ -347,7 +353,7 @@ type
       irt_transaction: Cardinal;  // transaction in progress (lowest 32 bits)
     public
       irt_desc: Word;             // offset to key descriptions
-      irt_keys: Word;             // number of keys in index
+      irt_keys: Byte;             // number of keys in index
       irt_flags: Byte;
 
       function getRoot: Cardinal; inline;
@@ -664,7 +670,7 @@ type
   rhd = record
     rhd_transaction: Cardinal;      // transaction id (lowest 32 bits)
     rhd_b_page: Cardinal;           // back pointer
-    rhd_b_line: Cardinal;           // back line
+    rhd_b_line: Word;               // back line
     rhd_flags: Word;                // flags, etc
     rhd_format: Byte;               // format version
     rhd_data: array[0..0] of Byte;  // record data
@@ -789,9 +795,9 @@ const rhd_long_tranum = 1024; // transaction number is 64-bit
 type
   Descriptor = record
     dsc_dtype: Byte;
-    dsc_scale: Int8;
+    dsc_scale: ShortInt;
     dsc_length: Word;
-    dsc_sub_type: Int16;
+    dsc_sub_type: SmallInt;
     dsc_flags: Word;
     dsc_offset: Cardinal;
   end;
@@ -871,13 +877,13 @@ const RAW_HEADER_SIZE = 1024; // ROUNDUP(HDR_SIZE, PAGE_ALIGNMENT);
 const MAX_TABLE_VERSIONS = 255;
 
 // max number of view formats (aka versions), limited by "SSHORT RDB$FORMAT"
-const MAX_VIEW_VERSIONS = High(Int16);
+const MAX_VIEW_VERSIONS = $7FFF;
 
 implementation
 
 function ENCODE_ODS(Major, Minor: UInt16): UInt16;
 begin
-  Result := Major shl 4 + Minor;
+  Result := (Major shl 4) or Minor;
 end;
 
 function DECODE_ODS_MAJOR(ods_version: UInt16): UInt16;
@@ -892,8 +898,8 @@ end;
 
 function irt_repeat.getRoot: Cardinal;
 begin
-  if (irt_flags and irt_in_progress) = 0 then Result := 0
-  else Result := irt_root;
+  if (irt_flags and irt_in_progress) = 0 then Result := irt_root
+  else Result := 0;
 end;
 
 procedure irt_repeat.setRoot(root_page: Cardinal);
@@ -910,7 +916,9 @@ end;
 
 procedure irt_repeat.setTransaction(traNumber: UInt64);
 begin
-  irt_root := Cardinal(traNumber shr 32)
+  irt_root := Cardinal(traNumber shr 32);
+  irt_transaction := Cardinal(traNumber);
+  irt_flags := irt_flags or irt_in_progress;
 end;
 
 function irt_repeat.isUsed: Boolean;
