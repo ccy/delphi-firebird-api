@@ -491,7 +491,7 @@ const isc_info_sql_stmt_select_for_upd = 12;
 const isc_info_sql_stmt_set_generator  = 13;
 const isc_info_sql_stmt_savepoint      = 14;
 
-//endif (* JRD_INF_PUB_H *)
+//endif (* FIREBIRD_IMPL_INF_PUB_H *)
 
 implementation
 

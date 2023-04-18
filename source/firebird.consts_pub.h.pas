@@ -27,8 +27,8 @@ interface
  *
  *)
 
-//ifndef INCLUDE_CONSTS_PUB_H
-//const INCLUDE_CONSTS_PUB_H =;
+//ifndef FIREBIRD_IMPL_CONSTS_PUB_H
+//const FIREBIRD_IMPL_CONSTS_PUB_H =;
 
 (**********************************)
 (* Database parameter block stuff *)
@@ -775,7 +775,6 @@ const fb_dbg_map_argument = 4;
 const fb_dbg_subproc      = 5;
 const fb_dbg_subfunc      = 6;
 const fb_dbg_map_curname  = 7;
-//// TODO: LocalTable name.
 
 // sub code for fb_dbg_map_argument
 const fb_dbg_arg_input  = 0;

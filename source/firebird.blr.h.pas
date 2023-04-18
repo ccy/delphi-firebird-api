@@ -34,8 +34,10 @@ interface
  * Adriano dos Santos Fernandes
  *)
 
-//ifndef JRD_BLR_H
-//const JRD_BLR_H =;
+//ifndef FIREBIRD_IMPL_BLR_H
+//const FIREBIRD_IMPL_BLR_H =;
+
+//#define BLR_WORD(x)	UCHAR(x), UCHAR((x) >> 8)
 
 (*  WARNING: if you add a new BLR representing a data type, and the value
  *           is greater than the numerically greatest value which now
@@ -70,12 +72,12 @@ const blr_column_name =      {(Byte)}21;
 const blr_column_name2 =     {(Byte)}22;
 const blr_bool =             {(Byte)}23;
 const blr_dec64 =            {(Byte)}24;
-const blr_dec128 =		       {(Byte)}25;
+const blr_dec128 =           {(Byte)}25;
 const blr_int128 =           {(Byte)}26;
 const blr_sql_time_tz =      {(Byte)}28;
 const blr_timestamp_tz =     {(Byte)}29;
 const blr_ex_time_tz =       {(Byte)}30;
-const blr_ex_timestamp_tz =	 {(Byte)}31;
+const blr_ex_timestamp_tz =  {(Byte)}31;
 
 // first sub parameter for blr_domain_name[2]
 const blr_domain_type_of =   {(Byte)}0;
@@ -103,7 +105,7 @@ const blr_version4 =         {(Byte)}4;
 const blr_version5 =         {(Byte)}5;
 //const blr_version6 =         {(Byte)}6;
 const blr_eoc =              {(Byte)}76;
-const blr_end =              {(Byte)}255;        (* note: defined as -1 in gds.h *)
+const blr_end =              {(Byte)}255;
 
 const blr_assignment =       {(Byte)}1;
 const blr_begin =            {(Byte)}2;
@@ -137,6 +139,8 @@ const blr_minimum =          {(Byte)}30;
 const blr_total =            {(Byte)}31;
 const blr_receive_batch =    {(Byte)}32;
 
+// unused code: 33
+
 const blr_add =            {(Byte)}34;
 const blr_subtract =       {(Byte)}35;
 const blr_multiply =       {(Byte)}36;
@@ -147,7 +151,6 @@ const blr_substring =      {(Byte)}40;
 const blr_parameter2 =     {(Byte)}41;
 const blr_from =           {(Byte)}42;
 const blr_via =            {(Byte)}43;
-//const blr_parameter2_old = {(Byte)}44;        (* Confusion *)
 const blr_user_name =      {(Byte)}44;        (* added from gds.h *)
 const blr_null =           {(Byte)}45;
 
@@ -170,8 +173,7 @@ const blr_missing =        {(Byte)}61;
 const blr_unique =         {(Byte)}62;
 const blr_like =           {(Byte)}63;
 
-//#define blr_stream              (unsigned char)65
-//#define blr_set_index           (unsigned char)66
+// unused codes: 64..66
 
 const blr_rse =            {(Byte)}67;
 const blr_first =          {(Byte)}68;
@@ -188,20 +190,26 @@ const blr_group_by =       {(Byte)}78;
 const blr_aggregate =      {(Byte)}79;
 const blr_join_type =      {(Byte)}80;
 
+// unused codes: 81..82
+
 const blr_agg_count =      {(Byte)}83;
 const blr_agg_max =        {(Byte)}84;
 const blr_agg_min =        {(Byte)}85;
 const blr_agg_total =      {(Byte)}86;
 const blr_agg_average =    {(Byte)}87;
 const blr_parameter3 =     {(Byte)}88;        (* same as Rdb definition *)
+(* unsupported
 //const blr_run_max =        {(Byte)}89;
 //const blr_run_min =        {(Byte)}90;
 //const blr_run_total =      {(Byte)}91;
 //const blr_run_average =    {(Byte)}92;
+*)
 const blr_agg_count2 =     {(Byte)}93;
 const blr_agg_count_distinct =   {(Byte)}94;
 const blr_agg_total_distinct =   {(Byte)}95;
 const blr_agg_average_distinct = {(Byte)}96;
+
+// unused codes: 97..99
 
 const blr_function =       {(Byte)}100;
 const blr_gen_id =         {(Byte)}101;
@@ -214,31 +222,15 @@ const blr_index =          {(Byte)}107;
 const blr_ansi_like =      {(Byte)}108;
 const blr_scrollable =     {(Byte)}109;
 const blr_lateral_rse =    {(Byte)}110;
-//#define blr_bookmark                (unsigned char)109
-//#define blr_crack                (unsigned char)110
-//#define blr_force_crack                (unsigned char)111
-//const blr_seek =           {(Byte)}112;
-//#define blr_find                (unsigned char)113
 
-(* these indicate directions for blr_seek and blr_find *)
+// unused codes: 111..117
 
-//const blr_continue =       {(Byte)}0;
-//const blr_forward =        {(Byte)}1;
-//const blr_backward =       {(Byte)}2;
-//const blr_bof_forward =    {(Byte)}3;
-//const blr_eof_backward =   {(Byte)}4;
-
-//#define blr_lock_relation         (unsigned char)114
-//#define blr_lock_record                (unsigned char)115
-//#define blr_set_bookmark         (unsigned char)116
-//#define blr_get_bookmark         (unsigned char)117
-
-const blr_run_count =      {(Byte)}118;        (* changed from 88 to avoid conflict with blr_parameter3 *)
+const blr_run_count =      {(Byte)}118; (* changed from 88 to avoid conflict with blr_parameter3 *)
 const blr_rs_stream =      {(Byte)}119;
 const blr_exec_proc =      {(Byte)}120;
-//#define blr_begin_range         (unsigned char)121
-//#define blr_end_range                 (unsigned char)122
-//#define blr_delete_range         (unsigned char)123
+
+// unused codes: 121..123
+
 const blr_procedure =      {(Byte)}124;
 const blr_pid =            {(Byte)}125;
 const blr_exec_pid =       {(Byte)}126;
@@ -251,13 +243,11 @@ const blr_cast =           {(Byte)}131;
 
 const blr_pid2 =           {(Byte)}132;
 const blr_procedure2 =     {(Byte)}133;
-//#define blr_release_lock        (unsigned char)132
-//#define blr_release_locks        (unsigned char)133
+
 const blr_start_savepoint = {(Byte)}134;
 const blr_end_savepoint =   {(Byte)}135;
-//#define blr_find_dbkey                (unsigned char)136
-//#define blr_range_relation        (unsigned char)137
-//#define blr_delete_ranges        (unsigned char)138
+
+// unused codes: 136..138
 
 const blr_plan =            {(Byte)}139;        (* access plan items *)
 const blr_merge =           {(Byte)}140;
@@ -269,20 +259,21 @@ const blr_retrieve =        {(Byte)}145;
 
 const blr_relation2 =       {(Byte)}146;
 const blr_rid2 =            {(Byte)}147;
-//#define blr_reset_stream        (unsigned char)148
-//#define blr_release_bookmark        (unsigned char)149
+
+// unused codes: 148..149
 
 const blr_set_generator =   {(Byte)}150;
 
 const blr_ansi_any =        {(Byte)}151;   (* required for NULL handling *)
 const blr_exists =          {(Byte)}152;   (* required for NULL handling *)
-//#define blr_cardinality                (unsigned char)153
+
+// unused codes: 153
 
 const blr_record_version =  {(Byte)}154;        (* get tid of record *)
 const blr_stall =           {(Byte)}155;        (* fake server stall *)
 
-//#define blr_seek_no_warn        (unsigned char)156
-//#define blr_find_dbkey_version        (unsigned char)157   /* find dbkey with record version */
+// unused codes: 156..157
+
 const blr_ansi_all =        {(Byte)}158;   (* required for NULL handling *)
 
 const blr_extract =         {(Byte)}159;
@@ -299,8 +290,8 @@ const blr_extract_weekday =          {(Byte)}6;
 const blr_extract_yearday =          {(Byte)}7;
 const blr_extract_millisecond =      {(Byte)}8;
 const blr_extract_week =             {(Byte)}9;
-const blr_extract_timezone_hour	=    {(Byte)}10;
-const blr_extract_timezone_minute	=  {(Byte)}11;
+const blr_extract_timezone_hour =    {(Byte)}10;
+const blr_extract_timezone_minute =  {(Byte)}11;
 
 const blr_current_date =       {(Byte)}160;
 const blr_current_timestamp =  {(Byte)}161;
@@ -318,6 +309,8 @@ const blr_current_time2 =      {(Byte)}169;
 const blr_agg_list =           {(Byte)}170;
 const blr_agg_list_distinct =  {(Byte)}171;
 const blr_modify2 =            {(Byte)}172;
+
+// unused codes: 173
 
 (* FB 1.0 specific BLR *)
 
@@ -365,7 +358,7 @@ const blr_savepoint_release_single = {(Byte)}3;
 const blr_cursor_open =              {(Byte)}0;
 const blr_cursor_close =             {(Byte)}1;
 const blr_cursor_fetch =             {(Byte)}2;
-const blr_cursor_fetch_scroll	=      {(Byte)}3;
+const blr_cursor_fetch_scroll =      {(Byte)}3;
 
 (* scroll options *)
 
@@ -399,11 +392,11 @@ const blr_exec_stmt_pwd =           {(Byte)}7;
 const blr_exec_stmt_tran =          {(Byte)}8;        // not implemented yet
 const blr_exec_stmt_tran_clone =    {(Byte)}9;        // make transaction parameters equal to current transaction
 const blr_exec_stmt_privs =         {(Byte)}10;
-const blr_exec_stmt_in_params =     {(Byte)}11;        // not named input parameters
-const blr_exec_stmt_in_params2 =    {(Byte)}12;        // named input parameters
-const blr_exec_stmt_out_params =    {(Byte)}13;        // output parameters
+const blr_exec_stmt_in_params =     {(Byte)}11;       // not named input parameters
+const blr_exec_stmt_in_params2 =    {(Byte)}12;       // named input parameters
+const blr_exec_stmt_out_params =    {(Byte)}13;       // output parameters
 const blr_exec_stmt_role =          {(Byte)}14;
-const blr_exec_stmt_in_excess =     {(Byte)}15;
+const blr_exec_stmt_in_excess =     {(Byte)}15;       // excess input params numbers
 
 const blr_stmt_expr =               {(Byte)}190;
 const blr_derived_expr =            {(Byte)}191;
@@ -461,7 +454,7 @@ const blr_at_zone =        {(Byte)}1;
 
 const blr_marks =          {(Byte)}217;		// mark some blr code with specific flags
 
-//endif // JRD_BLR_H
+//endif // FIREBIRD_IMPL_BLR_H
 
 implementation
 

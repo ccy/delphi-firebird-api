@@ -155,7 +155,9 @@ const IMPLICIT_INTEGRITY_PREFIX_LEN = 6;
 // Default publication name
 const DEFAULT_PUBLICATION = 'RDB$DEFAULT';
 
-// Firebird system flag 
+//*****************************************
+// System flag meaning - mainly Firebird.
+//*****************************************
 
 const fb_sysflag_user                   = 0;
 const fb_sysflag_system                 = 1;
@@ -380,7 +382,7 @@ const DDL_TRIGGER_ACTION_NAMES: array[0..47, 0..1] of PChar =
 const DDL_TRIGGER_BEFORE = 0;
 const DDL_TRIGGER_AFTER  = 1;
 
-const DDL_TRIGGER_ANY    = $7FFFFFFFFFFFFFFF and TRIGGER_TYPE_MASK and 1;
+const DDL_TRIGGER_ANY    = $7FFFFFFFFFFFFFFF and (not Int64(TRIGGER_TYPE_MASK)) and (not 1);
 
 const DDL_TRIGGER_CREATE_TABLE        = 1;
 const DDL_TRIGGER_ALTER_TABLE         = 2;
