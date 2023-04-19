@@ -259,12 +259,9 @@ type
 
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
-    procedure CORE_2186(aLibrary: string); deprecated;
-    procedure CORE_4508; deprecated;
-    function Clone: IFirebirdLibrary;
     function GetTimeZoneOffset: TGetTimeZoneOffSet;
+    function Loaded: Boolean;
     procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
-    procedure Setup(const aHandle: THandle);
     function TryGetODS(out aMajor, aMinor: integer): boolean;
   end;
 
@@ -275,6 +272,7 @@ type
     FProcs: TDictionary<Pointer,string>;
     FServerCharSet: string;
     FEncoding: TEncoding;
+    FOldVars: IInterface;
     function GetDebugFactory: IFirebirdLibraryDebugFactory;
     function GetProc(const aHandle: THandle; const aProcName: PChar; const
         aRequired: Boolean = True): pointer;
@@ -429,17 +427,19 @@ type
     FODSMinor: integer;
     procedure CORE_2186(aLibrary: string); deprecated;
     procedure CORE_4508; deprecated;
-    function Clone: IFirebirdLibrary;
     function GetTimeZoneOffset: TGetTimeZoneOffSet;
+    function Loaded: Boolean;
     procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
-    procedure Setup(const aHandle: THandle);
+    procedure SetupProcs;
     function TryGetODS(out aMajor, aMinor: integer): boolean;
   strict private
     FTimeZones: TDictionary<Word, TTimeZoneOffset>;
     FSetupTimeZoneHandler: TSetupTimeZoneHandler;
+    constructor Create(aLibrary, aServerCharSet: string);
     function DoGetTimeZoneOffset(aFBTimeZoneID: Word): TTimeZoneOffset;
   public
-    constructor Create(const aServerCharSet: string);
+    class function New(aLibrary: string; aServerCharSet: string = 'NONE'):
+        IFirebirdLibrary;
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
   end;
@@ -450,17 +450,6 @@ type
     tpb:      PISC_UCHAR;
   end;
   pisc_teb = ^isc_teb;
-
-  TFirebirdLibrary2 = class(TFirebirdLibrary)
-  private
-    FHandle: THandle;
-    FLibrary: string;
-    FOldVars: IInterface;
-  public
-    constructor Create(const aLibrary, aServerCharSet: string);
-    procedure AfterConstruction; override;
-    procedure BeforeDestruction; override;
-  end;
 
   IFirebirdError = interface(IInterface)
   ['{5D89C7AC-544B-4170-AF0F-79AD05265BC5}']
@@ -569,14 +558,6 @@ type
     function CurrentTransaction: TFirebirdTransaction;
     function RollBack(const aStatusVector: IStatusVector; const aTransaction:
         TFirebirdTransaction): ISC_STATUS;
-  end;
-
-  TFirebirdLibraryFactory = class abstract
-  public
-    class function New(const aLibrary: string; aTryReuse: Boolean = False; const
-        aServerCharSet: string = 'NONE'): IFirebirdLibrary; overload;
-    class function New(const aHandle: THandle; const aServerCharSet: string =
-        'NONE'): IFirebirdLibrary; overload;
   end;
 
   TFirebirdLibraryRootPath = class(TInterfacedObject)
@@ -694,12 +675,6 @@ end;
 procedure TFirebirdLibrary.AfterConstruction;
 begin
   inherited;
-  FProcs := TDictionary<Pointer,string>.Create;
-  FDebugger := TFirebirdLibraryDebugger.Create;
-  FAttached_DB := nil;
-  FODSMajor := -1;
-  FODSMinor := -1;
-  FTimeZones := nil;
 end;
 
 procedure TFirebirdLibrary.BeforeDestruction;
@@ -716,7 +691,7 @@ begin
   // Check if the FLibrary still in used, otherwise attempt to free library fbintl.dll
   H := GetModuleHandle(PChar(aLibrary));
   if H = 0 then begin
-    {$Message 'Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186'}
+    // Firebird bug: http://tracker.firebirdsql.org/browse/CORE-2186
     // In Firebird version 2.X, when execute function isc_dsql_execute_immediate for CREATE DATABASE
     // intl/fbintl.dll will be loaded and never free.  The following code attempt to free the fbintl.dll library
     s := ExtractFilePath(aLibrary) + 'intl\fbintl.dll';
@@ -960,25 +935,36 @@ begin
   end;
 end;
 
-function TFirebirdLibrary.Clone: IFirebirdLibrary;
-begin
-  Result := TFirebirdLibraryFactory.New(FHandle, FServerCharSet);
-end;
-
-constructor TFirebirdLibrary.Create(const aServerCharSet: string);
+constructor TFirebirdLibrary.Create(aLibrary, aServerCharSet: string);
 begin
   inherited Create;
+
+  FProcs := TDictionary<Pointer,string>.Create;
+  FDebugger := TFirebirdLibraryDebugger.Create;
+  FAttached_DB := nil;
+  FODSMajor := -1;
+  FODSMinor := -1;
+  FTimeZones := nil;
+
   FServerCharSet := aServerCharSet;
   if SameText(FServerCharSet, 'UTF8') then
     FEncoding := TEncoding.UTF8
   else
     FEncoding := TEncoding.Default;
+
+  var sPath := TPath.GetDirectoryName(aLibrary);
+  FOldVars := TFirebirdLibraryRootPath.Create(sPath);
+
+  SetDllDirectory(PChar(sPath));
+  FHandle := LoadLibrary(PChar(aLibrary));
+
+  if FHandle <> 0 then SetupProcs;
 end;
 
 function TFirebirdLibrary.GetDebugFactory: IFirebirdLibraryDebugFactory;
 begin
   if FDebugFactory = nil then
-    FDebugFactory := TFirebirdClientDebugFactory.Create(Clone, FEncoding);
+    FDebugFactory := TFirebirdClientDebugFactory.Create(Self as IFirebirdLibrary, FEncoding);
   Result := FDebugFactory;
 end;
 
@@ -1313,6 +1299,17 @@ begin
   DebugMsg(@Fisc_vax_integer, [buffer, len], Result);
 end;
 
+function TFirebirdLibrary.Loaded: Boolean;
+begin
+  Result := FHandle <> 0;
+end;
+
+class function TFirebirdLibrary.New(aLibrary: string; aServerCharSet: string =
+    'NONE'): IFirebirdLibrary;
+begin
+  Result := Create(aLibrary, aServerCharSet) as IFirebirdLibrary;
+end;
+
 function TFirebirdLibrary.QueryInterface(const IID: TGUID; out Obj): HResult;
 begin
   if IsEqualGUID(IID, IFirebirdLibraryDebugger) then begin
@@ -1322,51 +1319,50 @@ begin
     Result := inherited QueryInterface(IID, Obj);
 end;
 
-procedure TFirebirdLibrary.Setup(const aHandle: THandle);
+procedure TFirebirdLibrary.SetupProcs;
 begin
-  FHandle := aHandle;
-  Ffb_shutdown                 := GetProc(aHandle, 'fb_shutdown', False);
-  Fisc_attach_database         := GetProc(aHandle, 'isc_attach_database');
-  Fisc_blob_info               := GetProc(aHandle, 'isc_blob_info');
-  Fisc_close_blob              := GetProc(aHandle, 'isc_close_blob');
-  Fisc_commit_transaction      := GetProc(aHandle, 'isc_commit_transaction');
-  Fisc_create_blob             := GetProc(aHandle, 'isc_create_blob');
-  Fisc_create_blob2            := GetProc(aHandle, 'isc_create_blob2');
-  Fisc_create_database         := GetProc(aHandle, 'isc_create_database');
-  Fisc_database_info           := GetProc(aHandle, 'isc_database_info');
-  Fisc_decode_sql_date         := GetProc(aHandle, 'isc_decode_sql_date');
-  Fisc_decode_sql_time         := GetProc(aHandle, 'isc_decode_sql_time');
-  Fisc_decode_timestamp        := GetProc(aHandle, 'isc_decode_timestamp');
-  Fisc_detach_database         := GetProc(aHandle, 'isc_detach_database');
-  Fisc_drop_database           := GetProc(aHandle, 'isc_drop_database');
-  Fisc_dsql_allocate_statement := GetProc(aHandle, 'isc_dsql_allocate_statement');
-  Fisc_dsql_alloc_statement2   := GetProc(aHandle, 'isc_dsql_alloc_statement2');
-  Fisc_dsql_describe           := GetProc(aHandle, 'isc_dsql_describe');
-  Fisc_dsql_describe_bind      := GetProc(aHandle, 'isc_dsql_describe_bind');
-  Fisc_dsql_execute            := GetProc(aHandle, 'isc_dsql_execute');
-  Fisc_dsql_execute2           := GetProc(aHandle, 'isc_dsql_execute2');
-  Fisc_dsql_execute_immediate  := GetProc(aHandle, 'isc_dsql_execute_immediate');
-  Fisc_dsql_fetch              := GetProc(aHandle, 'isc_dsql_fetch');
-  Fisc_dsql_free_statement     := GetProc(aHandle, 'isc_dsql_free_statement');
-  Fisc_dsql_prepare            := GetProc(aHandle, 'isc_dsql_prepare');
-  Fisc_dsql_set_cursor_name    := GetProc(aHandle, 'isc_dsql_set_cursor_name');
-  Fisc_dsql_sql_info           := GetProc(aHandle, 'isc_dsql_sql_info');
-  Fisc_encode_sql_date         := GetProc(aHandle, 'isc_encode_sql_date');
-  Fisc_encode_sql_time         := GetProc(aHandle, 'isc_encode_sql_time');
-  Fisc_encode_timestamp        := GetProc(aHandle, 'isc_encode_timestamp');
-  Fisc_get_segment             := GetProc(aHandle, 'isc_get_segment');
-  Fisc_interprete              := GetProc(aHandle, 'isc_interprete');
-  Fisc_open_blob               := GetProc(aHandle, 'isc_open_blob');
-  Fisc_open_blob2              := GetProc(aHandle, 'isc_open_blob2');
-  Fisc_put_segment             := GetProc(aHandle, 'isc_put_segment');
-  Fisc_rollback_transaction    := GetProc(aHandle, 'isc_rollback_transaction');
-  Fisc_sqlcode                 := GetProc(aHandle, 'isc_sqlcode');
-  Fisc_service_attach          := GetProc(aHandle, 'isc_service_attach');
-  Fisc_service_detach          := GetProc(aHandle, 'isc_service_detach');
-  Fisc_service_query           := GetProc(aHandle, 'isc_service_query');
-  Fisc_service_start           := GetProc(aHandle, 'isc_service_start');
-  Fisc_start_multiple          := GetProc(aHandle, 'isc_start_multiple');
-  Fisc_vax_integer             := GetProc(aHandle, 'isc_vax_integer');
+  Ffb_shutdown                 := GetProc(FHandle, 'fb_shutdown', False);
+  Fisc_attach_database         := GetProc(FHandle, 'isc_attach_database');
+  Fisc_blob_info               := GetProc(FHandle, 'isc_blob_info');
+  Fisc_close_blob              := GetProc(FHandle, 'isc_close_blob');
+  Fisc_commit_transaction      := GetProc(FHandle, 'isc_commit_transaction');
+  Fisc_create_blob             := GetProc(FHandle, 'isc_create_blob');
+  Fisc_create_blob2            := GetProc(FHandle, 'isc_create_blob2');
+  Fisc_create_database         := GetProc(FHandle, 'isc_create_database');
+  Fisc_database_info           := GetProc(FHandle, 'isc_database_info');
+  Fisc_decode_sql_date         := GetProc(FHandle, 'isc_decode_sql_date');
+  Fisc_decode_sql_time         := GetProc(FHandle, 'isc_decode_sql_time');
+  Fisc_decode_timestamp        := GetProc(FHandle, 'isc_decode_timestamp');
+  Fisc_detach_database         := GetProc(FHandle, 'isc_detach_database');
+  Fisc_drop_database           := GetProc(FHandle, 'isc_drop_database');
+  Fisc_dsql_allocate_statement := GetProc(FHandle, 'isc_dsql_allocate_statement');
+  Fisc_dsql_alloc_statement2   := GetProc(FHandle, 'isc_dsql_alloc_statement2');
+  Fisc_dsql_describe           := GetProc(FHandle, 'isc_dsql_describe');
+  Fisc_dsql_describe_bind      := GetProc(FHandle, 'isc_dsql_describe_bind');
+  Fisc_dsql_execute            := GetProc(FHandle, 'isc_dsql_execute');
+  Fisc_dsql_execute2           := GetProc(FHandle, 'isc_dsql_execute2');
+  Fisc_dsql_execute_immediate  := GetProc(FHandle, 'isc_dsql_execute_immediate');
+  Fisc_dsql_fetch              := GetProc(FHandle, 'isc_dsql_fetch');
+  Fisc_dsql_free_statement     := GetProc(FHandle, 'isc_dsql_free_statement');
+  Fisc_dsql_prepare            := GetProc(FHandle, 'isc_dsql_prepare');
+  Fisc_dsql_set_cursor_name    := GetProc(FHandle, 'isc_dsql_set_cursor_name');
+  Fisc_dsql_sql_info           := GetProc(FHandle, 'isc_dsql_sql_info');
+  Fisc_encode_sql_date         := GetProc(FHandle, 'isc_encode_sql_date');
+  Fisc_encode_sql_time         := GetProc(FHandle, 'isc_encode_sql_time');
+  Fisc_encode_timestamp        := GetProc(FHandle, 'isc_encode_timestamp');
+  Fisc_get_segment             := GetProc(FHandle, 'isc_get_segment');
+  Fisc_interprete              := GetProc(FHandle, 'isc_interprete');
+  Fisc_open_blob               := GetProc(FHandle, 'isc_open_blob');
+  Fisc_open_blob2              := GetProc(FHandle, 'isc_open_blob2');
+  Fisc_put_segment             := GetProc(FHandle, 'isc_put_segment');
+  Fisc_rollback_transaction    := GetProc(FHandle, 'isc_rollback_transaction');
+  Fisc_sqlcode                 := GetProc(FHandle, 'isc_sqlcode');
+  Fisc_service_attach          := GetProc(FHandle, 'isc_service_attach');
+  Fisc_service_detach          := GetProc(FHandle, 'isc_service_detach');
+  Fisc_service_query           := GetProc(FHandle, 'isc_service_query');
+  Fisc_service_start           := GetProc(FHandle, 'isc_service_start');
+  Fisc_start_multiple          := GetProc(FHandle, 'isc_start_multiple');
+  Fisc_vax_integer             := GetProc(FHandle, 'isc_vax_integer');
 end;
 
 procedure TFirebirdLibrary.SetupTimeZoneHandler(
@@ -1438,32 +1434,6 @@ begin
     Result := Ffb_shutdown(timeout, reason);
     DebugMsg(@Ffb_shutdown, [timeout, reason], Result);
   end;
-end;
-
-class function TFirebirdLibraryFactory.New(const aLibrary: string; aTryReuse:
-    Boolean = False; const aServerCharSet: string = 'NONE'): IFirebirdLibrary;
-begin
-  Result := nil;
-  if aTryReuse then begin
-    var H := GetModuleHandle(PChar(aLibrary));
-    if H <> 0 then
-      Result := TFirebirdLibraryFactory.New(H, aServerCharSet);
-  end;
-  if Result = nil then
-    Result := TFirebirdLibrary2.Create(aLibrary, aServerCharSet);
-end;
-
-class function TFirebirdLibraryFactory.New(const aHandle: THandle; const
-    aServerCharSet: string = 'NONE'): IFirebirdLibrary;
-var L: IFirebirdLibrary;
-begin
-  L := TFirebirdLibrary.Create(aServerCharSet);
-  try
-    L.Setup(aHandle);
-  except
-    L := nil;
-  end;
-  Result := L;
 end;
 
 procedure TStatusVector.CheckAndRaiseError(
@@ -1749,42 +1719,6 @@ begin
   Result := aTransaction.Rollback(aStatusVector);
   if aStatusVector.Success then
     Assert(FItems.Remove(aTransaction) >= 0);
-end;
-
-procedure TFirebirdLibrary2.AfterConstruction;
-var sPath, sDir: string;
-begin
-  inherited;
-  sPath := ExtractFilePath(FLibrary);
-  FOldVars := TFirebirdLibraryRootPath.Create(sPath);
-
-  sDir := GetCurrentDir;
-  try
-    SetCurrentDir(sPath);
-    FHandle := LoadLibrary(PChar(FLibrary));
-    if FHandle = 0 then
-      raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
-    Setup(FHandle);
-  finally
-    SetCurrentDir(sDir);
-  end;
-end;
-
-procedure TFirebirdLibrary2.BeforeDestruction;
-begin
-  inherited;
-
-  if FHandle = 0 then
-    raise Exception.CreateFmt('Unable to load %s', [FLibrary]);
-
-  if not FreeLibrary(FHandle) then
-    RaiseLastOSError;
-end;
-
-constructor TFirebirdLibrary2.Create(const aLibrary, aServerCharSet: string);
-begin
-  inherited Create(aServerCharSet);
-  FLibrary := aLibrary;
 end;
 
 procedure TFirebirdLibraryRootPath.AddVar(const aVarName: string);
