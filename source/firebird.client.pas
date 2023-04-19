@@ -23,7 +23,8 @@ type
     const FB_Config_Providers = 'Providers';
   end;
 
-type
+  TFirebird_ODS_Major = (ODS_10_And_Below, ODS_11_And_Above);
+
   TFirebirdConf = record
   type
     TConfigType = (TYPE_BOOLEAN, TYPE_INTEGER, TYPE_STRING);
@@ -259,10 +260,11 @@ type
 
   IFirebirdLibrary = interface(IFirebirdLibrary_DLL)
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
+    function GetODS: Cardinal;
+    function GetODS_Major: TFirebird_ODS_Major;
     function GetTimeZoneOffset: TGetTimeZoneOffSet;
     function Loaded: Boolean;
     procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
-    function TryGetODS(out aMajor, aMinor: integer): boolean;
   end;
 
   TFirebirdLibrary = class(TInterfacedObject, IFirebirdLibrary)
@@ -421,17 +423,16 @@ type
     function isc_vax_integer(buffer: PISC_SCHAR; len: SmallInt): ISC_LONG; stdcall;
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
   protected // IFirebirdLibrary
-    FAttached_DB: pisc_db_handle;
     FHandle: THandle;
-    FODSMajor: integer;
-    FODSMinor: integer;
+    FODS: Cardinal;
     procedure CORE_2186(aLibrary: string); deprecated;
     procedure CORE_4508; deprecated;
+    function GetODS: Cardinal;
+    function GetODS_Major: TFirebird_ODS_Major;
     function GetTimeZoneOffset: TGetTimeZoneOffSet;
     function Loaded: Boolean;
     procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
     procedure SetupProcs;
-    function TryGetODS(out aMajor, aMinor: integer): boolean;
   strict private
     FTimeZones: TDictionary<Word, TTimeZoneOffset>;
     FSetupTimeZoneHandler: TSetupTimeZoneHandler;
@@ -675,6 +676,7 @@ end;
 procedure TFirebirdLibrary.AfterConstruction;
 begin
   inherited;
+  FODS := ODS_CURRENT_VERSION;
 end;
 
 procedure TFirebirdLibrary.BeforeDestruction;
@@ -941,9 +943,6 @@ begin
 
   FProcs := TDictionary<Pointer,string>.Create;
   FDebugger := TFirebirdLibraryDebugger.Create;
-  FAttached_DB := nil;
-  FODSMajor := -1;
-  FODSMinor := -1;
   FTimeZones := nil;
 
   FServerCharSet := aServerCharSet;
@@ -983,12 +982,48 @@ begin
   Result := DoGetTimeZoneOffset;
 end;
 
+function TFirebirdLibrary.GetODS: Cardinal;
+begin
+  Result := FODS;
+end;
+
+function TFirebirdLibrary.GetODS_Major: TFirebird_ODS_Major;
+begin
+  if DECODE_ODS_MAJOR(FODS) <= ODS_VERSION10 then
+    Result := ODS_10_And_Below
+  else
+    Result := ODS_11_And_Above;
+end;
+
 function TFirebirdLibrary.isc_attach_database(status_vector: PISC_STATUS_ARRAY;
     file_length: SmallInt; file_name: PISC_SCHAR; public_handle:
     pisc_db_handle; dpb_length: SmallInt; dpb: PISC_SCHAR): ISC_STATUS;
 begin
   Result := Fisc_attach_database(status_vector, file_length, file_name, public_handle, dpb_length, dpb);
-  FAttached_DB := public_handle;
+
+  var Info := TBytes.Create(isc_info_ods_version, isc_info_ods_minor_version);
+  var buf: TBytes;
+  var V := TStatusVector.Create as IStatusVector;
+  SetLength(buf, High(Byte));
+
+  isc_database_info(V.pValue, public_handle, Length(Info), @Info[0], Length(buf), @buf[0]);
+  if V.Success then begin
+    var i := 1;
+    var L := isc_vax_integer(@buf[i], SizeOf(SmallInt));
+    Assert(L = SizeOf(LongInt));
+    Inc(i, SizeOf(SmallInt));
+    var iMajor := isc_vax_integer(@buf[i], SizeOf(Longint));
+    Inc(i, SizeOf(Longint));
+
+    Inc(i);
+    L := isc_vax_integer(@buf[i], SizeOf(SmallInt));
+    Assert(L = SizeOf(LongInt));
+    Inc(i, SizeOf(SmallInt));
+    var iMinor := isc_vax_integer(@buf[i], SizeOf(Longint));
+
+    FODS := Encode_ODS(iMajor, iMinor);
+  end;
+
   DebugMsg(@Fisc_attach_database, [status_vector, file_length, file_name, public_handle, dpb_length, dpb], Result);
 end;
 
@@ -1075,9 +1110,7 @@ function TFirebirdLibrary.isc_detach_database(status_vector: PISC_STATUS_ARRAY;
     public_handle: pisc_db_handle): ISC_STATUS;
 begin
   Result := Fisc_detach_database(status_vector, public_handle);
-  FAttached_DB := nil;
-  FODSMajor := -1;
-  FODSMinor := -1;
+  FODS := ODS_CURRENT_VERSION;
   DebugMsg(@Fisc_detach_database, [status_vector, public_handle], Result);
 end;
 
@@ -1376,37 +1409,6 @@ begin
   end;
 end;
 
-function TFirebirdLibrary.TryGetODS(out aMajor, aMinor: integer): boolean;
-var _DatabaseInfoCommand: TArray<AnsiChar>;
-    local_buffer: array[0..255] of Byte;
-    i: Integer;
-    L: SmallInt;
-    V: IStatusVector;
-begin
-  if (FODSMajor = -1) and Assigned(FAttached_DB) then begin
-    V := TStatusVector.Create;
-    _DatabaseInfoCommand := [AnsiChar(isc_info_ods_version), AnsiChar(isc_info_ods_minor_version)];
-    isc_database_info(V.pValue, FAttached_DB, Length(_DatabaseInfoCommand), @_DatabaseInfoCommand[0], SizeOf(local_buffer), @local_buffer);
-    if V.Success then begin
-      i := 1;
-      L := isc_vax_integer(@local_buffer[i], SizeOf(SmallInt));
-      Assert(L = SizeOf(LongInt));
-      Inc(i, SizeOf(L));
-      FODSMajor := isc_vax_integer(@local_buffer[i], SizeOf(Longint));
-      Inc(i, SizeOf(Longint));
-
-      Inc(i);
-      L := isc_vax_integer(@local_buffer[i], SizeOf(SmallInt));
-      Assert(L = SizeOf(LongInt));
-      Inc(i, SizeOf(L));
-      FODSMinor := isc_vax_integer(@local_buffer[i], SizeOf(Longint));
-    end;
-  end;
-  Result := FODSMajor <> -1;
-  aMajor := FODSMajor;
-  aMinor := FODSMinor;
-end;
-
 procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
     of const; aResult: ISC_STATUS);
 begin
@@ -1564,7 +1566,6 @@ constructor TFirebirdTransaction.Create(const aFirebirdClient:
     IFirebirdLibrary; const aDBHandle: pisc_db_handle; const aTransInfo:
     TTransactionInfo);
 var b: byte;
-    m, n: Integer;
     iTimeOut: ISC_LONG;
     TimeOut: array[0..3] of Byte absolute iTimeOut;
 begin
@@ -1594,8 +1595,7 @@ begin
     if aTransInfo.WaitOnLocks then begin
       Fisc_tec := Fisc_tec + [isc_tpb_wait];
 
-      if (aTransInfo.WaitOnLocksTimeOut <> -1) and aFirebirdClient.TryGetODS(m, n)
-        and (((m = 11) and (n >= 1)) or (m >= 12)) then begin
+      if (aTransInfo.WaitOnLocksTimeOut <> -1) and (aFirebirdClient.GetODS >= ODS_11_1)then begin
         iTimeOut := aTransInfo.WaitOnLocksTimeOut;
         Fisc_tec := Fisc_tec + [isc_tpb_lock_timeout];
         Fisc_tec := Fisc_tec + [SizeOf(ISC_LONG)];
@@ -1674,7 +1674,7 @@ begin
   if Assigned(Get(aTransInfo.ID)) then
     raise ETransactionExist.CreateFmt('Transaction ID %d already exist', [aTransInfo.ID]);
   {$ifend}
-  
+
   Result := TFirebirdTransaction.Create(FFirebirdClient, FDBHandle, aTransInfo);
   FItems.Add(Result);
 end;

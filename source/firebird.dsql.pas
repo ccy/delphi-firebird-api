@@ -7,83 +7,7 @@ uses
   firebird.charsets, firebird.client, firebird.ibase.h, firebird.iberror.h,
   firebird.inf_pub.h, firebird.sqlda_pub.h, firebird.time.h, firebird.types_pub.h;
 
-const
-  CharSetBytes: array[CS_NONE..CS_GB18030] of byte = (
-    {CS_NONE} 1,
-    {CS_OCTETS} 1,
-    {CS_ASCII} 1,
-    {CS_UNICODE_FSS} 3,
-    {CS_UTF8} 4,
-    {CS_SJIS_0208} 2,
-    {CS_EUCJ_0208} 2,
-    {} 1,
-    {} 1,
-    {CS_DOS737} 1,
-    {CS_DOS437} 1,
-    {CS_DOS850} 1,
-    {CS_DOS865} 1,
-    {CS_DOS860} 1,
-    {CS_DOS863} 1,
-    {CS_DOS775} 1,
-    {CS_DOS858} 1,
-    {CS_DOS862} 1,
-    {CS_DOS864} 1,
-    {CS_NEXT} 1,
-    {} 1,
-    {CS_ISO8859_1} 1,
-    {CS_ISO8859_2} 1,
-    {CS_ISO8859_3} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {CS_ISO8859_4} 1,
-    {CS_ISO8859_5} 1,
-    {CS_ISO8859_6} 1,
-    {CS_ISO8859_7} 1,
-    {CS_ISO8859_8} 1,
-    {CS_ISO8859_9} 1,
-    {CS_ISO8859_13} 1,
-    {} 1,
-    {} 1,
-    {} 1,
-    {CS_KSC_5601} 2,
-    {CS_DOS852} 1,
-    {CS_DOS857} 1,
-    {CS_DOS861} 1,
-    {CS_DOS866} 1,
-    {CS_DOS869} 1,
-    {CS_CYRL} 1,
-    {CS_WIN1250} 1,
-    {CS_WIN1251} 1,
-    {CS_WIN1252} 1,
-    {CS_WIN1253} 1,
-    {CS_WIN1254} 1,
-    {CS_BIG_5} 2,
-    {CS_GB_2312} 2,
-    {CS_WIN1255} 1,
-    {CS_WIN1256} 1,
-    {CS_WIN1257} 1,
-    {} 1,
-    {} 1,
-    {CS_KOI8R} 1,
-    {CS_KOI8U} 1,
-    {CS_WIN1258} 1,
-    {CS_TIS620} 1,
-    {CS_GBK} 2,
-    {CS_CP943C} 2,
-    {CS_GB18030} 4
-  );
-
 type
-  TXSQLVARClass = class of TXSQLVAR;
-
   TXSQLVAR = class(TObject)
   strict private
     FClient: IFirebirdLibrary;
@@ -96,8 +20,6 @@ type
   private
     FSize: word;
     FsqlDataSize: smallint;
-    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
-        aSQLVarReady: Boolean = False);
     function GetSize: smallint;
     procedure SetIsNull(const Value: boolean);
     function GetPrepared: boolean;
@@ -118,6 +40,8 @@ type
     procedure Set_sqldata(Value: Pointer);
     procedure Set_sqltype(Value: smallint);
   public
+    constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
+        aSQLVarReady: Boolean = False);
     procedure BeforeDestruction; override;
     function CheckCharSet(const aExpectedCharSet: smallint): boolean;
     function CheckType(const aExpectedType: smallint): boolean;
@@ -190,11 +114,6 @@ type
     property XSQLVAR: PXSQLVAR read FXSQLVAR;
   end;
 
-  TXSQLVAR_10 = class(TXSQLVAR)
-  public
-    function GetTextLen: SmallInt; override;
-  end;
-
   {$if CompilerVersion = 18.5}
   Int16  = SmallInt;
   Int32  = Integer;
@@ -214,12 +133,6 @@ type
     function AsSQLTimeStampOffset: TSQLTimeStampOffset;
     function AsTime: TDateTime;
     function AsWideString: WideString;
-  end;
-
-  TXSQLVarFactory = class abstract
-  public
-    class function New(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
-        aSQLVarReady: Boolean = False): TXSQLVar;
   end;
 
   TXSQLDA = class(TObject)
@@ -611,8 +524,80 @@ begin
 end;
 
 function TXSQLVAR.GetTextLen: SmallInt;
+const CharSetBytes: array[CS_NONE..CS_GB18030, TFirebird_ODS_Major] of byte = (
+    {CS_NONE}         (1, 1)
+    {CS_OCTETS}     , (1, 1)
+    {CS_ASCII}      , (1, 1)
+    {CS_UNICODE_FSS}, (1, 3) (* Firebird 1.5 *)
+    {CS_UTF8}       , (4, 4)
+    {CS_SJIS_0208}  , (2, 2)
+    {CS_EUCJ_0208}  , (2, 2)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {CS_DOS737}     , (1, 1)
+    {CS_DOS437}     , (1, 1)
+    {CS_DOS850}     , (1, 1)
+    {CS_DOS865}     , (1, 1)
+    {CS_DOS860}     , (1, 1)
+    {CS_DOS863}     , (1, 1)
+    {CS_DOS775}     , (1, 1)
+    {CS_DOS858}     , (1, 1)
+    {CS_DOS862}     , (1, 1)
+    {CS_DOS864}     , (1, 1)
+    {CS_NEXT}       , (1, 1)
+    {}              , (1, 1)
+    {CS_ISO8859_1}  , (1, 1)
+    {CS_ISO8859_2}  , (1, 1)
+    {CS_ISO8859_3}  , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {CS_ISO8859_4}  , (1, 1)
+    {CS_ISO8859_5}  , (1, 1)
+    {CS_ISO8859_6}  , (1, 1)
+    {CS_ISO8859_7}  , (1, 1)
+    {CS_ISO8859_8}  , (1, 1)
+    {CS_ISO8859_9}  , (1, 1)
+    {CS_ISO8859_13} , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {CS_KSC_5601}   , (2, 2)
+    {CS_DOS852}     , (1, 1)
+    {CS_DOS857}     , (1, 1)
+    {CS_DOS861}     , (1, 1)
+    {CS_DOS866}     , (1, 1)
+    {CS_DOS869}     , (1, 1)
+    {CS_CYRL}       , (1, 1)
+    {CS_WIN1250}    , (1, 1)
+    {CS_WIN1251}    , (1, 1)
+    {CS_WIN1252}    , (1, 1)
+    {CS_WIN1253}    , (1, 1)
+    {CS_WIN1254}    , (1, 1)
+    {CS_BIG_5}      , (2, 2)
+    {CS_GB_2312}    , (2, 2)
+    {CS_WIN1255}    , (1, 1)
+    {CS_WIN1256}    , (1, 1)
+    {CS_WIN1257}    , (1, 1)
+    {}              , (1, 1)
+    {}              , (1, 1)
+    {CS_KOI8R}      , (1, 1)
+    {CS_KOI8U}      , (1, 1)
+    {CS_WIN1258}    , (1, 1)
+    {CS_TIS620}     , (1, 1)
+    {CS_GBK}        , (2, 2)
+    {CS_CP943C}     , (2, 2)
+    {CS_GB18030}    , (4, 4)
+  );
 begin
-  Result := sqllen div CharSetBytes[sqlsubtype and $00FF];
+  Result := sqllen div CharSetBytes[sqlsubtype and $00FF, FClient.GetODS_Major];
 end;
 
 procedure TXSQLVAR.GetTime(aValue: pointer; out aIsNull: boolean);
@@ -1417,18 +1402,6 @@ begin
     CheckOSError(VarDateFromStr(strIn, LCID_US, 0, Double(Result)));
 end;
 
-function TXSQLVAR_10.GetTextLen: SmallInt;
-var i: Integer;
-    b: SmallInt;
-begin
-  i := sqlsubtype and $00FF;
-  if i = CS_UNICODE_FSS then
-    b := 1
-  else
-    b := CharSetBytes[i];
-  Result := sqllen div b;
-end;
-
 function TXSQLVAREx.AsAnsiString: AnsiString;
 var P: PAnsiChar;
     bIsNull: boolean;
@@ -1600,17 +1573,6 @@ begin
   end;
 end;
 
-class function TXSQLVarFactory.New(const aLibrary: IFirebirdLibrary; const
-    aPtr: pointer; aSQLVarReady: Boolean = False): TXSQLVar;
-var m, n: integer;
-    C: TXSQLVARClass;
-begin
-  C := TXSQLVAR;
-  if aLibrary.TryGetODS(m, n) and (m = 10) then
-    C := TXSQLVAR_10;
-  Result := C.Create(aLibrary, aPtr, aSQLVarReady);
-end;
-
 constructor TXSQLDA.Create(const aLibrary: IFirebirdLibrary; const aVarCount:
     Integer = 0);
 begin
@@ -1682,7 +1644,7 @@ begin
   for i := 0 to aValue - 1 do begin
     p := @FXSQLDA.sqlvar;
     Inc(p, i * SizeOf(XSQLVAR));
-    FVars[i] := TXSQLVARFactory.New(FClient, p);
+    FVars[i] := TXSQLVAR.Create(FClient, p, False);
   end;
 end;
 
