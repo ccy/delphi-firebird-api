@@ -230,6 +230,7 @@
         <DCCReference Include="..\source\Firebird.pas"/>
         <DCCReference Include="..\source\Firebird.helper.pas"/>
         <DCCReference Include="..\source\firebird.client.deprecated.pas"/>
+        <DCCReference Include="..\source\firebird.jrd.h.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

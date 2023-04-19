@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  firebird.delphi, firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h;
+  firebird.delphi, firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h,
+  firebird.jrd.h;
 
 const
   FirebirdTransaction_WaitOnLocks = $0100;
@@ -27,7 +28,7 @@ type
     TConfigEntry = record
       data_type: TConfigType;
       key: string;
-     is_global: Boolean;
+      is_global: Boolean;
       default_value: string;  // For reference only, don't use this value
     end;
   const
@@ -438,13 +439,6 @@ type
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
   end;
-
-  isc_teb = record
-    database: pisc_db_handle;
-    tpb_len:  longint;
-    tpb:      PISC_UCHAR;
-  end;
-  pisc_teb = ^isc_teb;
 
   IFirebirdError = interface(IInterface)
   ['{5D89C7AC-544B-4170-AF0F-79AD05265BC5}']
