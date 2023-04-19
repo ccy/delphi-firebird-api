@@ -54,6 +54,7 @@ contains
   firebird.dsc.h in '..\source\firebird.dsc.h.pas',
   firebird.delphi in '..\source\firebird.delphi.pas',
   Firebird in '..\source\Firebird.pas',
-  Firebird.helper in '..\source\Firebird.helper.pas';
+  Firebird.helper in '..\source\Firebird.helper.pas',
+  firebird.client.deprecated in '..\source\firebird.client.deprecated.pas';
 
 end.
