@@ -636,7 +636,7 @@ type
     property Version: string read GetVersion;
   end;
 
-  TFirebirdEngines = class
+  TFirebirdEngines = record
   type
     TEngines = TArray<TFirebirdEngine>;
 
@@ -648,7 +648,7 @@ type
       FCurrent: Integer;
       FGetCurrent: TGetCurrent;
     public
-      constructor Create(aGetCurrent: TGetCurrent; aCount: Integer);
+      constructor Create(const Engines: TFirebirdEngines);
       function GetCurrent: TFirebirdEngine;
       function MoveNext: Boolean;
       property Current: TFirebirdEngine read GetCurrent;
@@ -662,7 +662,8 @@ type
     function Count: Integer;
     function GetEnumerator: TEnumerator;
     function GetProviders: string; overload; inline;
-    class function GetProviders(aRoot_Or_fbclient: string): string; overload; inline;
+    class function GetProviders(aRoot_Or_fbclient: string): string; overload;
+        static; inline;
     function GetProviders(aEngines: array of TFirebirdEngine): string; overload;
     property Items[Index: Integer]: TFirebirdEngine read Get; default;
   end;
@@ -2145,12 +2146,12 @@ begin
   end;
 end;
 
-constructor TFirebirdEngines.TEnumerator.Create(aGetCurrent: TGetCurrent;
-    aCount: Integer);
+constructor TFirebirdEngines.TEnumerator.Create(const Engines:
+    TFirebirdEngines);
 begin
   FCurrent := -1;
-  FGetCurrent := aGetCurrent;
-  FCount := aCount;
+  FGetCurrent := Engines.Get;
+  FCount := Engines.Count;
 end;
 
 function TFirebirdEngines.TEnumerator.GetCurrent: TFirebirdEngine;
@@ -2200,18 +2201,12 @@ end;
 
 function TFirebirdEngines.GetEnumerator: TEnumerator;
 begin
-  Result := TEnumerator.Create(Get, Count);
+  Result := TEnumerator.Create(Self);
 end;
 
-class function TFirebirdEngines.GetProviders(
-  aRoot_Or_fbclient: string): string;
+class function TFirebirdEngines.GetProviders(aRoot_Or_fbclient: string): string;
 begin
-  var o := Create(aRoot_Or_fbclient);
-  try
-    Result := o.GetProviders;
-  finally
-    o.Free;
-  end;
+  Result := TFirebirdEngines.Create(aRoot_Or_fbclient).GetProviders;
 end;
 
 function TFirebirdEngines.GetProviders(aEngines: array of TFirebirdEngine):
