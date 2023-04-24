@@ -29,6 +29,17 @@ type
     function getDirectory(code: Cardinal; Dummy: Integer): string; overload; inline;
   end;
 
+  IAttachmentHelper = class helper for IAttachment
+    function prepare(status: IStatus; tra: ITransaction; stmtLength: Cardinal;
+        sqlStmt: string; dialect: Cardinal; flags: Cardinal): IStatement; overload;
+        inline;
+  end;
+
+  IStatementHelper = class helper for IStatement
+    function getPlan(status: IStatus; detailed: Boolean; Dummy: Integer): string;
+        overload; inline;
+  end;
+
 function fb_get_master_interface(aFBClient: string; out aHandle: THandle): IMaster;
 
 implementation
@@ -98,6 +109,19 @@ function IConfigManagerHelper.getDirectory(code: Cardinal; Dummy: Integer):
     string;
 begin
   Result := _string(getDirectory(code));
+end;
+
+function IAttachmentHelper.prepare(status: IStatus; tra: ITransaction;
+  stmtLength: Cardinal; sqlStmt: string; dialect,
+  flags: Cardinal): IStatement;
+begin
+  Result := prepare(status, tra, stmtLength, _PAnsiChar(sqlStmt), dialect, flags);
+end;
+
+function IStatementHelper.getPlan(status: IStatus; detailed: Boolean; Dummy:
+    Integer): string;
+begin
+  Result := _string(getPlan(status, detailed));
 end;
 
 end.
