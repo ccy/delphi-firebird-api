@@ -4,8 +4,7 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  firebird.delphi, firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h,
-  firebird.jrd.h;
+  firebird.ibase.h, firebird.jrd.h, firebird.sqlda_pub.h, firebird.types_pub.h;
 
 const
   FirebirdTransaction_WaitOnLocks = $0100;
@@ -259,9 +258,7 @@ type
     ['{90A53F8C-2F1A-437C-A3CF-97D15D35E1C5}']
     function GetODS: Cardinal;
     function GetODS_Major: TFirebird_ODS_Major;
-    function GetTimeZoneOffset: TGetTimeZoneOffSet;
     function Loaded: Boolean;
-    procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
   end;
 
   TFirebirdLibrary = class(TInterfacedObject, IFirebirdLibrary)
@@ -424,15 +421,10 @@ type
     FODS: Cardinal;
     function GetODS: Cardinal;
     function GetODS_Major: TFirebird_ODS_Major;
-    function GetTimeZoneOffset: TGetTimeZoneOffSet;
     function Loaded: Boolean;
-    procedure SetupTimeZoneHandler(aHandler: TSetupTimeZoneHandler);
     procedure SetupProcs;
   strict private
-    FTimeZones: TDictionary<Word, TTimeZoneOffset>;
-    FSetupTimeZoneHandler: TSetupTimeZoneHandler;
     constructor Create(aLibrary, aServerCharSet: string);
-    function DoGetTimeZoneOffset(aFBTimeZoneID: Word): TTimeZoneOffset;
   public
     class function New(aLibrary: string; aServerCharSet: string = 'NONE'):
         IFirebirdLibrary;
@@ -671,7 +663,6 @@ procedure TFirebirdLibrary.BeforeDestruction;
 begin
   inherited;
   FProcs.Free;
-  FreeAndNil(FTimeZones);
 end;
 
 constructor TFirebirdLibrary.Create(aLibrary, aServerCharSet: string);
@@ -680,7 +671,6 @@ begin
 
   FProcs := TDictionary<Pointer,string>.Create;
   FDebugger := TFirebirdLibraryDebugger.Create;
-  FTimeZones := nil;
 
   FServerCharSet := aServerCharSet;
   if SameText(FServerCharSet, 'UTF8') then
@@ -712,11 +702,6 @@ begin
     FProcs.Add(Result, aProcName)
   else if aRequired then
     RaiseLastOSError;
-end;
-
-function TFirebirdLibrary.GetTimeZoneOffset: TGetTimeZoneOffSet;
-begin
-  Result := DoGetTimeZoneOffset;
 end;
 
 function TFirebirdLibrary.GetODS: Cardinal;
@@ -1135,34 +1120,11 @@ begin
   Fisc_vax_integer             := GetProc(FHandle, 'isc_vax_integer');
 end;
 
-procedure TFirebirdLibrary.SetupTimeZoneHandler(
-  aHandler: TSetupTimeZoneHandler);
-begin
-  if Assigned(aHandler) then
-    FSetupTimeZoneHandler := aHandler
-  else begin
-    FreeAndNil(FTimeZones);
-    FSetupTimeZoneHandler := nil;
-  end;
-end;
-
 procedure TFirebirdLibrary.DebugMsg(const aProc: pointer; const aParams: array
     of const; aResult: ISC_STATUS);
 begin
   if FDebugger.HasListener then
     FDebugger.Notify(GetDebugFactory.Get(FProcs[aProc], aProc, aParams, aResult));
-end;
-
-function TFirebirdLibrary.DoGetTimeZoneOffset(
-  aFBTimeZoneID: Word): TTimeZoneOffset;
-begin
-  if (FTimeZones = nil) and Assigned(FSetupTimeZoneHandler) then begin
-    FTimeZones := TDictionary<Word, TTimeZoneOffset>.Create;
-    FSetupTimeZoneHandler(FTimeZones.Add);
-  end;
-
-  if not FTimeZones.TryGetValue(aFBTimeZoneID, Result) then
-    Result := TTimeZoneOffset.Default;
 end;
 
 function TFirebirdLibrary.fb_shutdown(timeout: Cardinal = 20000; const reason:

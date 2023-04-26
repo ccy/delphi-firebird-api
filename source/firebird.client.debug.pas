@@ -492,7 +492,7 @@ begin
   Result := Format('sqlda.version: %d sqlda.sqln: %d sqlda.sqld: %d', [X.version, X.sqln, X.sqld]);
   p := @X.sqlvar;
   for i := 1 to X.sqln do begin
-    v := TXSQLVar.Create(FClient, p, True);
+    v := TXSQLVar.Create(FClient, p, True, nil);
     try
       Result := Format('%s value.%d: %s', [Result, i, v.AsQuoatedSQLValue]);
     finally

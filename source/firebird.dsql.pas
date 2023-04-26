@@ -4,8 +4,9 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.SysUtils, Data.FMTBcd, Data.SqlTimSt,
-  firebird.charsets, firebird.client, firebird.ibase.h, firebird.iberror.h,
-  firebird.inf_pub.h, firebird.sqlda_pub.h, firebird.time.h, firebird.types_pub.h;
+  firebird.charsets, firebird.client, firebird.delphi, firebird.ibase.h,
+  firebird.iberror.h, firebird.inf_pub.h, firebird.sqlda_pub.h, firebird.time.h,
+  firebird.types_pub.h;
 
 type
   TXSQLVAR = class(TObject)
@@ -14,6 +15,7 @@ type
     FSQLVarReady: boolean;
     FPrepared: boolean;
     FXSQLVAR: PXSQLVAR;
+    FGetTimeZoneOffset: TGetTimeZoneOffSet;
     class var FormatSettings_US: TFormatSettings;
     class var LCID_US: TLocaleID;
     class constructor Create;
@@ -41,7 +43,7 @@ type
     procedure Set_sqltype(Value: smallint);
   public
     constructor Create(const aLibrary: IFirebirdLibrary; const aPtr: pointer;
-        aSQLVarReady: Boolean = False);
+        aSQLVarReady: Boolean; aGetTimeZoneOffset: TGetTimeZoneOffset);
     procedure BeforeDestruction; override;
     function CheckCharSet(const aExpectedCharSet: smallint): boolean;
     function CheckType(const aExpectedType: smallint): boolean;
@@ -140,6 +142,7 @@ type
     FClient: IFirebirdLibrary;
     FVars: TArray<TXSQLVAR>;
     FXSQLDA: PXSQLDA;
+    FGetTimeZoneOffset: TGetTimeZoneOffSet;
     procedure Clear;
   private
     function GetVars(Index: Integer): TXSQLVAR;
@@ -150,8 +153,8 @@ type
     function GetCount: integer;
     procedure SetCount(const aValue: integer);
   public
-    constructor Create(const aLibrary: IFirebirdLibrary; const aVarCount: Integer =
-        0);
+    constructor Create(const aLibrary: IFirebirdLibrary; const aVarCount: Integer;
+        aGetTimeZoneOffset: TGetTimeZoneOffset);
     procedure BeforeDestruction; override;
     procedure Prepare;
     property Count: integer read GetCount write SetCount;
@@ -201,6 +204,7 @@ type
     FEncoding: TEncoding;
     FIsStoredProc: boolean;
     FManage_SQLDA_In: boolean;
+    FGetTimeZoneOffset: TGetTimeZoneOffSet;
     function StatementHandle: pisc_stmt_handle;
   private
     FLast_DBHandle: pisc_db_handle;
@@ -227,8 +231,9 @@ type
     function Transaction: TFirebirdTransaction;
   public
     constructor Create(const aClientLibrary: IFirebirdLibrary; const
-        aTransactionPool: TFirebirdTransactionPool; const aServerCharSet:
-        WideString = ''; const aIsStoredProc: Boolean = False);
+        aTransactionPool: TFirebirdTransactionPool; aGetTimeZoneOffset:
+        TGetTimeZoneOffset = nil; const aServerCharSet: WideString = ''; const
+        aIsStoredProc: Boolean = False);
     procedure BeforeDestruction; override;
   end;
 
@@ -236,12 +241,11 @@ implementation
 
 uses
   Winapi.ActiveX, System.AnsiStrings, System.DateUtils, System.Math,
-  System.StrUtils, System.Variants, System.TimeSpan,
-  Int128d, firebird.dsc.h,
-  firebird.delphi;
+  System.StrUtils, System.TimeSpan, System.Variants,
+  Int128d, firebird.dsc.h;
 
 constructor TXSQLVAR.Create(const aLibrary: IFirebirdLibrary; const aPtr:
-    pointer; aSQLVarReady: Boolean = False);
+    pointer; aSQLVarReady: Boolean; aGetTimeZoneOffset: TGetTimeZoneOffset);
 begin
   inherited Create;
   FClient := aLibrary;
@@ -249,6 +253,7 @@ begin
   FSQLVarReady := aSQLVarReady;
 
   FPrepared := False;
+  FGetTimeZoneOffset := aGetTimeZoneOffset;
 end;
 
 procedure TXSQLVAR.BeforeDestruction;
@@ -626,7 +631,7 @@ begin
   aIsNull := IsNull;
   if not aIsNull then begin
     var D: ISC_TIMESTAMP_TZ_IANA := ISC_TIMESTAMP_TZ(sqldata^);
-    D.Setup(FClient.GetTimeZoneOffset);
+    D.Setup(FGetTimeZoneOffset);
     var S: TSQLTimeStampOffset := D;
     Move(S, aValue^, SizeOf(S));
   end;
@@ -1574,11 +1579,12 @@ begin
 end;
 
 constructor TXSQLDA.Create(const aLibrary: IFirebirdLibrary; const aVarCount:
-    Integer = 0);
+    Integer; aGetTimeZoneOffset: TGetTimeZoneOffset);
 begin
   inherited Create;
   FClient := aLibrary;
   SetCount(aVarCount);
+  FGetTimeZoneOffset := aGetTimeZoneOffset;
 end;
 
 procedure TXSQLDA.BeforeDestruction;
@@ -1644,17 +1650,21 @@ begin
   for i := 0 to aValue - 1 do begin
     p := @FXSQLDA.sqlvar;
     Inc(p, i * SizeOf(XSQLVAR));
-    FVars[i] := TXSQLVAR.Create(FClient, p, False);
+    FVars[i] := TXSQLVAR.Create(FClient, p, False, FGetTimeZoneOffset);
   end;
 end;
 
 constructor TFirebird_DSQL.Create(const aClientLibrary: IFirebirdLibrary; const
-    aTransactionPool: TFirebirdTransactionPool; const aServerCharSet:
-    WideString = ''; const aIsStoredProc: Boolean = False);
+    aTransactionPool: TFirebirdTransactionPool; aGetTimeZoneOffset:
+    TGetTimeZoneOffset = nil; const aServerCharSet: WideString = ''; const
+    aIsStoredProc: Boolean = False);
 begin
   inherited Create;
   FClient := aClientLibrary;
   FTransactionPool := aTransactionPool;
+
+  FGetTimeZoneOffset := aGetTimeZoneOffset;
+
   if SameText(aServerCharSet, 'UTF8') then
     FEncoding := TEncoding.UTF8
   else
@@ -1874,7 +1884,7 @@ function TFirebird_DSQL.Prepare(const aStatusVector: IStatusVector; const aSQL:
 begin
   if (aParamCount > 0) and (FSQLDA_In = nil) then begin
     FManage_SQLDA_In := True;
-    FSQLDA_In := TXSQLDA.Create(FClient, aParamCount);
+    FSQLDA_In := TXSQLDA.Create(FClient, aParamCount, FGetTimeZoneOffset);
   end;
   Result := Prepare(aStatusVector, aSQL, aSQLDialect, FSQLDA_In);
 end;
@@ -1894,7 +1904,7 @@ begin
 
   {$region 'prepare'}
   FreeAndNil(FSQLDA_Out);
-  FSQLDA_Out := TXSQLDA.Create(FClient);
+  FSQLDA_Out := TXSQLDA.Create(FClient, 0, FGetTimeZoneOffset);
 
   {$ifdef Unicode}
   B := FEncoding.GetBytes(aSQL);

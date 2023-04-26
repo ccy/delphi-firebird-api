@@ -16,7 +16,6 @@ type
 
   TGetTimeZoneOffSet = TFunc<Word, TTimeZoneOffset>;
   TAddTimeZone = reference to procedure (const aID: Word; const aTimeZoneOffset: TTimeZoneOffset);
-  TSetupTimeZoneHandler = TProc<TAddTimeZone>;
 
   ISC_DATE_Helper = record helper for ISC_DATE
   private
@@ -63,7 +62,9 @@ type
   strict private
     GetTimeZoneOffset: TGetTimeZoneOffSet;
     FValue: ISC_TIMESTAMP_TZ;
+    class function DefaultTimeZoneOffset(aFBTimeZoneID: Word): TTimeZoneOffset; static;
   public
+    class operator Initialize(out Dest: ISC_TIMESTAMP_TZ_IANA);
     class operator Implicit(Value: ISC_TIMESTAMP_TZ_IANA): TSQLTimeStampOffset;
     class operator Implicit(Value: ISC_TIMESTAMP_TZ): ISC_TIMESTAMP_TZ_IANA;
     procedure Setup(aGetTimeZoneOffset: TGetTimeZoneOffSet);
@@ -287,15 +288,28 @@ begin
   end;
 end;
 
+class function ISC_TIMESTAMP_TZ_IANA.DefaultTimeZoneOffset(
+  aFBTimeZoneID: Word): TTimeZoneOffset;
+begin
+  Result := TTimeZoneOffset.Default;
+end;
+
 class operator ISC_TIMESTAMP_TZ_IANA.Implicit(
   Value: ISC_TIMESTAMP_TZ): ISC_TIMESTAMP_TZ_IANA;
 begin
   Result.FValue := Value;
 end;
 
+class operator ISC_TIMESTAMP_TZ_IANA.Initialize(
+  out Dest: ISC_TIMESTAMP_TZ_IANA);
+begin
+  Dest.GetTimeZoneOffset := DefaultTimeZoneOffset;
+end;
+
 procedure ISC_TIMESTAMP_TZ_IANA.Setup(aGetTimeZoneOffset: TGetTimeZoneOffSet);
 begin
-  GetTimeZoneOffset := aGetTimeZoneOffset;
+  if Assigned(aGetTimeZoneOffset) then
+    GetTimeZoneOffset := aGetTimeZoneOffset;
 end;
 
 end.
