@@ -157,7 +157,7 @@ type
     dsc_flags: Word;                 // Not currently used
   end;
 
-function DSC_EQUIV(const d1: &dsc; const d2: &dsc; check_collate: Boolean): Boolean; inline;
+(* function DSC_EQUIV(const d1: &dsc; const d2: &dsc; check_collate: Boolean): Boolean; inline; *)
 
 // In DSC_*_result tables, DTYPE_CANNOT means that the two operands
 // cannot participate together in the requested operation.
@@ -250,7 +250,7 @@ begin
   Result.dsc_length   := 0;
   Result.dsc_sub_type := 0;
   Result.dsc_flags    := 0;
-  Result.dsc_address  := 0;
+  Result.dsc_address  := nil;
 end;
 
 {$ifdef __cplusplus}
@@ -684,29 +684,29 @@ begin
   Result := desc.dsc_sub_type shr 8;
 end;
 
-function DSC_EQUIV(const d1: &dsc; const d2: &dsc; check_collate: Boolean): Boolean;
+(* function DSC_EQUIV(const d1: &dsc; const d2: &dsc; check_collate: Boolean): Boolean;
 begin
-//  if (((alt_dsc*) d1)->dsc_combined_type == ((alt_dsc*) d2)->dsc_combined_type)
-//	{
-//		if ((d1->dsc_dtype >= dtype_text && d1->dsc_dtype <= dtype_varying) ||
-//			d1->dsc_dtype == dtype_blob)
-//		{
-//			if (d1->getCharSet() == d2->getCharSet())
-//			{
-//				if (check_collate)
-//					return d1->getCollation() == d2->getCollation();
-//
-//				return true;
-//			}
-//
-//			return false;
-//		}
-//
-//		return true;
-//	}
-//
-//	return false;
-end;
+  if (((alt_dsc^) d1)->dsc_combined_type == ((alt_dsc^) d2)->dsc_combined_type)
+	{
+		if ((d1->dsc_dtype >= dtype_text && d1->dsc_dtype <= dtype_varying) ||
+			d1->dsc_dtype == dtype_blob)
+		{
+			if (d1->getCharSet() == d2->getCharSet())
+			{
+				if (check_collate)
+					return d1->getCollation() == d2->getCollation();
+
+				return true;
+			}
+
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
+end; *)
 
 function TEXT_LEN(const desc: &dsc): Word;
 begin

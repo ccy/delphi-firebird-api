@@ -175,10 +175,10 @@ type ISC_UINT64 = UInt64;
 (* Time & Date support                                             *)
 (*******************************************************************)
 
-type ISC_DATE = Integer;
+type ISC_DATE = type Integer;
 type PISC_DATE = ^ISC_DATE;
 
-type ISC_TIME = Cardinal;
+type ISC_TIME = type Cardinal;
 type PISC_TIME = ^ISC_TIME;
 
 type

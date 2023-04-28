@@ -218,7 +218,6 @@
         <DCCReference Include="..\source\firebird.types_pub.h.pas"/>
         <DCCReference Include="..\source\firebird.consts_pub.h.pas"/>
         <DCCReference Include="..\source\firebird.dsql.pas"/>
-        <DCCReference Include="..\source\firebird.charsets.pas"/>
         <DCCReference Include="..\source\firebird.blr.h.pas"/>
         <DCCReference Include="..\source\firebird.client.pas"/>
         <DCCReference Include="..\source\firebird.client.debug.pas"/>
