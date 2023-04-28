@@ -443,7 +443,7 @@ begin
   if aIsNull then Exit;
 
   if CheckType(SQL_TYPE_DATE) then begin
-    var E: TTimeStamp := ISC_DATE(sqldata^);
+    var E: TTimeStamp := ISC_DATE(sqldata^).ToTimeStamp;
     Move(E.Date, aValue^, sqllen);
   end else if CheckType(SQL_TIMESTAMP) then begin
     var E: TTimeStamp := ISC_TIMESTAMP(sqldata^);
@@ -610,7 +610,7 @@ begin
   Assert(Prepared and CheckType(SQL_TYPE_TIME));
   aIsNull := IsNull;
   if not aIsNull then begin
-    var E: TTimeStamp := ISC_TIME(sqldata^);
+    var E: TTimeStamp := ISC_TIME(sqldata^).ToTimeStamp;
     Move(E.Time, aValue^, sqllen);
   end;
 end;
@@ -993,7 +993,7 @@ begin
     Assert(False);
 
   if CheckType(SQL_TYPE_DATE) then begin
-    var D: ISC_DATE := S;
+    var D := ISC_DATE.Create(S);
     Move(D, sqldata^, sqllen);
   end else begin
     if CheckType(SQL_TIMESTAMP) then begin
@@ -1258,7 +1258,7 @@ begin
 
   S.Date := DateDelta;
   S.Time := PInteger(aValue)^;
-  D := S;
+  D := ISC_TIME.Create(S);
   Move(D, sqldata^, sqllen);
 end;
 
@@ -1727,7 +1727,7 @@ begin
 
   if Result = isc_no_cur_rec then begin
     FState := S_EOF;
-    aStatusVector.pValue[1] := 0;
+    aStatusVector.pValue^ := 0;
     Result := 0;
     Exit;
   end else if aStatusVector.CheckError(FClient, Result) then

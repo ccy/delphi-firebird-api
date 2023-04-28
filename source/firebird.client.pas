@@ -158,98 +158,98 @@ type
   IFirebirdLibrary_DLL = interface(IInterface)
     function fb_shutdown(timeout: Cardinal = 20000; const reason: Integer = 0):
         Integer; stdcall;
-    function isc_attach_database(status_vector: PISC_STATUS_ARRAY; file_length: SmallInt;
+    function isc_attach_database(status_vector: PISC_STATUS; file_length: SmallInt;
         file_name: PISC_SCHAR; public_handle: pisc_db_handle; dpb_length: SmallInt;
         dpb: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_blob_info(status_vector: PISC_STATUS_ARRAY; isc_blob_handle:
+    function isc_blob_info(status_vector: PISC_STATUS; isc_blob_handle:
         pisc_blob_handle; item_length: SmallInt; items: PISC_SCHAR; buffer_length:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_create_database(status_vector: PISC_STATUS_ARRAY; fileLength:
+    function isc_create_database(status_vector: PISC_STATUS; fileLength:
         Word; filename: PISC_SCHAR; publicHandle: pisc_db_handle; dpbLength: Word;
         dpb: PISC_SCHAR; db_type: Word): Integer; stdcall;
-    function isc_close_blob(status_vector: PISC_STATUS_ARRAY; blob_handle:
+    function isc_close_blob(status_vector: PISC_STATUS; blob_handle:
         pisc_blob_handle): ISC_STATUS; stdcall;
-    function isc_commit_transaction(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_commit_transaction(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
-    function isc_create_blob(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_create_blob(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD): ISC_STATUS; stdcall;
-    function isc_create_blob2(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_create_blob2(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD; bpb_length: SmallInt; bpb: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_database_info(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_database_info(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         info_len: SmallInt; info: PISC_SCHAR; res_len: SmallInt; res: PISC_SCHAR):
         ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(date: PISC_DATE; times_arg: pointer); stdcall;
     procedure isc_decode_sql_time(sql_time: PISC_TIME; times_args: pointer); stdcall;
     procedure isc_decode_timestamp(date: PISC_TIMESTAMP; times_arg: pointer); stdcall;
-    function isc_detach_database(status_vector: PISC_STATUS_ARRAY; public_handle:
+    function isc_detach_database(status_vector: PISC_STATUS; public_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
-    function isc_drop_database(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_drop_database(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
-    function isc_dsql_allocate_statement(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_dsql_allocate_statement(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
-    function isc_dsql_alloc_statement2(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_dsql_alloc_statement2(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
-    function isc_dsql_describe(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_describe(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_describe_bind(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_describe_bind(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_execute(status_vector: PISC_STATUS_ARRAY; tra_handle: pisc_tr_handle;
+    function isc_dsql_execute(status_vector: PISC_STATUS; tra_handle: pisc_tr_handle;
         stmt_handle: pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
         stdcall;
-    function isc_dsql_execute2(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_dsql_execute2(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word; in_sqlda:
         PXSQLDA; out_sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_execute_immediate(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_dsql_execute_immediate(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; tra_handle: pisc_tr_handle; length: Word; statement:
         PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_fetch(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_fetch(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; da_version: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_free_statement(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_free_statement(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; option: Word): ISC_STATUS; stdcall;
-    function isc_dsql_prepare(status_vector: PISC_STATUS_ARRAY; tra_handle: pisc_tr_handle;
+    function isc_dsql_prepare(status_vector: PISC_STATUS; tra_handle: pisc_tr_handle;
         stmt_handle: pisc_stmt_handle; length: Word; str: PISC_SCHAR; dialect:
         Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_set_cursor_name(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_set_cursor_name(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; cursor_name: PISC_SCHAR; reserve: Word): ISC_STATUS;
         stdcall;
-    function isc_dsql_sql_info(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_sql_info(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; items_len: SmallInt; items: PISC_SCHAR; buffer_len:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
     procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE); stdcall;
     procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME); stdcall;
     procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP); stdcall;
-    function isc_get_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
+    function isc_get_segment(status_vector: PISC_STATUS; blob_handle:
         pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer: PISC_SCHAR):
         ISC_STATUS; stdcall;
-    function isc_interprete(buffer: PISC_SCHAR; status_vector: PPISC_STATUS_ARRAY):
+    function isc_interprete(buffer: PISC_SCHAR; status_vector: PPISC_STATUS):
         ISC_STATUS; stdcall;
-    function isc_open_blob(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_open_blob(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD): ISC_STATUS; stdcall;
-    function isc_open_blob2(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_open_blob2(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD; bpb_length: ISC_USHORT; bpb: PISC_UCHAR): ISC_STATUS; stdcall;
-    function isc_put_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
+    function isc_put_segment(status_vector: PISC_STATUS; blob_handle:
         pisc_blob_handle; buffer_length: Word; buffer: PISC_SCHAR): ISC_STATUS;
         stdcall;
-    function isc_rollback_transaction(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_rollback_transaction(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
-    function isc_service_attach(status_vector: PISC_STATUS_ARRAY; service_length: Word;
+    function isc_service_attach(status_vector: PISC_STATUS; service_length: Word;
         service: PISC_SCHAR; svc_handle: pisc_svc_handle; spb_length: Word; spb:
         PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_service_detach(status_vector: PISC_STATUS_ARRAY; svc_handle:
+    function isc_service_detach(status_vector: PISC_STATUS; svc_handle:
         pisc_svc_handle): ISC_STATUS; stdcall;
-    function isc_service_query(status_vector: PISC_STATUS_ARRAY; svc_handle:
+    function isc_service_query(status_vector: PISC_STATUS; svc_handle:
         pisc_svc_handle; reserved: pisc_resv_handle; send_spb_length: Word;
         send_spb: PISC_SCHAR; request_spb_length:Word; request_spb: PISC_SCHAR;
         buffer_length: Word; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_service_start(status_vector: PISC_STATUS_ARRAY; svc_handle:
+    function isc_service_start(status_vector: PISC_STATUS; svc_handle:
         pisc_svc_handle; reserved: pisc_resv_handle; spb_length: Word; spb:
         PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_sqlcode(status_vector: PISC_STATUS_ARRAY): ISC_LONG; stdcall;
-    function isc_start_multiple(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_sqlcode(status_vector: PISC_STATUS): ISC_LONG; stdcall;
+    function isc_start_multiple(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle; count: SmallInt; vec: pointer): ISC_STATUS; stdcall;
     function isc_vax_integer(buffer: PISC_SCHAR; len: SmallInt): ISC_LONG; stdcall;
   end;
@@ -320,99 +320,99 @@ type
   protected  // IFirebirdLibrary_DLL
     function fb_shutdown(timeout: Cardinal = 20000; const reason: Integer = 0):
         Integer; stdcall;
-    function isc_attach_database(status_vector: PISC_STATUS_ARRAY; file_length: SmallInt;
+    function isc_attach_database(status_vector: PISC_STATUS; file_length: SmallInt;
         file_name: PISC_SCHAR; public_handle: pisc_db_handle; dpb_length: SmallInt;
         dpb: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_blob_info(status_vector: PISC_STATUS_ARRAY; isc_blob_handle:
+    function isc_blob_info(status_vector: PISC_STATUS; isc_blob_handle:
         pisc_blob_handle; item_length: SmallInt; items: PISC_SCHAR; buffer_length:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_close_blob(status_vector: PISC_STATUS_ARRAY; blob_handle:
+    function isc_close_blob(status_vector: PISC_STATUS; blob_handle:
         pisc_blob_handle): ISC_STATUS; stdcall;
-    function isc_commit_transaction(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_commit_transaction(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
-    function isc_create_blob(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_create_blob(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD): ISC_STATUS; stdcall;
-    function isc_create_blob2(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_create_blob2(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
         blob_id: PISC_QUAD; bpb_length: SmallInt; bpb: PISC_SCHAR): ISC_STATUS;
         stdcall;
-    function isc_create_database(status_vector: PISC_STATUS_ARRAY; fileLength:
+    function isc_create_database(status_vector: PISC_STATUS; fileLength:
         Word; filename: PISC_SCHAR; publicHandle: pisc_db_handle; dpbLength: Word;
         dpb: PISC_SCHAR; db_type: Word): Integer; stdcall;
-    function isc_database_info(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_database_info(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; info_len: SmallInt; info: PISC_SCHAR; res_len: SmallInt;
         res: PISC_SCHAR): ISC_STATUS; stdcall;
     procedure isc_decode_sql_date(date: PISC_DATE; times_arg: pointer); stdcall;
     procedure isc_decode_sql_time(sql_time: PISC_TIME; times_args: pointer); stdcall;
     procedure isc_decode_timestamp(date: PISC_TIMESTAMP; times_arg: pointer); stdcall;
-    function isc_detach_database(status_vector: PISC_STATUS_ARRAY; public_handle:
+    function isc_detach_database(status_vector: PISC_STATUS; public_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
-    function isc_drop_database(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_drop_database(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle): ISC_STATUS; stdcall;
-    function isc_dsql_allocate_statement(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_dsql_allocate_statement(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
-    function isc_dsql_alloc_statement2(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_dsql_alloc_statement2(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS; stdcall;
-    function isc_dsql_describe(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_describe(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_describe_bind(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_describe_bind(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_execute(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_dsql_execute(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word; sqlda:
         PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_execute2(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_dsql_execute2(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word; in_sqlda:
         PXSQLDA; out_sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_execute_immediate(status_vector: PISC_STATUS_ARRAY; db_handle:
+    function isc_dsql_execute_immediate(status_vector: PISC_STATUS; db_handle:
         pisc_db_handle; tra_handle: pisc_tr_handle; length: Word; statement:
         PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_fetch(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_fetch(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; da_version: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_free_statement(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_free_statement(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; option: Word): ISC_STATUS; stdcall;
-    function isc_dsql_prepare(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_dsql_prepare(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle; stmt_handle: pisc_stmt_handle; length: Word; str:
         PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS; stdcall;
-    function isc_dsql_set_cursor_name(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_set_cursor_name(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; cursor_name: PISC_SCHAR; reserve: Word): ISC_STATUS;
         stdcall;
-    function isc_dsql_sql_info(status_vector: PISC_STATUS_ARRAY; stmt_handle:
+    function isc_dsql_sql_info(status_vector: PISC_STATUS; stmt_handle:
         pisc_stmt_handle; items_len: SmallInt; items: PISC_SCHAR; buffer_len:
         SmallInt; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
     procedure isc_encode_sql_date(times_arg: pointer; date: PISC_DATE); stdcall;
     procedure isc_encode_sql_time(times_arg: pointer; isc_time: PISC_TIME); stdcall;
     procedure isc_encode_timestamp(times_arg: pointer; isc_time: PISC_TIMESTAMP); stdcall;
-    function isc_get_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
+    function isc_get_segment(status_vector: PISC_STATUS; blob_handle:
         pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer: PISC_SCHAR):
         ISC_STATUS; stdcall;
-    function isc_interprete(buffer: PISC_SCHAR; status_vector: PPISC_STATUS_ARRAY):
+    function isc_interprete(buffer: PISC_SCHAR; status_vector: PPISC_STATUS):
         ISC_STATUS; stdcall;
-    function isc_open_blob(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_open_blob(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD): ISC_STATUS; stdcall;
-    function isc_open_blob2(status_vector: PISC_STATUS_ARRAY; db_handle: pisc_db_handle;
+    function isc_open_blob2(status_vector: PISC_STATUS; db_handle: pisc_db_handle;
         tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle; blob_id:
         PISC_QUAD; bpb_length: ISC_USHORT; bpb: PISC_UCHAR): ISC_STATUS; stdcall;
-    function isc_put_segment(status_vector: PISC_STATUS_ARRAY; blob_handle:
+    function isc_put_segment(status_vector: PISC_STATUS; blob_handle:
         pisc_blob_handle; buffer_length: Word; buffer: PISC_SCHAR): ISC_STATUS;
         stdcall;
-    function isc_rollback_transaction(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_rollback_transaction(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle): ISC_STATUS; stdcall;
-    function isc_service_attach(status_vector: PISC_STATUS_ARRAY; service_length: Word;
+    function isc_service_attach(status_vector: PISC_STATUS; service_length: Word;
         service: PISC_SCHAR; svc_handle: pisc_svc_handle; spb_length: Word; spb:
         PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_service_detach(status_vector: PISC_STATUS_ARRAY; svc_handle:
+    function isc_service_detach(status_vector: PISC_STATUS; svc_handle:
         pisc_svc_handle): ISC_STATUS; stdcall;
-    function isc_service_query(status_vector: PISC_STATUS_ARRAY; svc_handle:
+    function isc_service_query(status_vector: PISC_STATUS; svc_handle:
         pisc_svc_handle; reserved: pisc_resv_handle; send_spb_length: Word;
         send_spb: PISC_SCHAR; request_spb_length:Word; request_spb: PISC_SCHAR;
         buffer_length: Word; buffer: PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_service_start(status_vector: PISC_STATUS_ARRAY; svc_handle:
+    function isc_service_start(status_vector: PISC_STATUS; svc_handle:
         pisc_svc_handle; reserved: pisc_resv_handle; spb_length: Word; spb:
         PISC_SCHAR): ISC_STATUS; stdcall;
-    function isc_sqlcode(status_vector: PISC_STATUS_ARRAY): ISC_LONG; stdcall;
-    function isc_start_multiple(status_vector: PISC_STATUS_ARRAY; tra_handle:
+    function isc_sqlcode(status_vector: PISC_STATUS): ISC_LONG; stdcall;
+    function isc_start_multiple(status_vector: PISC_STATUS; tra_handle:
         pisc_tr_handle; count: SmallInt; vec: pointer): ISC_STATUS; stdcall;
     function isc_vax_integer(buffer: PISC_SCHAR; len: SmallInt): ISC_LONG; stdcall;
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
@@ -461,10 +461,10 @@ type
         Boolean; overload;
     function GetError(const aFirebirdClient: IFirebirdLibrary): IFirebirdError;
     function GetLastError: IFirebirdError;
-    function GetpValue: PISC_STATUS_ARRAY;
+    function GetpValue: PISC_STATUS;
     function HasError: boolean;
     function Success: boolean;
-    property pValue: PISC_STATUS_ARRAY read GetpValue;
+    property pValue: PISC_STATUS read GetpValue;
   end;
 
   TStatusVector = class(TInterfacedObject, IStatusVector)
@@ -481,7 +481,7 @@ type
         Boolean; overload;
     function GetError(const aFirebirdClient: IFirebirdLibrary): IFirebirdError;
     function GetLastError: IFirebirdError;
-    function GetpValue: PISC_STATUS_ARRAY;
+    function GetpValue: PISC_STATUS;
     function HasError: boolean;
     function Success: boolean;
   end;
@@ -717,7 +717,7 @@ begin
     Result := ODS_11_And_Above;
 end;
 
-function TFirebirdLibrary.isc_attach_database(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_attach_database(status_vector: PISC_STATUS;
     file_length: SmallInt; file_name: PISC_SCHAR; public_handle:
     pisc_db_handle; dpb_length: SmallInt; dpb: PISC_SCHAR): ISC_STATUS;
 begin
@@ -749,7 +749,7 @@ begin
   DebugMsg(@Fisc_attach_database, [status_vector, file_length, file_name, public_handle, dpb_length, dpb], Result);
 end;
 
-function TFirebirdLibrary.isc_blob_info(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_blob_info(status_vector: PISC_STATUS;
     isc_blob_handle: pisc_blob_handle; item_length: SmallInt; items:
     PISC_SCHAR; buffer_length: SmallInt; buffer: PISC_SCHAR): ISC_STATUS;
 begin
@@ -757,14 +757,14 @@ begin
   DebugMsg(@FIsc_blob_info, [status_vector, isc_blob_handle, item_length, items, buffer_length, buffer], Result);
 end;
 
-function TFirebirdLibrary.isc_close_blob(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_close_blob(status_vector: PISC_STATUS;
     blob_handle: pisc_blob_handle): ISC_STATUS;
 begin
   Result := Fisc_close_blob(status_vector, blob_handle);
   DebugMsg(@Fisc_close_blob, [status_vector, blob_handle], Result);
 end;
 
-function TFirebirdLibrary.isc_commit_transaction(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_commit_transaction(status_vector: PISC_STATUS;
     tra_handle: pisc_tr_handle): ISC_STATUS;
 var H: Integer;
 begin
@@ -773,7 +773,7 @@ begin
   DebugMsg(@Fisc_commit_transaction, [status_vector, H], Result);
 end;
 
-function TFirebirdLibrary.isc_create_blob(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_create_blob(status_vector: PISC_STATUS;
     db_handle: pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle:
     pisc_blob_handle; blob_id: PISC_QUAD): ISC_STATUS;
 begin
@@ -781,7 +781,7 @@ begin
   DebugMsg(@Fisc_create_blob, [status_vector, db_handle, tr_handle, blob_handle, blob_id], Result);
 end;
 
-function TFirebirdLibrary.isc_create_blob2(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_create_blob2(status_vector: PISC_STATUS;
     db_handle: pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle:
     pisc_blob_handle; blob_id: PISC_QUAD; bpb_length: SmallInt; bpb:
     PISC_SCHAR): ISC_STATUS;
@@ -791,7 +791,7 @@ begin
 end;
 
 function TFirebirdLibrary.isc_create_database(
-  status_vector: PISC_STATUS_ARRAY; fileLength: Word; filename: PISC_SCHAR;
+  status_vector: PISC_STATUS; fileLength: Word; filename: PISC_SCHAR;
   publicHandle: pisc_db_handle; dpbLength: Word; dpb: PISC_SCHAR;
   db_type: Word): Integer;
 begin
@@ -799,7 +799,7 @@ begin
   DebugMsg(@Fisc_create_database, [status_vector, fileLength, filename, publicHandle, dpbLength, dpb, db_type], Result);
 end;
 
-function TFirebirdLibrary.isc_database_info(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_database_info(status_vector: PISC_STATUS;
     db_handle: pisc_db_handle; info_len: SmallInt; info: PISC_SCHAR; res_len:
     SmallInt; res: PISC_SCHAR): ISC_STATUS;
 begin
@@ -828,7 +828,7 @@ begin
   DebugMsg(@Fisc_decode_timestamp, [date, times_arg], 0);
 end;
 
-function TFirebirdLibrary.isc_detach_database(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_detach_database(status_vector: PISC_STATUS;
     public_handle: pisc_db_handle): ISC_STATUS;
 begin
   Result := Fisc_detach_database(status_vector, public_handle);
@@ -836,7 +836,7 @@ begin
   DebugMsg(@Fisc_detach_database, [status_vector, public_handle], Result);
 end;
 
-function TFirebirdLibrary.isc_drop_database(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_drop_database(status_vector: PISC_STATUS;
     db_handle: pisc_db_handle): ISC_STATUS;
 begin
   Result := Fisc_drop_database(status_vector, db_handle);
@@ -844,35 +844,35 @@ begin
 end;
 
 function TFirebirdLibrary.isc_dsql_allocate_statement(status_vector:
-    PISC_STATUS_ARRAY; db_handle: pisc_db_handle; stmt_handle: pisc_stmt_handle):
+    PISC_STATUS; db_handle: pisc_db_handle; stmt_handle: pisc_stmt_handle):
     ISC_STATUS;
 begin
   Result := Fisc_dsql_allocate_statement(status_vector, db_handle, stmt_handle);
   DebugMsg(@Fisc_dsql_allocate_statement, [status_vector, db_handle, stmt_handle], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_alloc_statement2(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_alloc_statement2(status_vector: PISC_STATUS;
     db_handle: pisc_db_handle; stmt_handle: pisc_stmt_handle): ISC_STATUS;
 begin
   Result := Fisc_dsql_alloc_statement2(status_vector, db_handle, stmt_handle);
   DebugMsg(@Fisc_dsql_alloc_statement2, [status_vector, db_handle, stmt_handle], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_describe(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_describe(status_vector: PISC_STATUS;
     stmt_handle: pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
   Result := Fisc_dsql_describe(status_vector, stmt_handle, dialect, sqlda);
   DebugMsg(@Fisc_dsql_describe, [status_vector, stmt_handle, dialect, sqlda], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_describe_bind(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_describe_bind(status_vector: PISC_STATUS;
     stmt_handle: pisc_stmt_handle; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
   Result := Fisc_dsql_describe_bind(status_vector, stmt_handle, dialect, sqlda);
   DebugMsg(@Fisc_dsql_describe_bind, [status_vector, stmt_handle, dialect, sqlda], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_execute(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_execute(status_vector: PISC_STATUS;
     tra_handle: pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word;
     sqlda: PXSQLDA): ISC_STATUS;
 begin
@@ -880,7 +880,7 @@ begin
   DebugMsg(@Fisc_dsql_execute, [status_vector, tra_handle, stmt_handle, dialect, sqlda], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_execute2(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_execute2(status_vector: PISC_STATUS;
     tra_handle: pisc_tr_handle; stmt_handle: pisc_stmt_handle; dialect: Word;
     in_sqlda: PXSQLDA; out_sqlda: PXSQLDA): ISC_STATUS;
 begin
@@ -889,14 +889,14 @@ begin
 end;
 
 function TFirebirdLibrary.isc_dsql_execute_immediate(status_vector:
-    PISC_STATUS_ARRAY; db_handle: pisc_db_handle; tra_handle: pisc_tr_handle; length:
+    PISC_STATUS; db_handle: pisc_db_handle; tra_handle: pisc_tr_handle; length:
     Word; statement: PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
   Result := Fisc_dsql_execute_immediate(status_vector, db_handle, tra_handle, length, statement, dialect, sqlda);
   DebugMsg(@Fisc_dsql_execute_immediate, [status_vector, db_handle, tra_handle, length, statement, dialect, sqlda], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_fetch(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_fetch(status_vector: PISC_STATUS;
     stmt_handle: pisc_stmt_handle; da_version: Word; sqlda: PXSQLDA):
     ISC_STATUS;
 begin
@@ -904,14 +904,14 @@ begin
   DebugMsg(@Fisc_dsql_fetch, [status_vector, stmt_handle, da_version, sqlda], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_free_statement(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_free_statement(status_vector: PISC_STATUS;
     stmt_handle: pisc_stmt_handle; option: Word): ISC_STATUS;
 begin
   Result := Fisc_dsql_free_statement(status_vector, stmt_handle, option);
   DebugMsg(@Fisc_dsql_free_statement, [status_vector, stmt_handle, option], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_prepare(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_prepare(status_vector: PISC_STATUS;
     tra_handle: pisc_tr_handle; stmt_handle: pisc_stmt_handle; length: Word;
     str: PISC_SCHAR; dialect: Word; sqlda: PXSQLDA): ISC_STATUS;
 begin
@@ -919,7 +919,7 @@ begin
   DebugMsg(@Fisc_dsql_prepare, [status_vector, tra_handle, stmt_handle, length, str, dialect, sqlda], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_set_cursor_name(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_set_cursor_name(status_vector: PISC_STATUS;
     stmt_handle: pisc_stmt_handle; cursor_name: PISC_SCHAR; reserve: Word):
     ISC_STATUS;
 begin
@@ -927,7 +927,7 @@ begin
   DebugMsg(@Fisc_dsql_set_cursor_name, [status_vector, stmt_handle, cursor_name, reserve], Result);
 end;
 
-function TFirebirdLibrary.isc_dsql_sql_info(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_dsql_sql_info(status_vector: PISC_STATUS;
     stmt_handle: pisc_stmt_handle; items_len: SmallInt; items: PISC_SCHAR;
     buffer_len: SmallInt; buffer: PISC_SCHAR): ISC_STATUS;
 begin
@@ -956,7 +956,7 @@ begin
   DebugMsg(@Fisc_encode_timestamp, [times_arg, isc_time], 0);
 end;
 
-function TFirebirdLibrary.isc_get_segment(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_get_segment(status_vector: PISC_STATUS;
     blob_handle: pisc_blob_handle; length: System.pWord; buffer_length: Word; buffer:
     PISC_SCHAR): ISC_STATUS;
 begin
@@ -965,13 +965,13 @@ begin
 end;
 
 function TFirebirdLibrary.isc_interprete(buffer: PISC_SCHAR; status_vector:
-    PPISC_STATUS_ARRAY): ISC_STATUS;
+    PPISC_STATUS): ISC_STATUS;
 begin
   Result := Fisc_interprete(buffer, status_vector);
   DebugMsg(@Fisc_interprete, [buffer, status_vector], Result);
 end;
 
-function TFirebirdLibrary.isc_open_blob(status_vector: PISC_STATUS_ARRAY; db_handle:
+function TFirebirdLibrary.isc_open_blob(status_vector: PISC_STATUS; db_handle:
     pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
     blob_id: PISC_QUAD): ISC_STATUS;
 begin
@@ -979,7 +979,7 @@ begin
   DebugMsg(@Fisc_open_blob, [status_vector, db_handle, tr_handle, blob_handle, blob_id], Result);
 end;
 
-function TFirebirdLibrary.isc_open_blob2(status_vector: PISC_STATUS_ARRAY; db_handle:
+function TFirebirdLibrary.isc_open_blob2(status_vector: PISC_STATUS; db_handle:
     pisc_db_handle; tr_handle: pisc_tr_handle; blob_handle: pisc_blob_handle;
     blob_id: PISC_QUAD; bpb_length: ISC_USHORT; bpb: PISC_UCHAR): ISC_STATUS;
 begin
@@ -987,7 +987,7 @@ begin
   DebugMsg(@Fisc_open_blob2, [status_vector, db_handle, tr_handle, blob_handle, blob_id, bpb_length, bpb], Result);
 end;
 
-function TFirebirdLibrary.isc_put_segment(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_put_segment(status_vector: PISC_STATUS;
     blob_handle: pisc_blob_handle; buffer_length: Word; buffer: PISC_SCHAR):
     ISC_STATUS;
 begin
@@ -995,14 +995,14 @@ begin
   DebugMsg(@Fisc_put_segment, [status_vector, blob_handle, buffer_length, buffer], Result);
 end;
 
-function TFirebirdLibrary.isc_rollback_transaction(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_rollback_transaction(status_vector: PISC_STATUS;
     tra_handle: pisc_tr_handle): ISC_STATUS;
 begin
   Result := Fisc_rollback_transaction(status_vector, tra_handle);
   DebugMsg(@Fisc_rollback_transaction, [status_vector, tra_handle], Result);
 end;
 
-function TFirebirdLibrary.isc_service_attach(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_service_attach(status_vector: PISC_STATUS;
     service_length: Word; service: PISC_SCHAR; svc_handle: pisc_svc_handle;
     spb_length: Word; spb: PISC_SCHAR): ISC_STATUS;
 begin
@@ -1010,14 +1010,14 @@ begin
   DebugMsg(@Fisc_service_attach, [status_vector, service_length, service, svc_handle, spb_length, spb], Result);
 end;
 
-function TFirebirdLibrary.isc_service_detach(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_service_detach(status_vector: PISC_STATUS;
     svc_handle: pisc_svc_handle): ISC_STATUS;
 begin
   Result := Fisc_service_detach(status_vector, svc_handle);
   DebugMsg(@Fisc_service_detach, [status_vector, svc_handle], Result);
 end;
 
-function TFirebirdLibrary.isc_service_query(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_service_query(status_vector: PISC_STATUS;
     svc_handle: pisc_svc_handle; reserved: pisc_resv_handle; send_spb_length:
     Word; send_spb: PISC_SCHAR; request_spb_length:Word; request_spb:
     PISC_SCHAR; buffer_length: Word; buffer: PISC_SCHAR): ISC_STATUS;
@@ -1026,7 +1026,7 @@ begin
   DebugMsg(@Fisc_service_query, [status_vector, svc_handle, reserved, send_spb_length, send_spb, request_spb_length, request_spb, buffer_length, buffer], Result);
 end;
 
-function TFirebirdLibrary.isc_service_start(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_service_start(status_vector: PISC_STATUS;
     svc_handle: pisc_svc_handle; reserved: pisc_resv_handle; spb_length: Word;
     spb: PISC_SCHAR): ISC_STATUS;
 begin
@@ -1034,13 +1034,13 @@ begin
   DebugMsg(@Fisc_service_start, [status_vector, svc_handle, reserved, spb_length, spb], Result);
 end;
 
-function TFirebirdLibrary.isc_sqlcode(status_vector: PISC_STATUS_ARRAY): ISC_LONG;
+function TFirebirdLibrary.isc_sqlcode(status_vector: PISC_STATUS): ISC_LONG;
 begin
   Result := Fisc_sqlcode(status_vector);
   DebugMsg(@Fisc_sqlcode, [status_vector], Result);
 end;
 
-function TFirebirdLibrary.isc_start_multiple(status_vector: PISC_STATUS_ARRAY;
+function TFirebirdLibrary.isc_start_multiple(status_vector: PISC_STATUS;
     tra_handle: pisc_tr_handle; count: SmallInt; vec: pointer): ISC_STATUS;
 begin
   Result := Fisc_start_multiple(status_vector, tra_handle, count, vec);
@@ -1157,7 +1157,7 @@ function TStatusVector.CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
 begin
   aErrorCode := 0;
   if HasError then
-    aErrorCode := GetpValue[1];
+    aErrorCode := GetpValue^;
   Result := aErrorCode <> 0;
 end;
 
@@ -1182,7 +1182,7 @@ end;
 function TStatusVector.GetError(const aFirebirdClient: IFirebirdLibrary):
     IFirebirdError;
 var P: array [0..1023] of AnsiChar;
-    ptr: PISC_STATUS_ARRAY;
+    ptr: PISC_STATUS;
     sLastMsg, sError: string;
 begin
   sError := '';
@@ -1199,7 +1199,7 @@ begin
   Result := FError;
 end;
 
-function TStatusVector.GetpValue: PISC_STATUS_ARRAY;
+function TStatusVector.GetpValue: PISC_STATUS;
 begin
   Result := @FStatusVector;
 end;
