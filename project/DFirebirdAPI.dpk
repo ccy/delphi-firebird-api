@@ -44,7 +44,6 @@ contains
   firebird.types_pub.h in '..\source\firebird.types_pub.h.pas',
   firebird.consts_pub.h in '..\source\firebird.consts_pub.h.pas',
   firebird.dsql in '..\source\firebird.dsql.pas',
-  firebird.charsets in '..\source\firebird.charsets.pas',
   firebird.blr.h in '..\source\firebird.blr.h.pas',
   firebird.client in '..\source\firebird.client.pas',
   firebird.client.debug in '..\source\firebird.client.debug.pas',
