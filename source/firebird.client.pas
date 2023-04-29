@@ -4,15 +4,14 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  firebird.ibase.h, firebird.jrd.h, firebird.sqlda_pub.h, firebird.types_pub.h;
+  firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h,
+  firebird.jrd.h;
 
 const
   FirebirdTransaction_WaitOnLocks = $0100;
   FirebirdTransaction_ReadOnly = $0200;
 
 type
-  TFBIntType = {$if CompilerVersion<=18.5}Integer{$else}NativeInt{$ifend};
-
   TFirebird = record
     const service_mgr = 'service_mgr';
     const DefaultDBAPassword = 'masterkey';
@@ -454,15 +453,13 @@ type
   ['{A51BBF0A-0565-4397-AFBE-ED0DD7BAF3BC}']
     procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
-        TFBIntType): boolean;
-    function CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
-    function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
-    function CheckResult(out aResult: longint; const aFailed_Result: longint):
-        Boolean; overload;
+        ISC_STATUS): boolean;
+    function CheckFirebirdError(out aErrorCode: ISC_STATUS): boolean;
     function GetError(const aFirebirdClient: IFirebirdLibrary): IFirebirdError;
     function GetLastError: IFirebirdError;
     function GetpValue: PISC_STATUS;
     function HasError: boolean;
+    procedure SetError(Errors: TArray<ISC_STATUS> = nil);
     function Success: boolean;
     property pValue: PISC_STATUS read GetpValue;
   end;
@@ -474,15 +471,13 @@ type
   protected
     procedure CheckAndRaiseError(const aFirebirdClient: IFirebirdLibrary);
     function CheckError(const aFirebirdClient: IFirebirdLibrary; out aErrorCode:
-        TFBIntType): boolean;
-    function CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
-    function CheckResult(out aResult: word; const aFailed_Result: word): Boolean; overload;
-    function CheckResult(out aResult: longint; const aFailed_Result: longint):
-        Boolean; overload;
+        ISC_STATUS): boolean;
+    function CheckFirebirdError(out aErrorCode: ISC_STATUS): boolean;
     function GetError(const aFirebirdClient: IFirebirdLibrary): IFirebirdError;
     function GetLastError: IFirebirdError;
     function GetpValue: PISC_STATUS;
     function HasError: boolean;
+    procedure SetError(Errors: TArray<ISC_STATUS> = nil);
     function Success: boolean;
   end;
 
@@ -636,8 +631,8 @@ implementation
 
 uses
   System.AnsiStrings, System.Generics.Defaults, System.IOUtils, System.Math,
-  firebird.client.debug, firebird.consts_pub.h, firebird.inf_pub.h,
-  firebird.ods.h;
+  firebird.client.debug, firebird.consts_pub.h, firebird.iberror.h,
+  firebird.inf_pub.h, firebird.ods.h;
 
 function ExpandFileNameString(const aFileName: string): string;
 var P: PChar;
@@ -1145,38 +1140,20 @@ begin
 end;
 
 function TStatusVector.CheckError(const aFirebirdClient: IFirebirdLibrary; out
-    aErrorCode: TFBIntType): boolean;
+    aErrorCode: ISC_STATUS): boolean;
 begin
-  aErrorCode := 0;
+  aErrorCode := isc_arg_end;
   if HasError then
     aErrorCode := aFirebirdClient.isc_sqlcode(GetpValue);
-  Result := aErrorCode <> 0;
+  Result := aErrorCode <> isc_arg_end;
 end;
 
-function TStatusVector.CheckFirebirdError(out aErrorCode: TFBIntType): boolean;
+function TStatusVector.CheckFirebirdError(out aErrorCode: ISC_STATUS): boolean;
 begin
-  aErrorCode := 0;
+  aErrorCode := isc_arg_end;
   if HasError then
-    aErrorCode := GetpValue^;
-  Result := aErrorCode <> 0;
-end;
-
-function TStatusVector.CheckResult(out aResult: word; const aFailed_Result:
-    word): Boolean;
-begin
-  aResult := 0;
-  if HasError then
-    aResult := aFailed_Result;
-  Result := aResult = 0;
-end;
-
-function TStatusVector.CheckResult(out aResult: longint; const aFailed_Result:
-    longint): Boolean;
-begin
-  aResult := 0;
-  if HasError then
-    aResult := aFailed_Result;
-  Result := aResult = 0;
+    aErrorCode := FStatusVector[1];
+  Result := aErrorCode <> isc_arg_end;
 end;
 
 function TStatusVector.GetError(const aFirebirdClient: IFirebirdLibrary):
@@ -1189,8 +1166,8 @@ begin
   ptr := GetpValue;
   while aFirebirdClient.isc_interprete(@P, @ptr) > 0 do begin
     sLastMsg := string({$if RtlVersion >= 20}System.AnsiStrings.{$ifend}StrPas(P));
-    if sError <> '' then
-      sError := sError + #13#10;
+    if not sError.IsEmpty then
+      sError := sError + sLineBreak;
     sError := sError + sLastMsg;
   end;
 
@@ -1206,7 +1183,24 @@ end;
 
 function TStatusVector.HasError: boolean;
 begin
-  Result := (FStatusVector[0] = 1) and (FStatusVector[1] > 0);
+  Result := (FStatusVector[0] = isc_arg_gds) and (FStatusVector[1] > isc_arg_end);
+end;
+
+procedure TStatusVector.SetError(Errors: TArray<ISC_STATUS> = nil);
+begin
+  var i := 0;
+  FStatusVector[i] := isc_arg_gds;
+  Inc(i);
+  for var E in Errors do begin
+    FStatusVector[i] := E;
+    Inc(i);
+    if i = Length(FStatusVector) - 1 then
+      Break;
+  end;
+  while i < Length(FStatusVector) do begin
+    FStatusVector[i] := isc_arg_end;
+    Inc(i);
+  end;
 end;
 
 function TStatusVector.Success: boolean;
