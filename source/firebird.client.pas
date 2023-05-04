@@ -4,8 +4,8 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  firebird.ibase.h, firebird.sqlda_pub.h, firebird.types_pub.h,
-  firebird.jrd.h;
+  Firebird, firebird.ibase.h, firebird.inf_pub.h, firebird.jrd.h,
+  firebird.sqlda_pub.h, firebird.types_pub.h;
 
 const
   FirebirdTransaction_WaitOnLocks = $0100;
@@ -16,11 +16,98 @@ type
     const service_mgr = 'service_mgr';
     const DefaultDBAPassword = 'masterkey';
     const FB_Config_Providers = 'Providers';
+    const MIN_PAGE_BUFFERS = 50;
+    const MAX_PAGE_BUFFERS = 131072;
   end;
 
   TFirebird_ODS_Major = (ODS_10_And_Below, ODS_11_And_Above);
 
-  TFirebirdConf = record
+  TODS = record
+  strict private
+    FValue: Word;
+  public
+    constructor Create(aMajor, aMinor: Word);
+    class function GetODS(aDatabaseFile: string): TODS; static;
+    function Major: Word;
+    function Minor: Word;
+    function ToString: string;
+    class operator Equal(a: TODS; b: TODS): Boolean;
+    class operator GreaterThanOrEqual(a: TODS; b: TODS): Boolean;
+    class operator GreaterThan(a: TODS; b: TODS): Boolean;
+    class operator LessThan(a: TODS; b: TODS): Boolean;
+    class operator LessThanOrEqual(a: TODS; b: TODS): Boolean;
+    class operator NotEqual(a: TODS; b: TODS): Boolean;
+    class operator Implicit(v: Integer): TODS;
+    class operator Implicit(o: string): TODS;
+    class operator Implicit(o: TODS): Integer;
+    class operator Implicit(o: TODS): string;
+  end;
+
+  TFirebirdEngine = record
+  strict private
+    FFileName: string;
+    FMajor: Cardinal;
+    FMinor: Cardinal;
+    FRelease: Cardinal;
+    FBuild: Cardinal;
+    FIsCurrent: Boolean;
+    class function GetProductVersion(const AFileName: string; var AMajor, AMinor,
+        ARelease, ABuild: Cardinal): Boolean; static;
+  private
+    function GetODS: TODS;
+    function GetVersion: string;
+  public
+    class operator Implicit(Value: string): TFirebirdEngine;
+    class operator Implicit(Value: TFirebirdEngine): string;
+    class function Loopback: TFirebirdEngine; static;
+    class function Remote: TFirebirdEngine; static;
+    function SupportedPageSizes: TArray<Integer>;
+    property IsCurrent: Boolean read FIsCurrent write FIsCurrent;
+    property FileName: string read FFileName;
+    property Major: Cardinal read FMajor;
+    property Minor: Cardinal read FMinor;
+    property Release: Cardinal read FRelease;
+    property Build: Cardinal read FBuild;
+    property ODS: TODS read GetODS;
+    property Version: string read GetVersion;
+  end;
+
+  TFirebirdEngines = record
+  type
+    TEngines = TArray<TFirebirdEngine>;
+
+    TEnumerator = record
+    type
+      TGetCurrent = TFunc<Integer, TFirebirdEngine>;
+    strict private
+      FCount: Integer;
+      FCurrent: Integer;
+      FGetCurrent: TGetCurrent;
+    public
+      constructor Create(const Engines: TFirebirdEngines);
+      function GetCurrent: TFirebirdEngine;
+      function MoveNext: Boolean;
+      property Current: TFirebirdEngine read GetCurrent;
+    end;
+
+  strict private
+    FEngines: TEngines;
+    function Get(aIndex: Integer): TFirebirdEngine;
+  public
+    constructor Create(aRoot_Or_fbclient: string);
+    function Count: Integer;
+    function GetEngineByProviders(aProviders: string; out aEngine:
+        TFirebirdEngine): Boolean;
+    function GetEngineByODS(aODS: TODS; out aEngine: TFirebirdEngine): Boolean;
+    function GetEnumerator: TEnumerator;
+    function GetProviders: string; overload;
+    class function GetProviders(aRoot_Or_fbclient: string): string; overload;
+        static;
+    function GetProviders(aEngines: array of TFirebirdEngine): string; overload;
+    property Items[Index: Integer]: TFirebirdEngine read Get; default;
+  end;
+
+  TFirebirdConfig = record
   type
     TConfigType = (TYPE_BOOLEAN, TYPE_INTEGER, TYPE_STRING);
     TConfigEntry = record
@@ -107,7 +194,269 @@ type
     );
   end;
 
-type
+  TInfoValue<T> = record
+  strict private
+    FAvailable: Boolean;
+    FValue: T;
+    class function New(a: T): TInfoValue<T>; static;
+  public
+    function Available: Boolean;
+    procedure Clear;
+    class operator Implicit(a: TInfoValue<T>): T;
+    class operator Implicit(a: T): TInfoValue<T>;
+    class operator Initialize(out Dest: TInfoValue<T>);
+    property Value: T read FValue;
+  end;
+
+  TQueryBufferReader = reference to function(var Buffer; Count: Word): Word;
+
+  TQueryBuffer = record
+  strict private
+    FValues: TBytes;
+    const DefaultSize = High(Word);
+  public
+    class operator Assign(var Dest: TQueryBuffer; const [ref] Src: TQueryBuffer);
+    class operator Initialize(out Dest: TQueryBuffer);
+    function AsPtr(i: UInt64 = 0): BytePtr; inline;
+    function Fetch(Reader: TQueryBufferReader; aSize: Word): Word;
+    function Size: Integer; inline;
+    procedure SetSize(aSize: Word);
+  end;
+
+  TDatabaseInfo = record
+  const
+    Items: array[0..13] of Byte = (
+      isc_info_page_size
+    , isc_info_num_buffers
+    , isc_info_ods_version
+    , isc_info_ods_minor_version
+    , isc_info_db_sql_dialect
+    , isc_info_sweep_interval
+    , isc_info_db_read_only
+    , isc_info_forced_writes
+    , isc_info_creation_date
+    , isc_info_db_size_in_pages
+    , isc_info_current_memory
+    , isc_info_max_memory
+    , isc_info_firebird_version
+    , isc_info_isc_version
+    );
+  public
+    page_size: Int32;
+    num_buffers: Int32;
+    ods_version: Int32;
+    ods_minor_version: Int32;
+    db_sql_dialect: Int32;
+    sweep_interval: Int32;
+    db_read_only: Boolean;
+    forced_writes: Boolean;
+    creation_date: TDateTime;
+    db_size_in_pages: Int32;
+    current_memory: Int32;
+    max_memory: Int32;
+    firebird_version: string;
+    isc_version: string;
+    function ODS: TODS;
+    function FileSize: UInt64;
+    class function AsPtr: Pointer; static; inline;
+    class function Size: Integer; static; inline;
+  end;
+
+  TServiceManagerInfo = record
+  const
+    Items: array[0..4] of Byte = (
+      isc_info_svc_svr_db_info
+    , isc_info_svc_version
+    , isc_info_svc_server_version
+    , isc_info_svc_implementation
+    , isc_info_svc_get_env
+    );
+  public
+    svc_version: Int32;
+    svc_server_version: string;
+    svc_implementation: string;
+    num_att: Integer;
+    num_db: Integer;
+    db_name: TArray<string>;
+    get_env: string;
+    class function AsPtr: Pointer; static; inline;
+    class function Size: Integer; static; inline;
+    function IsWindows: Boolean;
+  end;
+
+  TServiceQueryInfo = record
+  strict private
+    FTags: TBytes;
+    class constructor Create;
+    class function New(aTags: array of Byte): TServiceQueryInfo; static;
+  public
+    class var eof: TServiceQueryInfo;
+    class var line: TServiceQueryInfo;
+    class var restore: TServiceQueryInfo;
+    function Size: Integer; inline;
+    function AsPtr: Pointer; inline;
+  end;
+
+  TPageSize = (ps4096, ps8192, ps16384, ps32768);
+
+  TPageSizeHelper = record helper for TPageSize
+    class function Create(const Value: Integer): TPageSize; static;
+    class function Default: TPageSize; static;
+    function ToInteger: Integer;
+  end;
+
+  TFirebirdConnectionStringProtocol = (
+    xnet_tra  // Traditional XNET
+  , wnet_tra  // Traditional WNET
+  , tcp_tra   // Traditional TCP
+  , xnet      // URL XNET
+  , wnet      // URL WNET
+  , inet      // URL TCP
+  , inet4     // URL TCP
+  , inet6     // URL TCP
+  );
+
+  TFirebirdConnectionStringProtocolHelper = record helper for TFirebirdConnectionStringProtocol
+    const URL_Delimiter = '://';
+    class function Get(Value: string): TFirebirdConnectionStringProtocol; static;
+    class function IsValidWindowsFileName(aStr: string): Boolean; static;
+    function ToString(AppendDelimiter: Boolean = False): string;
+  end;
+
+  TFirebirdConnectionString = record
+  strict private
+    FProtocol: TFirebirdConnectionStringProtocol;
+    FPort: string;
+    FHost: string;
+    FDatabase: string;
+    function GetValue: string;
+    procedure SetValue(a: string);
+  public
+    class operator Initialize(out Dest: TFirebirdConnectionString);
+    class operator Implicit(a: string): TFirebirdConnectionString;
+    class operator Implicit(a: TFirebirdConnectionString): string;
+    class function ParseURL(Value: string; PathDelimiter: string = '/';
+        PortDelimiter: string = ':'): TArray<string>; static;
+    function AsServiceManager: string;
+    property Host: string read FHost write FHost;
+    property Database: string read FDatabase write FDatabase;
+    property Port: string read FPort write FPort;
+    property Protocol: TFirebirdConnectionStringProtocol read FProtocol write
+        FProtocol;
+  end;
+
+  TBurpData = record
+    // Backup program attributes
+    att_backup_date: string;             // date of backup
+    att_type_att_backup_format: UInt32;  // backup format version
+    att_backup_os: UInt32;               // backup operating system
+    att_backup_compress: Boolean;
+    att_backup_transportable: Boolean;   // XDR datatypes for user data
+    att_backup_blksize: UInt32;          // backup block size
+    att_backup_file: string;             // database file name
+    att_backup_volume: UInt32;           // backup volume number
+    att_backup_keyname: string;          // name of crypt key
+    att_backup_zip: string;              // zipped backup file
+    att_backup_hash: string;             // hash of crypt key
+    att_backup_crypt: string;            // name of crypt plugin
+
+    // Database attributes
+    att_file_name: string;               // database file name (physical)
+    att_file_size: UInt32;               // size of original database (physical)
+    att_jrd_version: UInt32;             // jrd version (physical)
+    att_creation_date: string;           // database creation date (physical)
+    att_page_size: UInt32;               // page size of original database (physical)
+    att_database_description: string;    // description from RDB$DATABASE (logical)
+    att_database_security_class: string; // database level security (logical)
+    att_sweep_interval: UInt32;          // sweep interval
+    att_no_reserve: Boolean;             // don't reserve space for versions
+    att_database_description2: string;
+    att_database_dfl_charset: string;    // default character set from RDB$DATABASE
+    att_forced_writes: Boolean;          // syncronous writes flag
+    att_page_buffers: UInt32;            // page buffers for buffer cache
+    att_SQL_dialect: UInt32;             // SQL dialect that it speaks
+    att_db_read_only: Boolean;           // Is the database ReadOnly?
+    att_database_linger: UInt32;         // Disconnection timeout
+    att_database_sql_security_deprecated: Boolean; // can be removed later
+    att_replica_mode: UInt32;            // replica mode
+    att_database_sql_security: Boolean;  // default sql security value
+  private
+  type
+    TBurpDataItem = TBytes;
+    TBurpDataItemHelper = record helper for TBurpDataItem
+      function AsBoolean: Boolean;
+      function AsString: string;
+      function AsUINT32: UINT32;
+    end;
+    procedure LoadFromStream(S: TStream);
+  public
+    class operator Implicit(A: TStream): TBurpData;
+  end;
+
+  PFirebirdAPI = ^TFirebirdAPI;
+  TFirebirdAPI = record
+    class operator Assign(var Dest: TFirebirdAPI; const [ref] Src: TFirebirdAPI);
+    class operator Initialize(out Dest: TFirebirdAPI);
+    class operator Finalize(var Dest: TFirebirdAPI);
+  strict private
+    Fmaster: IMaster;
+    Fstatus: IStatus;
+    util: IUtil;
+    prov: IProvider;
+    const stdin = 'stdin';
+    const stdout = 'stdout';
+    type TBackupInfoProcessor = reference to procedure(const Buf; Count: NativeInt);
+    type TBackupDataReader = TQueryBufferReader;
+  strict private
+    FHandle: THandle;
+    FFBClient: string;
+    FUserName: TInfoValue<string>;
+    FPassword: TInfoValue<string>;
+    FProviders: TInfoValue<string>;
+    FConnectionString: TFirebirdConnectionString;
+    FPageSize: TInfoValue<TPageSize>;
+    FForcedWrite: TInfoValue<Boolean>;
+    FPageBuffers: TInfoValue<Cardinal>;
+  public
+    function AttachDatabase: IAttachment;
+    function AttachServiceManager: IService;
+    procedure Backup(Process: TBackupInfoProcessor = nil; aBackupFile: string = stdout);
+        overload;
+    function CreateDatabase(aDummy: Integer): IAttachment; overload;
+    procedure CreateDatabase; overload;
+    procedure DropDatabase;
+    function GetDatabaseInfo: TDatabaseInfo;
+    function GetServiceInfo: TServiceManagerInfo;
+    function GetPlans(aSQLs: array of string): TArray<string>;
+    procedure nBackup(aBackupFile: string; Process: TBackupInfoProcessor = nil;
+        aBackupLevel: Integer = 0);
+    procedure nFix(aBackupFile: string; Process: TBackupInfoProcessor = nil);
+    procedure nRestore(aBackupFiles: array of string; Process: TBackupInfoProcessor
+        = nil);
+    procedure Restore(aBackupFile: string; Process: TBackupInfoProcessor = nil;
+        Read: TBackupDataReader = nil); overload;
+    procedure Restore(Read: TBackupDataReader = nil; Process: TBackupInfoProcessor
+        = nil); overload;
+    procedure SetProperties;
+  public
+    class function New(aFBClient: string): TFirebirdAPI;
+        overload; static;
+    function New(aFBClient: string; Dummy: Integer): PFirebirdAPI; overload;
+    function New(aFBClient: string; out aStatus: IStatus): PFirebirdAPI; overload;
+    function Reset: PFirebirdAPI;
+    function SetCredential(aUserName, aPassword: string): PFirebirdAPI;
+    function SetConnectionString(aConnStr: string): PFirebirdAPI; overload;
+    function SetConnectionString(aDatabase, ProvidersOrHost: string): PFirebirdAPI;
+        overload;
+    function SetConnectionString(aDatabase, aHost: string; aProtocol: TFirebirdConnectionStringProtocol): PFirebirdAPI; overload;
+    function SetPageBuffers(aValue: Cardinal): PFirebirdAPI;
+    function SetPageSize(aValue: TPageSize): PFirebirdAPI;
+    function SetProviders(aProviders: string): PFirebirdAPI;
+    function SetForcedWrite(aValue: Boolean = True): PFirebirdAPI;
+    property master: IMaster read Fmaster;
+    property FBClient: string read FFBClient;
+  end;
+
   TFirebirdPB = record
   strict private
     FParams: TBytes;
@@ -570,69 +919,15 @@ type
     property Term: char read FTerm write FTerm default ';';
   end;
 
-  TFirebirdEngine = record
-  strict private
-    FFileName: string;
-    FMajor: Cardinal;
-    FMinor: Cardinal;
-    FBuild: Cardinal;
-  private
-    function GetEncodedODS: UInt16;
-    function GetVersion: string;
-  public
-    class function Loopback: TFirebirdEngine; static;
-    class function Remote: TFirebirdEngine; static;
-    class operator Implicit(Value: string): TFirebirdEngine;
-    class operator Implicit(Value: TFirebirdEngine): string;
-    function SupportedPageSizes: TArray<Integer>;
-    property FileName: string read FFileName;
-    property Major: Cardinal read FMajor;
-    property Minor: Cardinal read FMinor;
-    property Build: Cardinal read FBuild;
-    property EncodedODS: UInt16 read GetEncodedODS;
-    property Version: string read GetVersion;
-  end;
-
-  TFirebirdEngines = record
-  type
-    TEngines = TArray<TFirebirdEngine>;
-
-    TEnumerator = record
-    type
-      TGetCurrent = TFunc<Integer, TFirebirdEngine>;
-    strict private
-      FCount: Integer;
-      FCurrent: Integer;
-      FGetCurrent: TGetCurrent;
-    public
-      constructor Create(const Engines: TFirebirdEngines);
-      function GetCurrent: TFirebirdEngine;
-      function MoveNext: Boolean;
-      property Current: TFirebirdEngine read GetCurrent;
-    end;
-
-  strict private
-    FEngines: TEngines;
-    function Get(aIndex: Integer): TFirebirdEngine;
-  public
-    constructor Create(aRoot_Or_fbclient: string);
-    function Count: Integer;
-    function GetEnumerator: TEnumerator;
-    function GetProviders: string; overload; inline;
-    class function GetProviders(aRoot_Or_fbclient: string): string; overload;
-        static; inline;
-    function GetProviders(aEngines: array of TFirebirdEngine): string; overload;
-    property Items[Index: Integer]: TFirebirdEngine read Get; default;
-  end;
-
 function ExpandFileNameString(const aFileName: string): string;
 
 implementation
 
 uses
   System.AnsiStrings, System.Generics.Defaults, System.IOUtils, System.Math,
-  firebird.client.debug, firebird.consts_pub.h, firebird.iberror.h,
-  firebird.inf_pub.h, firebird.ods.h;
+  System.Net.URLClient, firebird.burp.h,
+  Firebird.helper, firebird.client.debug, firebird.constants.h,
+  firebird.consts_pub.h, firebird.delphi, firebird.iberror.h, firebird.ods.h;
 
 function ExpandFileNameString(const aFileName: string): string;
 var P: PChar;
@@ -646,6 +941,96 @@ begin
   finally
     StrDispose(P);
   end;
+end;
+
+constructor TODS.Create(aMajor, aMinor: Word);
+begin
+  FValue := ENCODE_ODS(aMajor, aMinor);
+end;
+
+class function TODS.GetODS(aDatabaseFile: string): TODS;
+var F: TStream;
+    H: Ods_header_page;
+begin
+  F := TFileStream.Create(ExpandFileNameString(aDatabaseFile), fmOpenRead + fmShareDenyNone);
+  try
+    F.Read(H, SizeOf(H));
+    Result := TODS.Create(H.hdr_ods_version xor $8000, H.hdr_ods_minor);
+  finally
+    F.Free;
+  end;
+end;
+
+function TODS.Major: Word;
+begin
+  Result := FValue shr 4;
+end;
+
+function TODS.Minor: Word;
+begin
+  Result := FValue and $0F;
+end;
+
+function TODS.ToString: string;
+begin
+  Result := Self;
+end;
+
+class operator TODS.Equal(a: TODS; b: TODS): Boolean;
+begin
+  Result := a.FValue = b.FValue;
+end;
+
+class operator TODS.GreaterThan(a, b: TODS): Boolean;
+begin
+  Result := a.FValue > b.FValue;
+end;
+
+class operator TODS.GreaterThanOrEqual(a, b: TODS): Boolean;
+begin
+  Result := a.FValue >= b.FValue;
+end;
+
+class operator TODS.Implicit(v: Integer): TODS;
+begin
+  Result.FValue := v;
+end;
+
+class operator TODS.Implicit(o: string): TODS;
+var A: TArray<string>;
+    iMajor, iMinor: Word;
+begin
+  A := o.Split(['.']);
+  iMajor := 0;
+  iMinor := 0;
+  if Length(A) > 0 then iMajor := A[0].ToInteger;
+  if Length(A) > 1 then iMinor := A[1].ToInteger;
+  Result := TODS.Create(iMajor, iMinor);
+end;
+
+class operator TODS.Implicit(o: TODS): string;
+begin
+  Result := string.Format('%d.%d', [o.Major, o.Minor]);
+end;
+
+class operator TODS.LessThan(a, b: TODS): Boolean;
+begin
+  Result := a.FValue < b.FValue;
+end;
+
+class operator TODS.LessThanOrEqual(a, b: TODS): Boolean;
+begin
+  Result := a.FValue <= b.FValue;
+end;
+
+class operator TODS.Implicit(o: TODS): Integer;
+begin
+  Result := o.FValue;
+end;
+
+class operator TODS.NotEqual(a: TODS; b: TODS): Boolean;
+begin
+  Result := a.FValue <> b.FValue;
 end;
 
 procedure TFirebirdLibrary.AfterConstruction;
@@ -1718,7 +2103,7 @@ begin
   ReadOnly := aReadOnly;
 end;
 
-function TFirebirdEngine.GetEncodedODS: UInt16;
+function TFirebirdEngine.GetODS: TODS;
 begin
   case FMajor of
     3: Result := ODS_12_0;
@@ -1728,19 +2113,55 @@ begin
   end;
 end;
 
+class function TFirebirdEngine.GetProductVersion(const AFileName: string; var
+    AMajor, AMinor, ARelease, ABuild: Cardinal): Boolean;
+var
+  FileName: string;
+  InfoSize, Wnd: DWORD;
+  VerBuf: Pointer;
+  FI: PVSFixedFileInfo;
+  VerSize: DWORD;
+begin
+  Result := False;
+  // GetFileVersionInfo modifies the filename parameter data while parsing.
+  // Copy the string const into a local variable to create a writeable copy.
+  FileName := AFileName;
+  UniqueString(FileName);
+  InfoSize := GetFileVersionInfoSize(PChar(FileName), Wnd);
+  if InfoSize <> 0 then
+  begin
+    GetMem(VerBuf, InfoSize);
+    try
+      if GetFileVersionInfo(PChar(FileName), Wnd, InfoSize, VerBuf) then
+        if VerQueryValue(VerBuf, '\', Pointer(FI), VerSize) then
+        begin
+          AMajor    := HiWord(FI.dwProductVersionMS);
+          AMinor    := LoWord(FI.dwProductVersionMS);
+          ARelease  := HiWord(FI.dwProductVersionLS);
+          ABuild    := LoWord(FI.dwProductVersionLS);
+
+          Result:= True;
+        end;
+    finally
+      FreeMem(VerBuf);
+    end;
+  end;
+end;
+
 class operator TFirebirdEngine.Implicit(Value: string): TFirebirdEngine;
 begin
   Result.FFileName := Value;
-  if not GetProductVersion(Value, Result.FMajor, Result.FMinor, Result.FBuild) then begin
+  if not GetProductVersion(Value, Result.FMajor, Result.FMinor, Result.FRelease, Result.FBuild) then begin
     Result.FMajor := 0;
     Result.FMinor := 0;
+    Result.FRelease := 0;
     Result.FBuild := 0;
   end;
 end;
 
 function TFirebirdEngine.GetVersion: string;
 begin
-  Result := Format('%d.%d.%d', [FMajor, FMinor, FBuild]);
+  Result := Format('%d.%d.%d.%d', [FMajor, FMinor, FRelease, FBuild]);
 end;
 
 class operator TFirebirdEngine.Implicit(Value: TFirebirdEngine): string;
@@ -1767,6 +2188,7 @@ begin
   var m := MAX_PAGE_SIZE;
   if FMajor < 4 then m := m shr 1;
 
+  Result := [];
   while i <= m do begin
     Result := Result + [i];
     i := i shl 1;
@@ -1816,14 +2238,43 @@ begin
       end
     ));
 
-    for var s in A do
-      FEngines := FEngines + [s];
+    var b := True;
+    for var s in A do begin
+      var E: TFirebirdEngine := s;
+      E.IsCurrent := b;
+      if b then b := not b;
+      FEngines := FEngines + [E];
+    end;
   end;
+end;
+
+function TFirebirdEngines.GetEngineByProviders(aProviders: string; out aEngine:
+    TFirebirdEngine): Boolean;
+begin
+  for var E in FEngines do begin
+    if GetProviders(E) = aProviders then begin
+      aEngine := E;
+      Exit(True);
+    end;
+  end;
+  Exit(False);
 end;
 
 function TFirebirdEngines.Get(aIndex: Integer): TFirebirdEngine;
 begin
   Result := FEngines[aIndex];
+end;
+
+function TFirebirdEngines.GetEngineByODS(aODS: TODS;
+  out aEngine: TFirebirdEngine): Boolean;
+begin
+  for var E in FEngines do begin
+    if e.ODS = aODS then begin
+      aEngine := E;
+      Exit(True);
+    end;
+  end;
+  Exit(False);
 end;
 
 function TFirebirdEngines.GetEnumerator: TEnumerator;
@@ -1861,6 +2312,987 @@ end;
 function TFirebirdEngines.GetProviders: string;
 begin
   Result := GetProviders([]);
+end;
+
+function TInfoValue<T>.Available: Boolean;
+begin
+  Result := FAvailable;
+end;
+
+class operator TInfoValue<T>.Implicit(a: TInfoValue<T>): T;
+begin
+  Result := a.FValue;
+end;
+
+procedure TInfoValue<T>.Clear;
+begin
+  FAvailable := False;
+  FValue := Default(T);
+end;
+
+class operator TInfoValue<T>.Implicit(a: T): TInfoValue<T>;
+begin
+  Result := TInfoValue<T>.New(a);
+end;
+
+class operator TInfoValue<T>.Initialize(out Dest: TInfoValue<T>);
+begin
+  Dest.FAvailable := False;
+end;
+
+class function TInfoValue<T>.New(a: T): TInfoValue<T>;
+begin
+  Result.FAvailable := True;
+  Result.FValue := a;
+end;
+
+function TQueryBuffer.AsPtr(i: UInt64 = 0): BytePtr;
+begin
+  Result := @FValues[i];
+end;
+
+procedure TQueryBuffer.SetSize(aSize: Word);
+begin
+  SetLength(FValues, aSize);
+end;
+
+function TQueryBuffer.Size: Integer;
+begin
+  Result := Length(FValues);
+end;
+
+class operator TQueryBuffer.Assign(var Dest: TQueryBuffer; const [ref] Src:
+    TQueryBuffer);
+begin
+  raise Exception.Create('TQueryBuffer.Assign is not supported');
+end;
+
+function TQueryBuffer.Fetch(Reader: TQueryBufferReader; aSize: Word): Word;
+begin
+  Result := Reader(FValues[0], aSize);
+end;
+
+class operator TQueryBuffer.Initialize(out Dest: TQueryBuffer);
+begin
+  SetLength(Dest.FValues, DefaultSize);
+end;
+
+class function TDatabaseInfo.AsPtr: Pointer;
+begin
+  Result := @Items[0];
+end;
+
+function TDatabaseInfo.FileSize: UInt64;
+begin
+  Result := page_size * db_size_in_pages;
+end;
+
+function TDatabaseInfo.ODS: TODS;
+begin
+  Result := TODS.Create(ods_version, ods_minor_version);
+end;
+
+class function TDatabaseInfo.Size: Integer;
+begin
+  Result := Length(Items);
+end;
+
+class function TServiceManagerInfo.AsPtr: Pointer;
+begin
+  Result := @Items[0];
+end;
+
+function TServiceManagerInfo.IsWindows: Boolean;
+begin
+  Result := svc_implementation.Contains('/Windows/');
+end;
+
+class function TServiceManagerInfo.Size: Integer;
+begin
+  Result := Length(Items);
+end;
+
+class constructor TServiceQueryInfo.Create;
+begin
+  eof := TServiceQueryInfo.New([isc_info_svc_to_eof]);
+  line := TServiceQueryInfo.New([isc_info_svc_line]);
+  restore := TServiceQueryInfo.New([isc_info_svc_stdin, isc_info_svc_to_eof]);
+end;
+
+class function TServiceQueryInfo.New(aTags: array of Byte): TServiceQueryInfo;
+begin
+  SetLength(Result.FTags, Length(aTags));
+  Move(aTags[0], Result.FTags[0], Length(aTags));
+end;
+
+function TServiceQueryInfo.AsPtr: Pointer;
+begin
+  Result := @FTags[0];
+end;
+
+function TServiceQueryInfo.Size: Integer;
+begin
+  Result := Length(FTags);
+end;
+
+class function TPageSizeHelper.Create(const Value: Integer): TPageSize;
+begin
+  var i := Low(TPageSize);
+
+  if Value <= i.ToInteger then Exit(i);
+  Inc(i);
+
+  while i <= High(TPageSize) do begin
+    if Value = i.ToInteger then
+      Break
+    else if Value < i.ToInteger then begin
+      Dec(i);
+      Break;
+    end;
+    Inc(i);
+  end;
+
+  Result := i;
+end;
+
+class function TPageSizeHelper.Default: TPageSize;
+begin
+  Result := Create(DEFAULT_PAGE_SIZE);
+end;
+
+function TPageSizeHelper.ToInteger: Integer;
+begin
+  Result := DEFAULT_PAGE_SIZE;
+  case Self of
+    ps4096:    Result := 4096;
+    ps8192:    Result := 8192;
+    ps16384:   Result := 16384;
+    ps32768:   Result := 32768;
+  end;
+end;
+
+class function TFirebirdConnectionStringProtocolHelper.Get(
+  Value: string): TFirebirdConnectionStringProtocol;
+begin
+  for var p := Low(TFirebirdConnectionStringProtocol) to High(TFirebirdConnectionStringProtocol) do begin
+    if p.ToString.IsEmpty then Continue;
+
+    if Value.StartsWith(p.ToString(True), True) then
+      Exit(p)
+  end;
+
+  if Value.IsEmpty then Exit(xnet_tra);
+  if IsValidWindowsFileName(Value) then Exit(xnet_tra);
+  if Value.StartsWith('/') then Exit(xnet_tra);
+  if (Value.IndexOf(':') = -1) and (Value.IndexOf('/') = -1) then Exit(xnet_tra);
+
+  Exit(tcp_tra);
+end;
+
+class function TFirebirdConnectionStringProtocolHelper.IsValidWindowsFileName(
+  aStr: string): Boolean;
+begin
+  Result := (aStr.Length >= 3)
+        and CharInSet(aStr.Chars[0], ['A'..'Z', 'a'..'z']) // valid drive letter
+        and (aStr.Chars[1] = ':')                          // drive letter URL_Delimiter
+        and CharInSet(aStr.Chars[2], ['/', '\']);          // path URL_Delimiter
+end;
+
+function TFirebirdConnectionStringProtocolHelper.ToString(AppendDelimiter:
+    Boolean = False): string;
+begin
+  Result := '';
+  case Self of
+    xnet_tra: Result := '';
+    wnet_tra: Result := '\\';
+    tcp_tra:  Result := '';
+    xnet:     Result := 'xnet';
+    wnet:     Result := 'wnet';
+    inet:     Result := 'inet';
+    inet4:    Result := 'inet4';
+    inet6:    Result := 'inet6';
+  end;
+  if AppendDelimiter and (Self in [xnet..inet6]) then
+    Result := Result + URL_Delimiter;
+end;
+
+class operator TFirebirdConnectionString.Implicit(
+  a: string): TFirebirdConnectionString;
+begin
+  Result.SetValue(a);
+end;
+
+function TFirebirdConnectionString.AsServiceManager: string;
+begin
+  var o := Self;
+  o.Database := TFirebird.service_mgr;
+  Result := o;
+end;
+
+function TFirebirdConnectionString.GetValue: string;
+begin
+  if FProtocol = xnet_tra then
+    Exit(FDatabase);
+
+  if FProtocol = wnet_tra then begin
+    var s := FProtocol.ToString(True) + FHost;
+    if not FDatabase.IsEmpty then
+      s := s + '\' + FDatabase;
+    Exit(s);
+  end;
+
+  if FProtocol = tcp_tra then begin
+    var s := FHost;
+    if not FPort.IsEmpty then
+      s := s + '/' + FPort;
+    if not FDatabase.IsEmpty then
+      s := s + ':' + FDatabase;
+    Exit(s);
+  end;
+
+  if FProtocol in [xnet, wnet, inet, inet4, inet6] then begin
+    var s := FProtocol.ToString(True) + FHost;
+    if not FPort.IsEmpty then
+      s := s + ':' + FPort;
+    if FDatabase.StartsWith('/') then
+      s := s + FDatabase
+    else if not FDatabase.IsEmpty then begin
+      if FHost.IsEmpty then
+        s := s + FDatabase
+      else
+        s := s + '/' + FDatabase;
+    end;
+    Exit(s);
+  end;
+end;
+
+class operator TFirebirdConnectionString.Implicit(
+  a: TFirebirdConnectionString): string;
+begin
+  Result := a.GetValue;
+end;
+
+procedure TFirebirdConnectionString.SetValue(a: string);
+begin
+  FProtocol := TFirebirdConnectionStringProtocol.Get(a);
+
+  case FProtocol of
+    xnet_tra: begin
+      FPort := '';
+      FHost := '';
+      FDatabase := a;
+    end;
+
+    wnet_tra: begin
+      var B := TFirebirdConnectionString.ParseURL(a, '\');
+      case Length(B) of
+        1: begin
+          FHost := '';
+          FDatabase := B[0];
+        end;
+        2: begin
+          FHost := B[0];
+          FDatabase := B[1];
+        end;
+      end;
+    end;
+
+    tcp_tra: begin
+      var B := TFirebirdConnectionString.ParseURL(a, ':', '/');
+      case Length(B) of
+        2: begin
+          FHost := B[0];
+          FDatabase := B[1];
+        end;
+        3: begin
+          FHost := B[0];
+          FPort := B[1];
+          FDatabase := B[2];
+        end;
+      end;
+    end;
+
+    xnet: begin
+      var B := TFirebirdConnectionString.ParseURL(a);
+      case Length(B) of
+        1: begin
+          FHost := '';
+          FDatabase := B[0];
+        end;
+        2: begin
+          FHost := '';
+          FDatabase := B[1];
+        end;
+      end;
+    end;
+
+    inet, inet4, inet6, wnet: begin
+      var B := TFirebirdConnectionString.ParseURL(a);
+      case Length(B) of
+        1: Host := B[0];
+        2: begin
+          FHost := B[0];
+          FDatabase := B[1];
+        end;
+        3: begin
+          FHost := B[0];
+          FPort := B[1];
+          FDatabase := B[2];
+        end;
+      end;
+    end;
+  end;
+end;
+
+class operator TFirebirdConnectionString.Initialize(out Dest:
+    TFirebirdConnectionString);
+begin
+  Dest.FProtocol := xnet_tra;
+  Dest.FHost := '';
+  Dest.FDatabase := '';
+  Dest.FPort := '';
+end;
+
+class function TFirebirdConnectionString.ParseURL(Value: string; PathDelimiter:
+    string = '/'; PortDelimiter: string = ':'): TArray<string>;
+begin
+  var v := Value.Substring(TFirebirdConnectionStringProtocol.Get(Value).ToString(True).Length);
+
+  Result := [v];
+  if not TFirebirdConnectionStringProtocol.IsValidWindowsFileName(v) then begin
+    var i := v.IndexOf(PathDelimiter);
+    if i <> -1 then begin
+      var s := v.SubString(i);
+
+      if s.Length > 0 then begin
+        var t := s.Substring(1);
+        if (t.IndexOf(PathDelimiter) = -1) or TFirebirdConnectionStringProtocol.IsValidWindowsFileName(t) then
+          s := t;
+      end;
+
+      Result := [v.Substring(0, i), s];
+    end;
+  end;
+
+  if (Length(Result) > 0) and not Result[0].IsEmpty then begin
+    if TFirebirdConnectionStringProtocol.IsValidWindowsFileName(Result[0]) then
+      Result := [''] + Result
+    else begin
+      var Hosts := Result[0].Split([PortDelimiter]);
+      Result := Hosts + Copy(Result, 1, Length(Result) - 1);
+      if (Length(Hosts) > 1) and (Length(Result) = 2) then
+        Result := Result + [''];
+    end;
+  end;
+end;
+
+function TBurpData.TBurpDataItemHelper.AsBoolean: Boolean;
+begin
+  Result := Boolean(AsUINT32);
+end;
+
+function TBurpData.TBurpDataItemHelper.AsString: string;
+begin
+  Result := TEncoding.ANSI.GetString(Self);
+end;
+
+function TBurpData.TBurpDataItemHelper.AsUINT32: UINT32;
+begin
+  Result := PUINT(Self)^;
+end;
+
+class operator TBurpData.Implicit(A: TStream): TBurpData;
+begin
+  Result.LoadFromStream(A);
+end;
+
+procedure TBurpData.LoadFromStream(S: TStream);
+begin
+  ZeroMemory(@Self, SizeOf(Self));
+
+  var recTag, attTag, Len: Byte;
+  while S.Read(recTag, SizeOf(recTag)) = SizeOf(recTag) do begin
+    if not (recTag in [rec_burp, rec_physical_db]) then Exit;
+    while (S.Read(attTag, SizeOf(attTag)) = SizeOf(attTag)) and (attTag <> att_end) do begin
+      var D: TBurpDataItem;
+      Assert(S.Read(Len, SizeOf(Len)) = SizeOf(Len));
+      SetLength(D, Len);
+      Assert(S.Read(D, Len) = Len);
+
+      case recTag of
+        rec_burp:
+          case attTag of
+            firebird.burp.h.att_type_att_backup_format: att_type_att_backup_format := D.AsUINT32;
+            firebird.burp.h.att_backup_compress:        att_backup_compress        := D.AsBoolean;
+            firebird.burp.h.att_backup_transportable:   att_backup_transportable   := D.AsBoolean;
+            firebird.burp.h.att_backup_blksize:         att_backup_blksize         := D.AsUINT32;
+            firebird.burp.h.att_backup_volume:          att_backup_volume          := D.AsUINT32;
+            firebird.burp.h.att_backup_file:            att_backup_file            := D.AsString;
+            firebird.burp.h.att_backup_date:            att_backup_date            := D.AsString;
+            firebird.burp.h.att_backup_keyname:         att_backup_keyname         := D.AsString;
+            firebird.burp.h.att_backup_zip:             att_backup_zip             := D.AsString;
+            firebird.burp.h.att_backup_hash:            att_backup_hash            := D.AsString;
+            firebird.burp.h.att_backup_crypt:           att_backup_crypt           := D.AsString;
+          end;
+
+        rec_physical_db:
+          case attTag of
+            firebird.burp.h.att_file_name:               att_file_name               := D.AsString;
+            firebird.burp.h.att_file_size:               att_file_size               := D.AsUINT32;
+            firebird.burp.h.att_jrd_version:             att_jrd_version             := D.AsUINT32;
+            firebird.burp.h.att_creation_date:           att_creation_date           := D.AsString;
+            firebird.burp.h.att_page_size:               att_page_size               := D.AsUINT32;
+            firebird.burp.h.att_database_description:    att_database_description    := D.AsString;
+            firebird.burp.h.att_database_security_class: att_database_security_class := D.AsString;
+            firebird.burp.h.att_sweep_interval:          att_sweep_interval          := D.AsUINT32;
+            firebird.burp.h.att_no_reserve:              att_no_reserve              := D.AsBoolean;
+            firebird.burp.h.att_database_description2:   att_database_description2   := D.AsString;
+            firebird.burp.h.att_database_dfl_charset:    att_database_dfl_charset    := D.AsString;
+            firebird.burp.h.att_forced_writes:           att_forced_writes           := D.AsBoolean;
+            firebird.burp.h.att_page_buffers:            att_page_buffers            := D.AsUINT32;
+            firebird.burp.h.att_SQL_dialect:             att_SQL_dialect             := D.AsUINT32;
+            firebird.burp.h.att_db_read_only:            att_db_read_only            := D.AsBoolean;
+            firebird.burp.h.att_database_linger:         att_database_linger         := D.AsUINT32;
+            firebird.burp.h.att_database_sql_security_deprecated: att_database_sql_security_deprecated := D.AsBoolean;
+            firebird.burp.h.att_replica_mode:            att_replica_mode            := D.AsUINT32;
+            firebird.burp.h.att_database_sql_security:   att_database_sql_security   := D.AsBoolean;
+          end;
+      end;
+    end;
+  end;
+end;
+
+class operator TFirebirdAPI.Assign(var Dest: TFirebirdAPI;
+  const [ref] Src: TFirebirdAPI);
+begin
+  raise Exception.Create('TFirebirdAPI.Assign is not supported');
+end;
+
+function TFirebirdAPI.AttachDatabase: IAttachment;
+begin
+  Fstatus.init;
+  var x := util.getXpbBuilder(Fstatus, IXpbBuilder.DPB, nil, 0);
+  try
+    if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
+    if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
+    if FProviders.Available then x.insertString(Fstatus, isc_dpb_config, FProviders);
+    if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
+    if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
+
+    Result := prov.attachDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+  finally
+    x.dispose;
+  end;
+end;
+
+function TFirebirdAPI.AttachServiceManager: IService;
+begin
+  Fstatus.init;
+  var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_ATTACH, nil, 0);
+  try
+    if FUserName.Available then x.insertString(Fstatus, isc_spb_user_name, FUserName);
+    if FPassword.Available then x.insertString(Fstatus, isc_spb_password, FPassword);
+    if FProviders.Available then x.insertString(Fstatus, isc_spb_config, FProviders);
+
+    Result := prov.attachServiceManager(Fstatus, FConnectionString.AsServiceManager, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+  finally
+    x.dispose;
+  end;
+end;
+
+procedure TFirebirdAPI.Backup(Process: TBackupInfoProcessor = nil; aBackupFile: string
+    = stdout);
+begin
+  var a := AttachServiceManager;
+  try
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    try
+      x.insertTag(Fstatus, isc_action_svc_backup);
+      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+      var sBackupFile := aBackupFile;
+      if not SameText(aBackupFile, stdout) then
+        x.insertTag(Fstatus, isc_spb_verbose);
+      x.insertString(Fstatus, isc_spb_bkp_file, sBackupFile);
+
+      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+
+    var r: TQueryBuffer;
+    var iDataSize: UInt64;
+    var Info: TServiceQueryInfo;
+    if aBackupFile <> stdout then r.SetSize(2000);  // Default 64K buffer size requires longer time to fill up and lead to unresponsive state
+    repeat
+      a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+      try
+        x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+        iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): Uint32
+        begin
+          if (Len > 0) and Assigned(Process) then
+            Process(Buf^, Len);
+          Result := Len;
+        end
+        );
+      finally
+        x.dispose;
+      end;
+    until iDataSize = 0;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+function TFirebirdAPI.CreateDatabase(aDummy: Integer): IAttachment;
+begin
+  Fstatus.init;
+  var x := util.getXpbBuilder(Fstatus, IXpbBuilder.DPB, nil, 0);
+  try
+    if FUserName.Available    then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
+    if FPassword.Available    then x.insertString(Fstatus, isc_dpb_password, FPassword);
+    if FProviders.Available   then x.insertString(Fstatus, isc_dpb_config, FProviders);
+    if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
+    if FPageSize.Available    then x.insertInt(Fstatus, isc_dpb_page_size, FPageSize.Value.ToInteger);
+    if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
+    Result := prov.createDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+  finally
+    x.dispose;
+  end;
+end;
+
+procedure TFirebirdAPI.CreateDatabase;
+begin
+  CreateDatabase(0).detach(Fstatus);
+end;
+
+procedure TFirebirdAPI.DropDatabase;
+begin
+  AttachDatabase.dropDatabase(Fstatus);
+end;
+
+class operator TFirebirdAPI.Finalize(var Dest: TFirebirdAPI);
+begin
+  if Dest.FHandle <> 0 then
+    FreeLibrary(Dest.FHandle);
+end;
+
+function TFirebirdAPI.GetDatabaseInfo: TDatabaseInfo;
+begin
+  var a := AttachDatabase;
+  try
+    var r: TQueryBuffer;
+    a.getInfo(Fstatus, TDatabaseInfo.Size, TDatabaseInfo.AsPtr, r.Size, r.AsPtr);
+
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.INFO_RESPONSE, r.AsPtr, r.Size);
+    try
+      var Info: TDatabaseInfo;
+      x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+      begin
+        case Tag of
+          isc_info_page_size:         Info.page_size         := Buf.AsInt(Len);
+          isc_info_num_buffers:       Info.num_buffers       := Buf.AsInt(Len);
+          isc_info_ods_version:       Info.ods_version       := Buf.AsInt(Len);
+          isc_info_ods_minor_version: Info.ods_minor_version := Buf.AsInt(Len);
+          isc_info_db_sql_dialect:    Info.db_sql_dialect    := Buf.AsInt(Len);
+          isc_info_sweep_interval:    Info.sweep_interval    := Buf.AsInt(Len);
+          isc_info_db_read_only:      Info.db_read_only      := Boolean(Buf.AsInt(Len));
+          isc_info_forced_writes:     Info.forced_writes     := Boolean(Buf.AsInt(Len));
+          isc_info_creation_date:     Info.creation_date     := TimeStampToDateTime(ISC_TIMESTAMP(Buf.AsBigInt()));
+          isc_info_db_size_in_pages:  Info.db_size_in_pages  := Buf.AsInt(Len);
+          isc_info_current_memory:    Info.current_memory    := Buf.AsInt(Len);
+          isc_info_max_memory:        Info.max_memory        := Buf.AsInt(Len);
+          isc_info_firebird_version:  Info.firebird_version  := Buf.AsStringFromBytes;
+          isc_info_isc_version:       Info.isc_version       := Buf.AsStringFromBytes;
+        end;
+        Result := Len;
+      end
+      );
+      Result := Info;
+    finally
+      x.dispose;
+    end;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+function TFirebirdAPI.GetPlans(aSQLs: array of string): TArray<string>;
+begin
+  var a := AttachDatabase;
+  try
+    var tpb := util.getXpbBuilder(Fstatus, IXpbBuilder.TPB, nil, 0);
+    tpb.insertTag(Fstatus, isc_tpb_read);
+    var t := a.startTransaction(Fstatus, tpb.getBufferLength(Fstatus), tpb.getBuffer(Fstatus));
+    try
+      for var s in aSQLs do begin
+        var r := '';
+        try
+          var stmt := a.prepare(Fstatus.clone, t, s.Length, s, SQL_DIALECT_CURRENT, IStatement.PREPARE_PREFETCH_DETAILED_PLAN);
+          try
+            r := stmt.getPlan(Fstatus, true, 0);
+          finally
+            stmt.free(Fstatus);
+          end;
+        except
+          on E: Exception do r := E.Message;
+        end;
+        Result := Result + [r.Trim];
+      end;
+    finally
+      t.commit(Fstatus);
+      tpb.dispose;
+    end;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+function TFirebirdAPI.GetServiceInfo: TServiceManagerInfo;
+begin
+  var a := AttachServiceManager;
+  try
+    var r: TQueryBuffer;
+    a.query(Fstatus, 0, nil, TServiceManagerInfo.Size, TServiceManagerInfo.AsPtr, r.Size, r.AsPtr);
+
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+    var _util := util;
+    var _Fstatus := Fstatus;
+    try
+      var Info: TServiceManagerInfo;
+      x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+        begin
+          case Tag of
+            isc_info_svc_version:        Info.svc_version        := Buf.AsInt(Len);
+            isc_info_svc_server_version: Info.svc_server_version := Buf.AsString(Len);
+            isc_info_svc_implementation: Info.svc_implementation := Buf.AsString(Len);
+            isc_info_svc_get_env:        Info.get_env            := Buf.AsString(Len);
+            isc_info_svc_svr_db_info: begin
+              var y := _util.getXpbBuilder(_Fstatus, IXpbBuilder.SPB_RESPONSE, Buf, r.Size);
+              y.Parse(_Fstatus, function(yTag: Byte; yBuf: IXpbBuilderBuffer; yLen: UInt32): UInt32
+                begin
+                  case yTag of
+                    isc_spb_num_att: Info.num_att := yBuf.AsInt(yLen);
+                    isc_spb_num_db:  Info.num_db  := yBuf.AsInt(yLen);
+                    isc_spb_dbname:  Info.db_name := Info.db_name + [yBuf.AsString(yLen)];
+                  end;
+                  Result := yLen;
+                end
+              , isc_info_flag_end
+              );
+            end;
+          end;
+          Result := Len;
+        end
+      );
+      Result := Info;
+    finally
+      x.dispose;
+    end;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+class operator TFirebirdAPI.Initialize(out Dest: TFirebirdAPI);
+begin
+  Dest.FFBClient := 'fbclient.dll';
+  Dest.FUserName := DBA_USER_NAME;
+  Dest.FPassword := TFirebird.DefaultDBAPassword;
+  Dest.FProviders.Clear;
+  Dest.FConnectionString := '';
+  Dest.FPageSize.Clear;
+  Dest.FForcedWrite.Clear;
+  Dest.FPageBuffers.Clear;
+
+  Dest.FHandle := 0;
+end;
+
+class function TFirebirdAPI.New(aFBClient: string): TFirebirdAPI;
+begin
+  Result.New(aFBClient, 0);
+end;
+
+function TFirebirdAPI.New(aFBClient: string; Dummy: Integer): PFirebirdAPI;
+begin
+  FFBClient := aFBClient;
+  Fmaster := fb_get_master_interface(aFBClient, FHandle);
+  Fstatus := Fmaster.getStatus;
+  util := Fmaster.getUtilInterface;
+  prov := Fmaster.getDispatcher;
+
+  Result := @Self;
+end;
+
+procedure TFirebirdAPI.nBackup(aBackupFile: string; Process:
+    TBackupInfoProcessor = nil; aBackupLevel: Integer = 0);
+begin
+  var a := AttachServiceManager;
+  try
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    try
+      x.insertTag(Fstatus, isc_action_svc_nbak);
+      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+      x.insertString(Fstatus, isc_spb_nbk_file, aBackupFile);
+      x.insertInt(Fstatus, isc_spb_nbk_level, aBackupLevel);
+
+      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+
+    var iDataSize: UInt64;
+    var r: TQueryBuffer;
+    repeat
+      a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+      x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+      try
+        iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+        begin
+          if (Len > 0) and Assigned(Process) then
+            Process(Buf^, Len);
+          Result := Len;
+        end
+        );
+      finally
+        x.dispose;
+      end;
+    until iDataSize = 0;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+function TFirebirdAPI.New(aFBClient: string; out aStatus: IStatus):
+    PFirebirdAPI;
+begin
+  New(aFBClient, 0);
+  aStatus := Fstatus;
+  Result := @Self;
+end;
+
+procedure TFirebirdAPI.nFix(aBackupFile: string; Process: TBackupInfoProcessor
+    = nil);
+begin
+  var a := AttachServiceManager;
+  try
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    try
+      x.insertTag(Fstatus, isc_action_svc_nfix);
+      x.insertString(Fstatus, isc_spb_dbname, aBackupFile);
+
+      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+procedure TFirebirdAPI.nRestore(aBackupFiles: array of string; Process:
+    TBackupInfoProcessor = nil);
+begin
+  var a := AttachServiceManager;
+  try
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    try
+      x.insertTag(Fstatus, isc_action_svc_nrest);
+      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+      for var s in aBackupFiles do
+        x.insertString(Fstatus, isc_spb_nbk_file, s);
+
+      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+
+    var iDataSize: Int64;
+    var r: TQueryBuffer;
+    repeat
+      a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+      x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+      try
+        iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+        begin
+          if (Len > 0) and Assigned(Process) then
+            Process(Buf^, Len);
+          Result := Len;
+        end
+        );
+      finally
+        x.dispose;
+      end;
+    until iDataSize = 0;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+function TFirebirdAPI.Reset: PFirebirdAPI;
+begin
+  FUserName := DBA_USER_NAME;
+  FPassword := TFirebird.DefaultDBAPassword;
+
+  FProviders.Clear;
+  FConnectionString := '';
+
+  FPageSize.Clear;
+  FForcedWrite.Clear;
+  FPageBuffers.Clear;
+
+  Result := @Self;
+end;
+
+procedure TFirebirdAPI.Restore(aBackupFile: string; Process:
+    TBackupInfoProcessor = nil; Read: TBackupDataReader = nil);
+begin
+  var a := AttachServiceManager;
+  try
+    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    try
+      x.insertTag(Fstatus, isc_action_svc_restore);
+      x.insertTag(Fstatus, isc_spb_verbose);
+      x.insertInt(Fstatus, isc_spb_options, isc_spb_res_create);
+      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+      x.insertString(Fstatus, isc_spb_bkp_file, aBackupFile);
+      if FPageSize.Available    then x.insertInt(Fstatus, isc_spb_res_page_size, FPageSize.Value.ToInteger);
+      if FPageBuffers.Available then x.insertInt(Fstatus, isc_spb_res_buffers, FPageBuffers);
+      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+
+    var r, sendBuf: TQueryBuffer;
+    var send := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_SEND, nil, 0);
+    try
+      var iDataSize: UInt64;
+      var iSendBufSize: Word := 0;
+      repeat
+        send.clear(Fstatus);
+        if iSendBufSize > 0 then begin
+          iSendBufSize := sendBuf.Fetch(Read, iSendBufSize);
+          if iSendBufSize > 0 then
+            send.insertBytes(Fstatus, isc_info_svc_line, sendBuf.AsPtr, iSendBufSize);
+          iSendBufSize := 0;
+        end;
+        a.query(Fstatus, send.getBufferLength(Fstatus), send.getBuffer(Fstatus), TServiceQueryInfo.restore.Size, TServiceQueryInfo.restore.AsPtr, r.Size, r.AsPtr);
+        x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+        try
+          iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+          begin
+            case Tag of
+              isc_info_svc_stdin: begin
+                iSendBufSize := Min(sendBuf.Size - SizeOf(Byte){isc_info_svc_line} - SizeOf(iSendBufSize){2 bytes}, Buf.AsInt(Len));
+                Result := iSendBufSize;
+              end;
+              isc_info_svc_to_eof: begin
+                if (Len > 0) and Assigned(Process) then
+                  Process(Buf^, Len);
+                Result := Len;
+              end;
+              isc_info_truncated, isc_info_data_not_ready:
+                Result := 1; // Force return 1 to indicate more data on the way
+              else
+                Result := Len;
+            end;
+          end
+          );
+        finally
+          x.dispose;
+        end;
+      until iDataSize = 0;
+    finally
+      send.dispose;
+    end;
+  finally
+    a.detach(Fstatus);
+    a.release;
+  end;
+end;
+
+procedure TFirebirdAPI.Restore(Read: TBackupDataReader = nil; Process:
+    TBackupInfoProcessor = nil);
+begin
+  Restore(stdin, Process, Read);
+end;
+
+function TFirebirdAPI.SetConnectionString(aConnStr: string): PFirebirdAPI;
+begin
+  FConnectionString := AConnStr;
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetConnectionString(aDatabase, aHost: string;
+  aProtocol: TFirebirdConnectionStringProtocol): PFirebirdAPI;
+begin
+  FConnectionString := aDatabase;
+  FConnectionString.Host := aHost;
+  FConnectionString.Protocol := aProtocol;
+
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetConnectionString(aDatabase, ProvidersOrHost: string):
+    PFirebirdAPI;
+begin
+  FConnectionString := aDatabase;
+  if ProvidersOrHost.StartsWith(TFirebird.FB_Config_Providers, True) then
+    SetProviders(ProvidersOrHost)
+  else if not ProvidersOrHost.IsEmpty then begin
+    FConnectionString := ProvidersOrHost;
+    if FConnectionString.Host = '' then begin
+      FConnectionString.Host := ProvidersOrHost;
+      FConnectionString.Protocol := tcp_tra;
+    end;
+    FConnectionString.Database := aDatabase;
+  end;
+
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetCredential(aUserName,
+  aPassword: string): PFirebirdAPI;
+begin
+  if not aUserName.IsEmpty then FUserName := aUserName;
+  if not aPassword.IsEmpty then FPassword := aPassword;
+
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetForcedWrite(aValue: Boolean = True): PFirebirdAPI;
+begin
+  FForcedWrite := aValue;
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetPageBuffers(aValue: Cardinal): PFirebirdAPI;
+begin
+  FPageBuffers := aValue;
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetPageSize(aValue: TPageSize): PFirebirdAPI;
+begin
+  FPageSize := aValue;
+  Result := @Self;
+end;
+
+procedure TFirebirdAPI.SetProperties;
+begin
+  AttachDatabase.detach(Fstatus);
+end;
+
+function TFirebirdAPI.SetProviders(aProviders: string): PFirebirdAPI;
+begin
+  FProviders := aProviders;
+  Result := @Self;
 end;
 
 end.
