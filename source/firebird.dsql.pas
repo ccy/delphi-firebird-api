@@ -125,6 +125,7 @@ type
   public
     function AsAnsiString: AnsiString;
     function AsBcd: TBcd;
+    function AsBoolean: Boolean;
     function AsDate: TDateTime;
     function AsDouble: double;
     function AsInt16: Int16;
@@ -1431,6 +1432,14 @@ begin
   GetBCD(@Result, bIsNull);
   if bIsNull then
     Result := NullBcd;
+end;
+
+function TXSQLVAREx.AsBoolean: Boolean;
+var bIsNull: boolean;
+begin
+  GetBoolean(@Result, bIsNull);
+  if bIsNull then
+    Result := False;
 end;
 
 function TXSQLVAREx.AsDate: TDateTime;
