@@ -1792,9 +1792,10 @@ var result_buffer: array[0..64] of byte;
     stmt_len: word;
     StmtType: integer;
 begin
-  if FState = S_INACTIVE then
-    aRowsAffected := FFetchCount
-  else begin
+  if FState = S_INACTIVE then begin
+    aRowsAffected := FFetchCount;
+    Exit(isc_arg_end);
+  end else begin
     aRowsAffected := 0;
 
     info_request := isc_info_sql_stmt_type;
