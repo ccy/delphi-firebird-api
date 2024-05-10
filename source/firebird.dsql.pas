@@ -1913,10 +1913,10 @@ begin
   FSQLDA_Out := TXSQLDA.Create(FClient, 0, FGetTimeZoneOffset);
 
   {$ifdef Unicode}
-  B := FEncoding.GetBytes(aSQL);
-  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(B), @B[0], FLast_SQLDialect, FSQLDA_Out.XSQLDA);
+  B := FEncoding.GetBytes(aSQL) + [0]; // Null terminated string
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, 0, @B[0], FLast_SQLDialect, FSQLDA_Out.XSQLDA);
   {$else}
-  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, Length(aSQL), PISC_SChar(aSQL), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
+  FClient.isc_dsql_prepare(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, 0, PISC_SChar(aSQL), FLast_SQLDialect, FSQLDA_Out.XSQLDA);
   {$endif}
 
   if aStatusVector.CheckError(FClient, Result) then Exit;
