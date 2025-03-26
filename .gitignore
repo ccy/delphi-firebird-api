@@ -3,6 +3,7 @@
 *.dsk
 *.stat
 *.dsv
+*.res
 __recovery
 __history
 Win32/
