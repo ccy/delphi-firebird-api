@@ -146,6 +146,7 @@ const ODS_11_1      = (ODS_VERSION11 shl 4) or 1;
 const ODS_11_2      = (ODS_VERSION11 shl 4) or 2;
 const ODS_12_0      = (ODS_VERSION12 shl 4) or 0;
 const ODS_13_0      = (ODS_VERSION13 shl 4) or 0;
+const ODS_13_1      = (ODS_VERSION13 shl 4) or 1;
 
 const ODS_FIREBIRD_FLAG = $8000;
 
@@ -167,7 +168,7 @@ const ODS_RELEASED = ODS_CURRENT13_0; // The lowest stable minor version
 const ODS_CURRENT = ODS_CURRENT13;    // The highest defined minor version
                                       // number for this ODS_VERSION!
 
-const ODS_CURRENT_VERSION = ODS_13_0; // Current ODS version in use which includes
+const ODS_CURRENT_VERSION = ODS_13_1; // Current ODS version in use which includes
                                       // both major and minor ODS versions!
 
 
