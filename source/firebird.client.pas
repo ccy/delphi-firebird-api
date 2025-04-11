@@ -2108,6 +2108,7 @@ begin
   case FMajor of
     3: Result := ODS_12_0;
     4: Result := ODS_13_0;
+    5: Result := ODS_13_1;
   else
     raise Exception.CreateFmt('Unsupported version %s', [GetVersion]);
   end;
