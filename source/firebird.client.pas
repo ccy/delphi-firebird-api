@@ -397,7 +397,6 @@ type
   TFirebirdAPI = record
     class operator Assign(var Dest: TFirebirdAPI; const [ref] Src: TFirebirdAPI);
     class operator Initialize(out Dest: TFirebirdAPI);
-    class operator Finalize(var Dest: TFirebirdAPI);
   strict private
     Fmaster: IMaster;
     Fstatus: IStatus;
@@ -2870,12 +2869,6 @@ end;
 procedure TFirebirdAPI.DropDatabase;
 begin
   AttachDatabase.dropDatabase(Fstatus);
-end;
-
-class operator TFirebirdAPI.Finalize(var Dest: TFirebirdAPI);
-begin
-  if Dest.FHandle <> 0 then
-    FreeLibrary(Dest.FHandle);
 end;
 
 function TFirebirdAPI.GetDatabaseInfo: TDatabaseInfo;
