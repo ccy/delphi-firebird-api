@@ -200,7 +200,7 @@ const DEFAULT_DOUBLE = dtype_double;
 
 implementation
 
-uses firebird.charsets.h, firebird.consts_pub.h;
+uses firebird.charsets.h;
 
 function DTYPE_IS_TEXT(d: Byte): Boolean;
 begin

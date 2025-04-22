@@ -926,7 +926,7 @@ uses
   System.AnsiStrings, System.Generics.Defaults, System.IOUtils, System.Math,
   System.Net.URLClient, firebird.burp.h,
   Firebird.helper, firebird.client.debug, firebird.constants.h,
-  firebird.consts_pub.h, firebird.delphi, firebird.iberror.h, firebird.ods.h;
+  firebird.delphi, firebird.iberror.h, firebird.ods.h;
 
 function ExpandFileNameString(const aFileName: string): string;
 var P: PChar;
@@ -2790,8 +2790,8 @@ begin
   Fstatus.init;
   var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_ATTACH, nil, 0);
   try
-    if FUserName.Available then x.insertString(Fstatus, isc_spb_user_name, FUserName);
-    if FPassword.Available then x.insertString(Fstatus, isc_spb_password, FPassword);
+    if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
+    if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
     if FProviders.Available then x.insertString(Fstatus, isc_spb_config, FProviders);
 
     Result := prov.attachServiceManager(Fstatus, FConnectionString.AsServiceManager, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
