@@ -4,8 +4,9 @@ interface
 
 uses
   Winapi.Windows, System.Classes, System.Generics.Collections, System.SysUtils,
-  Firebird, firebird.ibase.h, firebird.inf_pub.h, firebird.jrd.h,
-  firebird.sqlda_pub.h, firebird.types_pub.h;
+  Firebird,
+  firebird.ibase.h, firebird.inf_pub.h, firebird.jrd.h, firebird.sqlda_pub.h,
+  firebird.types_pub.h;
 
 const
   FirebirdTransaction_WaitOnLocks = $0100;
@@ -306,7 +307,7 @@ type
   end;
 
   TFirebirdConnectionStringProtocol = (
-    xnet_tra  // Traditional XNET
+    local     // Local connection
   , wnet_tra  // Traditional WNET
   , tcp_tra   // Traditional TCP
   , xnet      // URL XNET
@@ -318,7 +319,7 @@ type
 
   TFirebirdConnectionStringProtocolHelper = record helper for TFirebirdConnectionStringProtocol
     const URL_Delimiter = '://';
-    class function Get(Value: string): TFirebirdConnectionStringProtocol; static;
+    class function Get(V: string): TFirebirdConnectionStringProtocol; static;
     class function IsValidWindowsFileName(aStr: string): Boolean; static;
     function ToString(AppendDelimiter: Boolean = False): string;
   end;
@@ -330,19 +331,18 @@ type
     FHost: string;
     FDatabase: string;
     function GetValue: string;
-    procedure SetValue(a: string);
+    procedure SetValue(v: string);
   public
     class operator Initialize(out Dest: TFirebirdConnectionString);
     class operator Implicit(a: string): TFirebirdConnectionString;
     class operator Implicit(a: TFirebirdConnectionString): string;
-    class function ParseURL(Value: string; PathDelimiter: string = '/';
-        PortDelimiter: string = ':'): TArray<string>; static;
     function AsServiceManager: string;
     property Host: string read FHost write FHost;
     property Database: string read FDatabase write FDatabase;
     property Port: string read FPort write FPort;
     property Protocol: TFirebirdConnectionStringProtocol read FProtocol write
         FProtocol;
+    property Value: string read GetValue;
   end;
 
   TBurpData = record
@@ -923,9 +923,9 @@ function ExpandFileNameString(const aFileName: string): string;
 implementation
 
 uses
-  System.AnsiStrings, System.Generics.Defaults, System.IOUtils, System.Math,
-  System.Net.URLClient, firebird.burp.h,
-  Firebird.helper, firebird.client.debug, firebird.constants.h,
+  Winapi.Winsock2, System.AnsiStrings, System.Generics.Defaults, System.IOUtils,
+  System.Math, System.Net.URLClient, System.NetEncoding,
+  Firebird.helper, firebird.burp.h, firebird.client.debug, firebird.constants.h,
   firebird.delphi, firebird.iberror.h, firebird.ods.h;
 
 function ExpandFileNameString(const aFileName: string): string;
@@ -2471,20 +2471,36 @@ begin
   end;
 end;
 
-class function TFirebirdConnectionStringProtocolHelper.Get(
-  Value: string): TFirebirdConnectionStringProtocol;
+class function TFirebirdConnectionStringProtocolHelper.Get(V: string):
+    TFirebirdConnectionStringProtocol;
 begin
   for var p := Low(TFirebirdConnectionStringProtocol) to High(TFirebirdConnectionStringProtocol) do begin
     if p.ToString.IsEmpty then Continue;
 
-    if Value.StartsWith(p.ToString(True), True) then
+    if V.StartsWith(p.ToString(True), True) then
       Exit(p)
   end;
 
-  if Value.IsEmpty then Exit(xnet_tra);
-  if IsValidWindowsFileName(Value) then Exit(xnet_tra);
-  if Value.StartsWith('/') then Exit(xnet_tra);
-  if (Value.IndexOf(':') = -1) and (Value.IndexOf('/') = -1) then Exit(xnet_tra);
+  if V.IsEmpty then Exit(local);
+
+  if TFile.Exists(V) then Exit(local);
+
+  // Windows file name
+  if IsValidWindowsFileName(v) then Exit(local);
+
+  // Linux file name
+  if V[1] = '/' then Exit(local);
+
+  if V.IndexOf(':') = -1 then begin
+    // detect Port delimiter
+    if V.IndexOf('/') <> -1 then Exit(tcp_tra);
+
+    var Hint: addrinfoW;
+    FillChar(Hint, SizeOf(Hint), 0);
+    var HostInfo: PaddrinfoW := nil;
+    if GetAddrInfoW(PChar(v), nil, Hint, HostInfo) <> 0 then
+      Exit(local);
+  end;
 
   Exit(tcp_tra);
 end;
@@ -2503,7 +2519,7 @@ function TFirebirdConnectionStringProtocolHelper.ToString(AppendDelimiter:
 begin
   Result := '';
   case Self of
-    xnet_tra: Result := '';
+    local:    Result := '';
     wnet_tra: Result := '\\';
     tcp_tra:  Result := '';
     xnet:     Result := 'xnet';
@@ -2531,7 +2547,7 @@ end;
 
 function TFirebirdConnectionString.GetValue: string;
 begin
-  if FProtocol = xnet_tra then
+  if FProtocol = local then
     Exit(FDatabase);
 
   if FProtocol = wnet_tra then begin
@@ -2551,18 +2567,22 @@ begin
   end;
 
   if FProtocol in [xnet, wnet, inet, inet4, inet6] then begin
-    var s := FProtocol.ToString(True) + FHost;
-    if not FPort.IsEmpty then
-      s := s + ':' + FPort;
-    if FDatabase.StartsWith('/') then
-      s := s + FDatabase
-    else if not FDatabase.IsEmpty then begin
-      if FHost.IsEmpty then
-        s := s + FDatabase
-      else
-        s := s + '/' + FDatabase;
+    var s: TURI;
+    s.Scheme := FProtocol.ToString;
+    s.Host := FHost;
+    if not FPort.IsEmpty then s.Port := 999999;  // Temporary place holder
+    if not FDatabase.IsEmpty then begin
+      s.Path := FDatabase;
+      if FDatabase.StartsWith('/') then
+        s.Path := '/' + s.Path;
     end;
-    Exit(s);
+
+    var r := TNetEncoding.URL.Decode(s.ToString).Replace(':999999', ':' + FPort);
+
+    if r.StartsWith(xnet.ToString(True) + '/') then
+      r := r.Replace(xnet.ToString(True) + '/', xnet.ToString(True));
+
+    Exit(r);
   end;
 end;
 
@@ -2572,74 +2592,59 @@ begin
   Result := a.GetValue;
 end;
 
-procedure TFirebirdConnectionString.SetValue(a: string);
+procedure TFirebirdConnectionString.SetValue(v: string);
 begin
-  FProtocol := TFirebirdConnectionStringProtocol.Get(a);
+  FProtocol := TFirebirdConnectionStringProtocol.Get(v);
+  FPort := '';
+  FHost := '';
+  FDatabase := '';
 
   case FProtocol of
-    xnet_tra: begin
-      FPort := '';
-      FHost := '';
-      FDatabase := a;
-    end;
+    local: FDatabase := v;
 
     wnet_tra: begin
-      var B := TFirebirdConnectionString.ParseURL(a, '\');
-      case Length(B) of
-        1: begin
-          FHost := '';
-          FDatabase := B[0];
-        end;
-        2: begin
-          FHost := B[0];
-          FDatabase := B[1];
-        end;
-      end;
+      var L := wnet_tra.ToString.Length;
+      var i := v.IndexOf('\', L);
+      FHost := v.Substring(L, i - L);
+      FDatabase := v.Substring(i + 1);
     end;
 
     tcp_tra: begin
-      var B := TFirebirdConnectionString.ParseURL(a, ':', '/');
-      case Length(B) of
-        2: begin
-          FHost := B[0];
-          FDatabase := B[1];
-        end;
-        3: begin
-          FHost := B[0];
-          FPort := B[1];
-          FDatabase := B[2];
-        end;
+      var iBracket := v.IndexOf(']');  // For IPv6 CIDR notation
+      if iBracket < 0 then iBracket := 0;
+
+      var iPortDelim := v.IndexOf('/', iBracket);
+      var iPathDelim := v.IndexOf(':', iBracket);
+      if (iPathDelim <> -1) and (iPathDelim < iPortDelim) then
+        iPortDelim := -1;
+
+      iPathDelim := v.IndexOf(':', Max(0, Max(iBracket, iPortDelim)));
+
+      if (iPortDelim < 0) and (iPathDelim < 0) then
+        FHost := v
+      else if iPathDelim < 0 then begin
+        FHost := v.Substring(0, iPortDelim);
+        FPort := v.SubString(iPortDelim + 1);
+      end else if iPortDelim < 0 then begin
+        FHost := v.Substring(0, iPathDelim);
+        FDatabase := v.SubString(iPathDelim + 1);
+      end else begin
+        FHost := v.Substring(0, iPortDelim);
+        FPort := v.Substring(iPortDelim + 1, iPathDelim - iPortDelim - 1);
+        FDatabase := v.SubString(iPathDelim + 1);
       end;
     end;
 
-    xnet: begin
-      var B := TFirebirdConnectionString.ParseURL(a);
-      case Length(B) of
-        1: begin
-          FHost := '';
-          FDatabase := B[0];
-        end;
-        2: begin
-          FHost := '';
-          FDatabase := B[1];
-        end;
-      end;
-    end;
+    xnet: FDatabase := v.Substring(xnet.ToString(True).Length);
 
     inet, inet4, inet6, wnet: begin
-      var B := TFirebirdConnectionString.ParseURL(a);
-      case Length(B) of
-        1: Host := B[0];
-        2: begin
-          FHost := B[0];
-          FDatabase := B[1];
-        end;
-        3: begin
-          FHost := B[0];
-          FPort := B[1];
-          FDatabase := B[2];
-        end;
-      end;
+      var B := TURI.Create(v);
+      Host := B.Host;
+      if B.Port <> -1 then
+        Port := B.Port.ToString;
+      FDatabase := TNetEncoding.URL.Decode(B.Path);
+      if FDatabase.StartsWith('/') then
+        FDatabase := FDatabase.Remove(0, 1);
     end;
   end;
 end;
@@ -2647,43 +2652,10 @@ end;
 class operator TFirebirdConnectionString.Initialize(out Dest:
     TFirebirdConnectionString);
 begin
-  Dest.FProtocol := xnet_tra;
+  Dest.FProtocol := local;
   Dest.FHost := '';
   Dest.FDatabase := '';
   Dest.FPort := '';
-end;
-
-class function TFirebirdConnectionString.ParseURL(Value: string; PathDelimiter:
-    string = '/'; PortDelimiter: string = ':'): TArray<string>;
-begin
-  var v := Value.Substring(TFirebirdConnectionStringProtocol.Get(Value).ToString(True).Length);
-
-  Result := [v];
-  if not TFirebirdConnectionStringProtocol.IsValidWindowsFileName(v) then begin
-    var i := v.IndexOf(PathDelimiter);
-    if i <> -1 then begin
-      var s := v.SubString(i);
-
-      if s.Length > 0 then begin
-        var t := s.Substring(1);
-        if (t.IndexOf(PathDelimiter) = -1) or TFirebirdConnectionStringProtocol.IsValidWindowsFileName(t) then
-          s := t;
-      end;
-
-      Result := [v.Substring(0, i), s];
-    end;
-  end;
-
-  if (Length(Result) > 0) and not Result[0].IsEmpty then begin
-    if TFirebirdConnectionStringProtocol.IsValidWindowsFileName(Result[0]) then
-      Result := [''] + Result
-    else begin
-      var Hosts := Result[0].Split([PortDelimiter]);
-      Result := Hosts + Copy(Result, 1, Length(Result) - 1);
-      if (Length(Hosts) > 1) and (Length(Result) = 2) then
-        Result := Result + [''];
-    end;
-  end;
 end;
 
 function TBurpData.TBurpDataItemHelper.AsBoolean: Boolean;
@@ -3289,4 +3261,10 @@ begin
   Result := @Self;
 end;
 
+var Data: WSAData;
+
+initialization
+  WSAStartup(WINSOCK_VERSION, Data);
+finalization
+  WSACleanup;
 end.
