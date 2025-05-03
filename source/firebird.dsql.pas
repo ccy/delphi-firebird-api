@@ -176,6 +176,7 @@ type
     function Geto_SQLDA: TXSQLDA;
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         UInt64): ISC_STATUS;
+    function IsStatementType(aType: Byte): Boolean;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: TFirebirdTransaction): ISC_STATUS;
     function GetPlan(const aStatusVector: IStatusVector): string;
@@ -212,6 +213,7 @@ type
     FLast_SQL: string;
     FLast_SQLDialect: word;
     FLast_ParamCount: integer;
+    FLast_StatementType: Byte;
     {$Hints Off}procedure DoDebug;{$Hints On}
   protected
     function Close(const aStatusVector: IStatusVector): ISC_STATUS;
@@ -223,6 +225,7 @@ type
     function GetPlan(const aStatusVector: IStatusVector): string;
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
         UInt64): ISC_STATUS;
+    function IsStatementType(aType: Byte): Boolean;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: TFirebirdTransaction): ISC_STATUS;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
@@ -1707,7 +1710,6 @@ end;
 
 function TFirebird_DSQL.Execute(const aStatusVector: IStatusVector): ISC_STATUS;
 var X: PXSQLDA;
-    bHasOutput: boolean;
 begin
   if FState = S_INACTIVE then begin
     Open(aStatusVector, FLast_DBHandle, nil);
@@ -1726,11 +1728,10 @@ begin
 
   Assert((FState = S_PREPARED) or (FState = S_EXECUTED));
 
-  bHasOutput := FIsStoredProc or (StartsText('INSERT', FLast_SQL) and ContainsText(FLast_SQL, 'RETURNING'));
-  if not bHasOutput then
-    Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X)
+  if (FLast_StatementType = isc_info_sql_stmt_insert) or (FLast_StatementType = isc_info_sql_stmt_exec_procedure) then
+    Result := FClient.isc_dsql_execute2(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X, FSQLDA_Out.XSQLDA)
   else
-    Result := FClient.isc_dsql_execute2(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X, FSQLDA_Out.XSQLDA);
+    Result := FClient.isc_dsql_execute(aStatusVector.pValue, FTransaction.TransactionHandle, StatementHandle, FLast_SQLDialect, X);
 
   if Result = isc_no_cur_rec then begin
     FState := S_EOF;
@@ -1855,6 +1856,11 @@ begin
   Result := FIsStoredProc;
 end;
 
+function TFirebird_DSQL.IsStatementType(aType: Byte): Boolean;
+begin
+  Result := FLast_StatementType = aType;
+end;
+
 function TFirebird_DSQL.Open(const aStatusVector: IStatusVector; const
     aDBHandle: pisc_db_handle; const aTransaction: TFirebirdTransaction):
     ISC_STATUS;
@@ -1917,6 +1923,21 @@ begin
 
   if aStatusVector.CheckError(FClient, Result) then Exit;
   {$endregion}
+
+  {$region 'Get Statement Type'}
+  var r: array[0..32] of Byte;
+  var info_request := isc_info_sql_stmt_type;
+  FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, Length(r), @r);
+  if aStatusVector.CheckError(FClient, Result) then Exit;
+
+  var p: PByte := @r[0];
+  Assert(p^ = info_request);
+  Inc(p);
+  var iSize := FClient.isc_vax_integer(@p^, 2);
+  Inc(p, 2);
+  FLast_StatementType := FClient.isc_vax_integer(@p^, iSize);
+  {$endregion}
+
   {$region 'describe'}
   if FSQLDA_Out.sqld > FSQLDA_Out.sqln then begin
     FSQLDA_Out.Count := FSQLDA_Out.sqld;
