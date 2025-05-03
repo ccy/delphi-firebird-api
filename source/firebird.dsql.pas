@@ -175,7 +175,7 @@ type
     function Geti_SQLDA: TXSQLDA;
     function Geto_SQLDA: TXSQLDA;
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
-        LongWord): ISC_STATUS;
+        UInt64): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: TFirebirdTransaction): ISC_STATUS;
     function GetPlan(const aStatusVector: IStatusVector): string;
@@ -222,7 +222,7 @@ type
     function Geto_SQLDA: TXSQLDA;
     function GetPlan(const aStatusVector: IStatusVector): string;
     function GetRowsAffected(const aStatusVector: IStatusVector; out aRowsAffected:
-        LongWord): ISC_STATUS;
+        UInt64): ISC_STATUS;
     function Open(const aStatusVector: IStatusVector; const aDBHandle:
         pisc_db_handle; const aTransaction: TFirebirdTransaction): ISC_STATUS;
     function Prepare(const aStatusVector: IStatusVector; const aSQL: string; const
@@ -1786,39 +1786,35 @@ begin
 end;
 
 function TFirebird_DSQL.GetRowsAffected(const aStatusVector: IStatusVector; out
-    aRowsAffected: LongWord): ISC_STATUS;
-var result_buffer: array[0..64] of byte;
-    info_request: byte;
-    stmt_len: word;
-    StmtType: integer;
+    aRowsAffected: UInt64): ISC_STATUS;
 begin
-  if FState = S_INACTIVE then begin
-    aRowsAffected := FFetchCount;
-    Exit(isc_arg_end);
-  end else begin
+  if FState = S_INACTIVE then
+    aRowsAffected := FFetchCount
+  else begin
     aRowsAffected := 0;
 
-    info_request := isc_info_sql_stmt_type;
-    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, Length(result_buffer), @result_buffer);
+    var info: Byte := isc_info_sql_records;
+    var r: array[0..32] of Byte;
+    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, SizeOf(info), @info, Length(r), @r);
     if aStatusVector.CheckError(FClient, Result) then Exit;
 
-    if (result_buffer[0] = isc_info_sql_stmt_type) then begin
-      Move(result_buffer[1], stmt_len, 2);
-      Move(result_buffer[3], StmtType, stmt_len);
-    end;
+    var p: PByte := @r[0];
+    if p^ = isc_info_sql_records then begin
+      Inc(p, 3);
+      while p^ <> isc_info_end do begin
+        var StmtType := p^;
+        Inc(p);
+        var iSize := FClient.isc_vax_integer(@p^, 2);
+        Inc(p, 2);
 
-    info_request := isc_info_sql_records;
-    FClient.isc_dsql_sql_info(aStatusVector.pValue, StatementHandle, 1, @info_request, Length(result_buffer), @result_buffer);
-    if aStatusVector.CheckError(FClient, Result) then Exit;
-
-    if (result_buffer[0] = isc_info_sql_records) then begin
-      case StmtType of
-        isc_info_sql_stmt_insert: Move(result_buffer[27], aRowsAffected, 4);
-        isc_info_sql_stmt_update: Move(result_buffer[6], aRowsAffected, 4);
-        isc_info_sql_stmt_delete: Move(result_buffer[13], aRowsAffected, 4);
+        if StmtType <> isc_info_req_select_count then
+          Inc(aRowsAffected, FClient.isc_vax_integer(@p^, iSize));
+        Inc(p, iSize);
       end;
     end;
   end;
+
+  Result := isc_arg_end;
 end;
 
 function TFirebird_DSQL.StatementHandle: pisc_stmt_handle;
