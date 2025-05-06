@@ -47,15 +47,18 @@ type
   TFirebirdEngine = record
   strict private
     FFileName: string;
-    FMajor: Cardinal;
-    FMinor: Cardinal;
-    FRelease: Cardinal;
-    FBuild: Cardinal;
+    FPlatform: TOSVersion.TPlatform;
+    FMajor: Integer;
+    FMinor: Integer;
+    FRelease: Integer;
+    FBuild: Integer;
     FIsCurrent: Boolean;
-    class function GetProductVersion(const AFileName: string; var AMajor, AMinor,
-        ARelease, ABuild: Cardinal): Boolean; static;
+    class function GetProductVersion(const AValue: string; var APlatform:
+        TOSVersion.TPlatform; var AMajor, AMinor, ARelease, ABuild: Integer):
+        Boolean; static;
   private
     function GetODS: TODS;
+    function GetPlatform: TOSVersion.TPlatform;
     function GetVersion: string;
   public
     class operator Implicit(Value: string): TFirebirdEngine;
@@ -65,11 +68,12 @@ type
     function SupportedPageSizes: TArray<Integer>;
     property IsCurrent: Boolean read FIsCurrent write FIsCurrent;
     property FileName: string read FFileName;
-    property Major: Cardinal read FMajor;
-    property Minor: Cardinal read FMinor;
-    property Release: Cardinal read FRelease;
-    property Build: Cardinal read FBuild;
+    property Major: Integer read FMajor;
+    property Minor: Integer read FMinor;
+    property Release: Integer read FRelease;
+    property Build: Integer read FBuild;
     property ODS: TODS read GetODS;
+    property Platform: TOSVersion.TPlatform read GetPlatform;
     property Version: string read GetVersion;
   end;
 
@@ -2113,8 +2117,14 @@ begin
   end;
 end;
 
-class function TFirebirdEngine.GetProductVersion(const AFileName: string; var
-    AMajor, AMinor, ARelease, ABuild: Cardinal): Boolean;
+function TFirebirdEngine.GetPlatform: TOSVersion.TPlatform;
+begin
+  Result := FPlatform;
+end;
+
+class function TFirebirdEngine.GetProductVersion(const AValue: string; var
+    APlatform: TOSVersion.TPlatform; var AMajor, AMinor, ARelease, ABuild:
+    Integer): Boolean;
 var
   FileName: string;
   InfoSize, Wnd: DWORD;
@@ -2125,11 +2135,10 @@ begin
   Result := False;
   // GetFileVersionInfo modifies the filename parameter data while parsing.
   // Copy the string const into a local variable to create a writeable copy.
-  FileName := AFileName;
+  FileName := AValue;
   UniqueString(FileName);
   InfoSize := GetFileVersionInfoSize(PChar(FileName), Wnd);
-  if InfoSize <> 0 then
-  begin
+  if InfoSize <> 0 then begin
     GetMem(VerBuf, InfoSize);
     try
       if GetFileVersionInfo(PChar(FileName), Wnd, InfoSize, VerBuf) then
@@ -2145,13 +2154,36 @@ begin
     finally
       FreeMem(VerBuf);
     end;
+  end else begin
+    var p := AValue.Substring(0, 4).ToUpper;
+    if p = 'WI-V' then
+      APlatform := pfWindows
+    else if p = 'LI-V' then
+      APlatform := pfLinux;
+    var i := p.Length;
+
+    var j := AValue.IndexOf(' ', i);
+    if j <> -1 then begin
+      var v := AValue.Substring(i, j - i);
+
+      var a := v.Split(['.']);
+      if Length(a) = 4 then begin
+        TryStrToInt(a[0], AMajor);
+        TryStrToInt(a[1], AMinor);
+        TryStrToInt(a[2], ARelease);
+        TryStrToInt(a[3], ABuild);
+
+        Result:= True;
+      end;
+    end;
   end;
 end;
 
 class operator TFirebirdEngine.Implicit(Value: string): TFirebirdEngine;
 begin
   Result.FFileName := Value;
-  if not GetProductVersion(Value, Result.FMajor, Result.FMinor, Result.FRelease, Result.FBuild) then begin
+  if not GetProductVersion(Value, Result.FPlatform, Result.FMajor, Result.FMinor, Result.FRelease, Result.FBuild) then begin
+    Result.FPlatform := pfWindows;
     Result.FMajor := 0;
     Result.FMinor := 0;
     Result.FRelease := 0;
