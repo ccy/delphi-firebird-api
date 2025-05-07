@@ -420,6 +420,7 @@ type
     FPageSize: TInfoValue<TPageSize>;
     FForcedWrite: TInfoValue<Boolean>;
     FPageBuffers: TInfoValue<Cardinal>;
+    function FirebirdException: Exception;
   public
     function AttachDatabase: IAttachment;
     function AttachServiceManager: IService;
@@ -2777,15 +2778,19 @@ begin
   Fstatus.init;
   var x := util.getXpbBuilder(Fstatus, IXpbBuilder.DPB, nil, 0);
   try
-    if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
-    if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
-    if FProviders.Available then x.insertString(Fstatus, isc_dpb_config, FProviders);
-    if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
-    if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
+    try
+      if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
+      if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
+      if FProviders.Available then x.insertString(Fstatus, isc_dpb_config, FProviders);
+      if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
+      if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
 
-    Result := prov.attachDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-  finally
-    x.dispose;
+      Result := prov.attachDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -2794,13 +2799,17 @@ begin
   Fstatus.init;
   var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_ATTACH, nil, 0);
   try
-    if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
-    if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
-    if FProviders.Available then x.insertString(Fstatus, isc_spb_config, FProviders);
+    try
+      if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
+      if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
+      if FProviders.Available then x.insertString(Fstatus, isc_spb_config, FProviders);
 
-    Result := prov.attachServiceManager(Fstatus, FConnectionString.AsServiceManager, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-  finally
-    x.dispose;
+      Result := prov.attachServiceManager(Fstatus, FConnectionString.AsServiceManager, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -2809,42 +2818,46 @@ procedure TFirebirdAPI.Backup(Process: TBackupInfoProcessor = nil; aBackupFile: 
 begin
   var a := AttachServiceManager;
   try
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
     try
-      x.insertTag(Fstatus, isc_action_svc_backup);
-      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
-      var sBackupFile := aBackupFile;
-      if not SameText(aBackupFile, stdout) then
-        x.insertTag(Fstatus, isc_spb_verbose);
-      x.insertString(Fstatus, isc_spb_bkp_file, sBackupFile);
-
-      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-    finally
-      x.dispose;
-    end;
-
-    var r: TQueryBuffer;
-    var iDataSize: UInt64;
-    var Info: TServiceQueryInfo;
-    if aBackupFile <> stdout then r.SetSize(2000);  // Default 64K buffer size requires longer time to fill up and lead to unresponsive state
-    repeat
-      a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
       try
-        x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
-        iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): Uint32
-        begin
-          if (Len > 0) and Assigned(Process) then
-            Process(Buf^, Len);
-          Result := Len;
-        end
-        );
+        x.insertTag(Fstatus, isc_action_svc_backup);
+        x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+        var sBackupFile := aBackupFile;
+        if not SameText(aBackupFile, stdout) then
+          x.insertTag(Fstatus, isc_spb_verbose);
+        x.insertString(Fstatus, isc_spb_bkp_file, sBackupFile);
+
+        a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
       finally
         x.dispose;
       end;
-    until iDataSize = 0;
-  finally
-    a.detach(Fstatus);
-    a.release;
+
+      var r: TQueryBuffer;
+      var iDataSize: UInt64;
+      var Info: TServiceQueryInfo;
+      if aBackupFile <> stdout then r.SetSize(2000);  // Default 64K buffer size requires longer time to fill up and lead to unresponsive state
+      repeat
+        a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+        try
+          x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+          iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): Uint32
+          begin
+            if (Len > 0) and Assigned(Process) then
+              Process(Buf^, Len);
+            Result := Len;
+          end
+          );
+        finally
+          x.dispose;
+        end;
+      until iDataSize = 0;
+    finally
+      a.detach(Fstatus);
+      a.release;
+    end;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -2853,145 +2866,183 @@ begin
   Fstatus.init;
   var x := util.getXpbBuilder(Fstatus, IXpbBuilder.DPB, nil, 0);
   try
-    if FUserName.Available    then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
-    if FPassword.Available    then x.insertString(Fstatus, isc_dpb_password, FPassword);
-    if FProviders.Available   then x.insertString(Fstatus, isc_dpb_config, FProviders);
-    if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
-    if FPageSize.Available    then x.insertInt(Fstatus, isc_dpb_page_size, FPageSize.Value.ToInteger);
-    if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
-    Result := prov.createDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-  finally
-    x.dispose;
+    try
+      if FUserName.Available    then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
+      if FPassword.Available    then x.insertString(Fstatus, isc_dpb_password, FPassword);
+      if FProviders.Available   then x.insertString(Fstatus, isc_dpb_config, FProviders);
+      if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
+      if FPageSize.Available    then x.insertInt(Fstatus, isc_dpb_page_size, FPageSize.Value.ToInteger);
+      if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
+      Result := prov.createDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+    finally
+      x.dispose;
+    end;
+  except
+    raise FirebirdException;
   end;
 end;
 
 procedure TFirebirdAPI.CreateDatabase;
 begin
-  CreateDatabase(0).detach(Fstatus);
+  try
+    CreateDatabase(0).detach(Fstatus);
+  except
+    raise FirebirdException;
+  end;
+end;
+
+function TFirebirdAPI.FirebirdException: Exception;
+begin
+  var E := AcquireExceptionObject as Exception;
+  if E is FbException then begin
+    var M: TBytes;
+    repeat
+      SetLength(M, Length(M) + 256);
+    until (util.formatStatus(@M[0], Length(M), (E as FbException).getStatus) < Cardinal(Length(M))) or (Length(M) >= 1024);
+    E.Free;
+    Result := Exception.Create(TEncoding.ANSI.GetString(M));
+  end else
+    Result := E;
 end;
 
 procedure TFirebirdAPI.DropDatabase;
 begin
-  AttachDatabase.dropDatabase(Fstatus);
+  try
+    AttachDatabase.dropDatabase(Fstatus);
+  except
+    raise FirebirdException;
+  end;
 end;
 
 function TFirebirdAPI.GetDatabaseInfo: TDatabaseInfo;
 begin
-  var a := AttachDatabase;
   try
-    var r: TQueryBuffer;
-    a.getInfo(Fstatus, TDatabaseInfo.Size, TDatabaseInfo.AsPtr, r.Size, r.AsPtr);
-
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.INFO_RESPONSE, r.AsPtr, r.Size);
+    var a := AttachDatabase;
     try
-      var Info: TDatabaseInfo;
-      x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
-      begin
-        case Tag of
-          isc_info_page_size:         Info.page_size         := Buf.AsInt(Len);
-          isc_info_num_buffers:       Info.num_buffers       := Buf.AsInt(Len);
-          isc_info_ods_version:       Info.ods_version       := Buf.AsInt(Len);
-          isc_info_ods_minor_version: Info.ods_minor_version := Buf.AsInt(Len);
-          isc_info_db_sql_dialect:    Info.db_sql_dialect    := Buf.AsInt(Len);
-          isc_info_sweep_interval:    Info.sweep_interval    := Buf.AsInt(Len);
-          isc_info_db_read_only:      Info.db_read_only      := Boolean(Buf.AsInt(Len));
-          isc_info_forced_writes:     Info.forced_writes     := Boolean(Buf.AsInt(Len));
-          isc_info_creation_date:     Info.creation_date     := TimeStampToDateTime(ISC_TIMESTAMP(Buf.AsBigInt()));
-          isc_info_db_size_in_pages:  Info.db_size_in_pages  := Buf.AsInt(Len);
-          isc_info_current_memory:    Info.current_memory    := Buf.AsInt(Len);
-          isc_info_max_memory:        Info.max_memory        := Buf.AsInt(Len);
-          isc_info_firebird_version:  Info.firebird_version  := Buf.AsStringFromBytes;
-          isc_info_isc_version:       Info.isc_version       := Buf.AsStringFromBytes;
-        end;
-        Result := Len;
-      end
-      );
-      Result := Info;
+      var r: TQueryBuffer;
+      a.getInfo(Fstatus, TDatabaseInfo.Size, TDatabaseInfo.AsPtr, r.Size, r.AsPtr);
+
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.INFO_RESPONSE, r.AsPtr, r.Size);
+      try
+        var Info: TDatabaseInfo;
+        x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+        begin
+          case Tag of
+            isc_info_page_size:         Info.page_size         := Buf.AsInt(Len);
+            isc_info_num_buffers:       Info.num_buffers       := Buf.AsInt(Len);
+            isc_info_ods_version:       Info.ods_version       := Buf.AsInt(Len);
+            isc_info_ods_minor_version: Info.ods_minor_version := Buf.AsInt(Len);
+            isc_info_db_sql_dialect:    Info.db_sql_dialect    := Buf.AsInt(Len);
+            isc_info_sweep_interval:    Info.sweep_interval    := Buf.AsInt(Len);
+            isc_info_db_read_only:      Info.db_read_only      := Boolean(Buf.AsInt(Len));
+            isc_info_forced_writes:     Info.forced_writes     := Boolean(Buf.AsInt(Len));
+            isc_info_creation_date:     Info.creation_date     := TimeStampToDateTime(ISC_TIMESTAMP(Buf.AsBigInt()));
+            isc_info_db_size_in_pages:  Info.db_size_in_pages  := Buf.AsInt(Len);
+            isc_info_current_memory:    Info.current_memory    := Buf.AsInt(Len);
+            isc_info_max_memory:        Info.max_memory        := Buf.AsInt(Len);
+            isc_info_firebird_version:  Info.firebird_version  := Buf.AsStringFromBytes;
+            isc_info_isc_version:       Info.isc_version       := Buf.AsStringFromBytes;
+          end;
+          Result := Len;
+        end
+        );
+        Result := Info;
+      finally
+        x.dispose;
+      end;
     finally
-      x.dispose;
+      a.detach(Fstatus);
+      a.release;
     end;
-  finally
-    a.detach(Fstatus);
-    a.release;
+  except
+    raise FirebirdException;
   end;
 end;
 
 function TFirebirdAPI.GetPlans(aSQLs: array of string): TArray<string>;
 begin
-  var a := AttachDatabase;
   try
-    var tpb := util.getXpbBuilder(Fstatus, IXpbBuilder.TPB, nil, 0);
-    tpb.insertTag(Fstatus, isc_tpb_read);
-    var t := a.startTransaction(Fstatus, tpb.getBufferLength(Fstatus), tpb.getBuffer(Fstatus));
+    var a := AttachDatabase;
     try
-      for var s in aSQLs do begin
-        var r := '';
-        try
-          var stmt := a.prepare(Fstatus.clone, t, s.Length, s, SQL_DIALECT_CURRENT, IStatement.PREPARE_PREFETCH_DETAILED_PLAN);
+      var tpb := util.getXpbBuilder(Fstatus, IXpbBuilder.TPB, nil, 0);
+      tpb.insertTag(Fstatus, isc_tpb_read);
+      var t := a.startTransaction(Fstatus, tpb.getBufferLength(Fstatus), tpb.getBuffer(Fstatus));
+      try
+        for var s in aSQLs do begin
+          var r := '';
           try
-            r := stmt.getPlan(Fstatus, true, 0);
-          finally
-            stmt.free(Fstatus);
+            var stmt := a.prepare(Fstatus.clone, t, s.Length, s, SQL_DIALECT_CURRENT, IStatement.PREPARE_PREFETCH_DETAILED_PLAN);
+            try
+              r := stmt.getPlan(Fstatus, true, 0);
+            finally
+              stmt.free(Fstatus);
+            end;
+          except
+            on E: Exception do r := E.Message;
           end;
-        except
-          on E: Exception do r := E.Message;
+          Result := Result + [r.Trim];
         end;
-        Result := Result + [r.Trim];
+      finally
+        t.commit(Fstatus);
+        tpb.dispose;
       end;
     finally
-      t.commit(Fstatus);
-      tpb.dispose;
+      a.detach(Fstatus);
+      a.release;
     end;
-  finally
-    a.detach(Fstatus);
-    a.release;
+  except
+    raise FirebirdException;
   end;
 end;
 
 function TFirebirdAPI.GetServiceInfo: TServiceManagerInfo;
 begin
-  var a := AttachServiceManager;
   try
-    var r: TQueryBuffer;
-    a.query(Fstatus, 0, nil, TServiceManagerInfo.Size, TServiceManagerInfo.AsPtr, r.Size, r.AsPtr);
-
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
-    var _util := util;
-    var _Fstatus := Fstatus;
+    var a := AttachServiceManager;
     try
-      var Info: TServiceManagerInfo;
-      x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
-        begin
-          case Tag of
-            isc_info_svc_version:        Info.svc_version        := Buf.AsInt(Len);
-            isc_info_svc_server_version: Info.svc_server_version := Buf.AsString(Len);
-            isc_info_svc_implementation: Info.svc_implementation := Buf.AsString(Len);
-            isc_info_svc_get_env:        Info.get_env            := Buf.AsString(Len);
-            isc_info_svc_svr_db_info: begin
-              var y := _util.getXpbBuilder(_Fstatus, IXpbBuilder.SPB_RESPONSE, Buf, r.Size);
-              y.Parse(_Fstatus, function(yTag: Byte; yBuf: IXpbBuilderBuffer; yLen: UInt32): UInt32
-                begin
-                  case yTag of
-                    isc_spb_num_att: Info.num_att := yBuf.AsInt(yLen);
-                    isc_spb_num_db:  Info.num_db  := yBuf.AsInt(yLen);
-                    isc_spb_dbname:  Info.db_name := Info.db_name + [yBuf.AsString(yLen)];
-                  end;
-                  Result := yLen;
-                end
-              , isc_info_flag_end
-              );
+      var r: TQueryBuffer;
+      a.query(Fstatus, 0, nil, TServiceManagerInfo.Size, TServiceManagerInfo.AsPtr, r.Size, r.AsPtr);
+
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+      var _util := util;
+      var _Fstatus := Fstatus;
+      try
+        var Info: TServiceManagerInfo;
+        x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+          begin
+            case Tag of
+              isc_info_svc_version:        Info.svc_version        := Buf.AsInt(Len);
+              isc_info_svc_server_version: Info.svc_server_version := Buf.AsString(Len);
+              isc_info_svc_implementation: Info.svc_implementation := Buf.AsString(Len);
+              isc_info_svc_get_env:        Info.get_env            := Buf.AsString(Len);
+              isc_info_svc_svr_db_info: begin
+                var y := _util.getXpbBuilder(_Fstatus, IXpbBuilder.SPB_RESPONSE, Buf, r.Size);
+                y.Parse(_Fstatus, function(yTag: Byte; yBuf: IXpbBuilderBuffer; yLen: UInt32): UInt32
+                  begin
+                    case yTag of
+                      isc_spb_num_att: Info.num_att := yBuf.AsInt(yLen);
+                      isc_spb_num_db:  Info.num_db  := yBuf.AsInt(yLen);
+                      isc_spb_dbname:  Info.db_name := Info.db_name + [yBuf.AsString(yLen)];
+                    end;
+                    Result := yLen;
+                  end
+                , isc_info_flag_end
+                );
+              end;
             end;
-          end;
-          Result := Len;
-        end
-      );
-      Result := Info;
+            Result := Len;
+          end
+        );
+        Result := Info;
+      finally
+        x.dispose;
+      end;
     finally
-      x.dispose;
+      a.detach(Fstatus);
+      a.release;
     end;
-  finally
-    a.detach(Fstatus);
-    a.release;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -3028,40 +3079,44 @@ end;
 procedure TFirebirdAPI.nBackup(aBackupFile: string; Process:
     TBackupInfoProcessor = nil; aBackupLevel: Integer = 0);
 begin
-  var a := AttachServiceManager;
   try
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    var a := AttachServiceManager;
     try
-      x.insertTag(Fstatus, isc_action_svc_nbak);
-      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
-      x.insertString(Fstatus, isc_spb_nbk_file, aBackupFile);
-      x.insertInt(Fstatus, isc_spb_nbk_level, aBackupLevel);
-
-      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-    finally
-      x.dispose;
-    end;
-
-    var iDataSize: UInt64;
-    var r: TQueryBuffer;
-    repeat
-      a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
-      x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
       try
-        iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
-        begin
-          if (Len > 0) and Assigned(Process) then
-            Process(Buf^, Len);
-          Result := Len;
-        end
-        );
+        x.insertTag(Fstatus, isc_action_svc_nbak);
+        x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+        x.insertString(Fstatus, isc_spb_nbk_file, aBackupFile);
+        x.insertInt(Fstatus, isc_spb_nbk_level, aBackupLevel);
+
+        a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
       finally
         x.dispose;
       end;
-    until iDataSize = 0;
-  finally
-    a.detach(Fstatus);
-    a.release;
+
+      var iDataSize: UInt64;
+      var r: TQueryBuffer;
+      repeat
+        a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+        x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+        try
+          iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+          begin
+            if (Len > 0) and Assigned(Process) then
+              Process(Buf^, Len);
+            Result := Len;
+          end
+          );
+        finally
+          x.dispose;
+        end;
+      until iDataSize = 0;
+    finally
+      a.detach(Fstatus);
+      a.release;
+    end;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -3076,60 +3131,68 @@ end;
 procedure TFirebirdAPI.nFix(aBackupFile: string; Process: TBackupInfoProcessor
     = nil);
 begin
-  var a := AttachServiceManager;
   try
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    var a := AttachServiceManager;
     try
-      x.insertTag(Fstatus, isc_action_svc_nfix);
-      x.insertString(Fstatus, isc_spb_dbname, aBackupFile);
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+      try
+        x.insertTag(Fstatus, isc_action_svc_nfix);
+        x.insertString(Fstatus, isc_spb_dbname, aBackupFile);
 
-      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+        a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+      finally
+        x.dispose;
+      end;
     finally
-      x.dispose;
+      a.detach(Fstatus);
+      a.release;
     end;
-  finally
-    a.detach(Fstatus);
-    a.release;
+  except
+    raise FirebirdException;
   end;
 end;
 
 procedure TFirebirdAPI.nRestore(aBackupFiles: array of string; Process:
     TBackupInfoProcessor = nil);
 begin
-  var a := AttachServiceManager;
   try
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    var a := AttachServiceManager;
     try
-      x.insertTag(Fstatus, isc_action_svc_nrest);
-      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
-      for var s in aBackupFiles do
-        x.insertString(Fstatus, isc_spb_nbk_file, s);
-
-      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-    finally
-      x.dispose;
-    end;
-
-    var iDataSize: Int64;
-    var r: TQueryBuffer;
-    repeat
-      a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
-      x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
       try
-        iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
-        begin
-          if (Len > 0) and Assigned(Process) then
-            Process(Buf^, Len);
-          Result := Len;
-        end
-        );
+        x.insertTag(Fstatus, isc_action_svc_nrest);
+        x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+        for var s in aBackupFiles do
+          x.insertString(Fstatus, isc_spb_nbk_file, s);
+
+        a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
       finally
         x.dispose;
       end;
-    until iDataSize = 0;
-  finally
-    a.detach(Fstatus);
-    a.release;
+
+      var iDataSize: Int64;
+      var r: TQueryBuffer;
+      repeat
+        a.query(Fstatus, 0, nil, TServiceQueryInfo.eof.Size, TServiceQueryInfo.eof.AsPtr, r.Size, r.AsPtr);
+        x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+        try
+          iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+          begin
+            if (Len > 0) and Assigned(Process) then
+              Process(Buf^, Len);
+            Result := Len;
+          end
+          );
+        finally
+          x.dispose;
+        end;
+      until iDataSize = 0;
+    finally
+      a.detach(Fstatus);
+      a.release;
+    end;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -3151,67 +3214,71 @@ end;
 procedure TFirebirdAPI.Restore(aBackupFile: string; Process:
     TBackupInfoProcessor = nil; Read: TBackupDataReader = nil);
 begin
-  var a := AttachServiceManager;
   try
-    var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+    var a := AttachServiceManager;
     try
-      x.insertTag(Fstatus, isc_action_svc_restore);
-      x.insertTag(Fstatus, isc_spb_verbose);
-      x.insertInt(Fstatus, isc_spb_options, isc_spb_res_create);
-      x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
-      x.insertString(Fstatus, isc_spb_bkp_file, aBackupFile);
-      if FPageSize.Available    then x.insertInt(Fstatus, isc_spb_res_page_size, FPageSize.Value.ToInteger);
-      if FPageBuffers.Available then x.insertInt(Fstatus, isc_spb_res_buffers, FPageBuffers);
-      a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
-    finally
-      x.dispose;
-    end;
+      var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
+      try
+        x.insertTag(Fstatus, isc_action_svc_restore);
+        x.insertTag(Fstatus, isc_spb_verbose);
+        x.insertInt(Fstatus, isc_spb_options, isc_spb_res_create);
+        x.insertString(Fstatus, isc_spb_dbname, FConnectionString.Database);
+        x.insertString(Fstatus, isc_spb_bkp_file, aBackupFile);
+        if FPageSize.Available    then x.insertInt(Fstatus, isc_spb_res_page_size, FPageSize.Value.ToInteger);
+        if FPageBuffers.Available then x.insertInt(Fstatus, isc_spb_res_buffers, FPageBuffers);
+        a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
+      finally
+        x.dispose;
+      end;
 
-    var r, sendBuf: TQueryBuffer;
-    var send := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_SEND, nil, 0);
-    try
-      var iDataSize: UInt64;
-      var iSendBufSize: Word := 0;
-      repeat
-        send.clear(Fstatus);
-        if iSendBufSize > 0 then begin
-          iSendBufSize := sendBuf.Fetch(Read, iSendBufSize);
-          if iSendBufSize > 0 then
-            send.insertBytes(Fstatus, isc_info_svc_line, sendBuf.AsPtr, iSendBufSize);
-          iSendBufSize := 0;
-        end;
-        a.query(Fstatus, send.getBufferLength(Fstatus), send.getBuffer(Fstatus), TServiceQueryInfo.restore.Size, TServiceQueryInfo.restore.AsPtr, r.Size, r.AsPtr);
-        x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
-        try
-          iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
-          begin
-            case Tag of
-              isc_info_svc_stdin: begin
-                iSendBufSize := Min(sendBuf.Size - SizeOf(Byte){isc_info_svc_line} - SizeOf(iSendBufSize){2 bytes}, Buf.AsInt(Len));
-                Result := iSendBufSize;
+      var r, sendBuf: TQueryBuffer;
+      var send := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_SEND, nil, 0);
+      try
+        var iDataSize: UInt64;
+        var iSendBufSize: Word := 0;
+        repeat
+          send.clear(Fstatus);
+          if iSendBufSize > 0 then begin
+            iSendBufSize := sendBuf.Fetch(Read, iSendBufSize);
+            if iSendBufSize > 0 then
+              send.insertBytes(Fstatus, isc_info_svc_line, sendBuf.AsPtr, iSendBufSize);
+            iSendBufSize := 0;
+          end;
+          a.query(Fstatus, send.getBufferLength(Fstatus), send.getBuffer(Fstatus), TServiceQueryInfo.restore.Size, TServiceQueryInfo.restore.AsPtr, r.Size, r.AsPtr);
+          x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
+          try
+            iDataSize := x.Parse(Fstatus, function(Tag: Byte; Buf: IXpbBuilderBuffer; Len: UInt32): UInt32
+            begin
+              case Tag of
+                isc_info_svc_stdin: begin
+                  iSendBufSize := Min(sendBuf.Size - SizeOf(Byte){isc_info_svc_line} - SizeOf(iSendBufSize){2 bytes}, Buf.AsInt(Len));
+                  Result := iSendBufSize;
+                end;
+                isc_info_svc_to_eof: begin
+                  if (Len > 0) and Assigned(Process) then
+                    Process(Buf^, Len);
+                  Result := Len;
+                end;
+                isc_info_truncated, isc_info_data_not_ready:
+                  Result := 1; // Force return 1 to indicate more data on the way
+                else
+                  Result := Len;
               end;
-              isc_info_svc_to_eof: begin
-                if (Len > 0) and Assigned(Process) then
-                  Process(Buf^, Len);
-                Result := Len;
-              end;
-              isc_info_truncated, isc_info_data_not_ready:
-                Result := 1; // Force return 1 to indicate more data on the way
-              else
-                Result := Len;
-            end;
-          end
-          );
-        finally
-          x.dispose;
-        end;
-      until iDataSize = 0;
+            end
+            );
+          finally
+            x.dispose;
+          end;
+        until iDataSize = 0;
+      finally
+        send.dispose;
+      end;
     finally
-      send.dispose;
+      a.detach(Fstatus);
+      a.release;
     end;
-  finally
-    a.detach(Fstatus);
-    a.release;
+  except
+    raise FirebirdException;
   end;
 end;
 
@@ -3284,7 +3351,11 @@ end;
 
 procedure TFirebirdAPI.SetProperties;
 begin
-  AttachDatabase.detach(Fstatus);
+  try
+    AttachDatabase.detach(Fstatus);
+  except
+    raise FirebirdException;
+  end;
 end;
 
 function TFirebirdAPI.SetProviders(aProviders: string): PFirebirdAPI;
