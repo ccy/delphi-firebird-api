@@ -19,6 +19,7 @@ type
     const FB_Config_Providers = 'Providers';
     const MIN_PAGE_BUFFERS = 50;
     const MAX_PAGE_BUFFERS = 131072;
+    const isc_spb_res_parallel_workers = isc_spb_bkp_parallel_workers;
   end;
 
   TFirebird_ODS_Major = (ODS_10_And_Below, ODS_11_And_Above);
@@ -420,6 +421,7 @@ type
     FPageSize: TInfoValue<TPageSize>;
     FForcedWrite: TInfoValue<Boolean>;
     FPageBuffers: TInfoValue<Cardinal>;
+    FParallelWorkers: TInfoValue<Integer>;
     function FirebirdException: Exception;
   public
     function AttachDatabase: IAttachment;
@@ -455,6 +457,7 @@ type
     function SetConnectionString(aDatabase, aHost: string; aProtocol: TFirebirdConnectionStringProtocol): PFirebirdAPI; overload;
     function SetPageBuffers(aValue: Cardinal): PFirebirdAPI;
     function SetPageSize(aValue: TPageSize): PFirebirdAPI;
+    function SetParallelWorkers(aValue: Integer): PFirebirdAPI;
     function SetProviders(aProviders: string): PFirebirdAPI;
     function SetForcedWrite(aValue: Boolean = True): PFirebirdAPI;
     property master: IMaster read Fmaster;
@@ -2827,6 +2830,8 @@ begin
         if not SameText(aBackupFile, stdout) then
           x.insertTag(Fstatus, isc_spb_verbose);
         x.insertString(Fstatus, isc_spb_bkp_file, sBackupFile);
+        if FParallelWorkers.Available then
+          x.insertInt(FStatus, isc_spb_bkp_parallel_workers, FParallelWorkers);
 
         a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
       finally
@@ -3052,6 +3057,7 @@ begin
   Dest.FUserName := DBA_USER_NAME;
   Dest.FPassword := TFirebird.DefaultDBAPassword;
   Dest.FProviders.Clear;
+  Dest.FParallelWorkers.Clear;
   Dest.FConnectionString := '';
   Dest.FPageSize.Clear;
   Dest.FForcedWrite.Clear;
@@ -3207,6 +3213,7 @@ begin
   FPageSize.Clear;
   FForcedWrite.Clear;
   FPageBuffers.Clear;
+  FParallelWorkers.Clear;
 
   Result := @Self;
 end;
@@ -3226,6 +3233,8 @@ begin
         x.insertString(Fstatus, isc_spb_bkp_file, aBackupFile);
         if FPageSize.Available    then x.insertInt(Fstatus, isc_spb_res_page_size, FPageSize.Value.ToInteger);
         if FPageBuffers.Available then x.insertInt(Fstatus, isc_spb_res_buffers, FPageBuffers);
+        if FParallelWorkers.Available then
+          x.insertInt(FStatus, TFirebird.isc_spb_res_parallel_workers, FParallelWorkers);
         a.start(Fstatus, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
       finally
         x.dispose;
@@ -3346,6 +3355,12 @@ end;
 function TFirebirdAPI.SetPageSize(aValue: TPageSize): PFirebirdAPI;
 begin
   FPageSize := aValue;
+  Result := @Self;
+end;
+
+function TFirebirdAPI.SetParallelWorkers(aValue: Integer): PFirebirdAPI;
+begin
+  FParallelWorkers := aValue;
   Result := @Self;
 end;
 
