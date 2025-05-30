@@ -424,8 +424,8 @@ type
     FParallelWorkers: TInfoValue<Integer>;
     function FirebirdException: Exception;
   public
-    function AttachDatabase: IAttachment;
-    function AttachServiceManager: IService;
+    function AttachDatabase(aExpectedDB: string = ''): IAttachment;
+    function AttachServiceManager(aExpectedDB: string = ''): IService;
     procedure Backup(Process: TBackupInfoProcessor = nil; aBackupFile: string = stdout);
         overload;
     function CreateDatabase(aDummy: Integer): IAttachment; overload;
@@ -2776,7 +2776,7 @@ begin
   raise Exception.Create('TFirebirdAPI.Assign is not supported');
 end;
 
-function TFirebirdAPI.AttachDatabase: IAttachment;
+function TFirebirdAPI.AttachDatabase(aExpectedDB: string = ''): IAttachment;
 begin
   Fstatus.init;
   var x := util.getXpbBuilder(Fstatus, IXpbBuilder.DPB, nil, 0);
@@ -2787,6 +2787,7 @@ begin
       if FProviders.Available then x.insertString(Fstatus, isc_dpb_config, FProviders);
       if FPageBuffers.Available then x.insertInt(Fstatus, isc_dpb_set_page_buffers, FPageBuffers);
       if FForcedWrite.Available then x.insertBytes(Fstatus, isc_dpb_force_write, @FForcedWrite.Value, SizeOf(FForcedWrite.Value));
+      if not aExpectedDB.IsEmpty then x.insertString(Fstatus, isc_spb_expected_db, aExpectedDB);
 
       Result := prov.attachDatabase(Fstatus, FConnectionString, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
     finally
@@ -2797,7 +2798,7 @@ begin
   end;
 end;
 
-function TFirebirdAPI.AttachServiceManager: IService;
+function TFirebirdAPI.AttachServiceManager(aExpectedDB: string = ''): IService;
 begin
   Fstatus.init;
   var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_ATTACH, nil, 0);
@@ -2806,6 +2807,7 @@ begin
       if FUserName.Available then x.insertString(Fstatus, isc_dpb_user_name, FUserName);
       if FPassword.Available then x.insertString(Fstatus, isc_dpb_password, FPassword);
       if FProviders.Available then x.insertString(Fstatus, isc_spb_config, FProviders);
+      if not aExpectedDB.IsEmpty then x.insertString(Fstatus, isc_spb_expected_db, aExpectedDB);
 
       Result := prov.attachServiceManager(Fstatus, FConnectionString.AsServiceManager, x.getBufferLength(Fstatus), x.getBuffer(Fstatus));
     finally
@@ -2819,7 +2821,7 @@ end;
 procedure TFirebirdAPI.Backup(Process: TBackupInfoProcessor = nil; aBackupFile: string
     = stdout);
 begin
-  var a := AttachServiceManager;
+  var a := AttachServiceManager(FConnectionString.Database);
   try
     try
       var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
@@ -3003,7 +3005,7 @@ end;
 function TFirebirdAPI.GetServiceInfo: TServiceManagerInfo;
 begin
   try
-    var a := AttachServiceManager;
+    var a := AttachServiceManager(FConnectionString.Database);
     try
       var r: TQueryBuffer;
       a.query(Fstatus, 0, nil, TServiceManagerInfo.Size, TServiceManagerInfo.AsPtr, r.Size, r.AsPtr);
@@ -3086,7 +3088,7 @@ procedure TFirebirdAPI.nBackup(aBackupFile: string; Process:
     TBackupInfoProcessor = nil; aBackupLevel: Integer = 0);
 begin
   try
-    var a := AttachServiceManager;
+    var a := AttachServiceManager(FConnectionString.Database);
     try
       var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
       try
@@ -3138,7 +3140,7 @@ procedure TFirebirdAPI.nFix(aBackupFile: string; Process: TBackupInfoProcessor
     = nil);
 begin
   try
-    var a := AttachServiceManager;
+    var a := AttachServiceManager(FConnectionString.Database);
     try
       var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
       try
@@ -3162,7 +3164,7 @@ procedure TFirebirdAPI.nRestore(aBackupFiles: array of string; Process:
     TBackupInfoProcessor = nil);
 begin
   try
-    var a := AttachServiceManager;
+    var a := AttachServiceManager(FConnectionString.Database);
     try
       var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_START, nil, 0);
       try
