@@ -3318,10 +3318,10 @@ end;
 function TFirebirdAPI.SetConnectionString(aDatabase, ProvidersOrHost: string):
     PFirebirdAPI;
 begin
-  FConnectionString := aDatabase;
-  if ProvidersOrHost.StartsWith(TFirebird.FB_Config_Providers, True) then
+  if ProvidersOrHost.StartsWith(TFirebird.FB_Config_Providers, True) then begin
+    FConnectionString.Database := aDatabase;
     SetProviders(ProvidersOrHost)
-  else if not ProvidersOrHost.IsEmpty then begin
+  end else if not ProvidersOrHost.IsEmpty then begin
     FConnectionString := ProvidersOrHost;
     if FConnectionString.Host = '' then begin
       FConnectionString.Host := ProvidersOrHost;
