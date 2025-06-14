@@ -3024,6 +3024,7 @@ begin
                       isc_spb_num_att: Info.num_att := yBuf.AsInt(yLen);
                       isc_spb_num_db:  Info.num_db  := yBuf.AsInt(yLen);
                       isc_spb_dbname:  Info.db_name := Info.db_name + [yBuf.AsString(yLen)];
+                      isc_info_truncated: Info.db_name := Info.db_name + ['Output was truncated'];
                     end;
                     Result := yLen;
                   end
