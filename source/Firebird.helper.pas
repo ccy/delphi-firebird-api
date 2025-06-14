@@ -5,8 +5,6 @@ interface
 uses
   System.SysUtils, Firebird;
 
-const isc_info_end      = 1; // undefined in Firebird.pas
-
 type
   IXpbBuilderBuffer = type Pointer;
 
