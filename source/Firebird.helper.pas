@@ -145,6 +145,8 @@ begin
   Result := 0;
   var t: byte;
   while getTag(aStatus, t) <> endTag do begin
+    if t = isc_info_end then Break;
+
     if Assigned(Visit) then
       Inc(Result, Visit(t, getBytes(aStatus), getLength(aStatus)));
     moveNext(aStatus);
