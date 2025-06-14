@@ -269,14 +269,6 @@ type
   end;
 
   TServiceManagerInfo = record
-  const
-    Items: array[0..4] of Byte = (
-      isc_info_svc_svr_db_info
-    , isc_info_svc_version
-    , isc_info_svc_server_version
-    , isc_info_svc_implementation
-    , isc_info_svc_get_env
-    );
   public
     svc_version: Int32;
     svc_server_version: string;
@@ -285,8 +277,7 @@ type
     num_db: Integer;
     db_name: TArray<string>;
     get_env: string;
-    class function AsPtr: Pointer; static; inline;
-    class function Size: Integer; static; inline;
+    class function Items(aDBInfos: Boolean = False): TBytes; static; inline;
     function IsWindows: Boolean;
   end;
 
@@ -432,7 +423,7 @@ type
     procedure CreateDatabase; overload;
     procedure DropDatabase;
     function GetDatabaseInfo: TDatabaseInfo;
-    function GetServiceInfo: TServiceManagerInfo;
+    function GetServiceInfo(aDBInfos: Boolean): TServiceManagerInfo;
     function GetPlans(aSQLs: array of string): TArray<string>;
     procedure nBackup(aBackupFile: string; Process: TBackupInfoProcessor = nil;
         aBackupLevel: Integer = 0);
@@ -2433,19 +2424,21 @@ begin
   Result := Length(Items);
 end;
 
-class function TServiceManagerInfo.AsPtr: Pointer;
+class function TServiceManagerInfo.Items(aDBInfos: Boolean = False): TBytes;
 begin
-  Result := @Items[0];
+  Result := TBytes.Create(
+      isc_info_svc_version
+    , isc_info_svc_server_version
+    , isc_info_svc_implementation
+    , isc_info_svc_get_env
+    );
+  if aDBInfos then
+    Result := Result + [isc_info_svc_svr_db_info];
 end;
 
 function TServiceManagerInfo.IsWindows: Boolean;
 begin
   Result := svc_implementation.Contains('/Windows/');
-end;
-
-class function TServiceManagerInfo.Size: Integer;
-begin
-  Result := Length(Items);
 end;
 
 class constructor TServiceQueryInfo.Create;
@@ -3002,13 +2995,14 @@ begin
   end;
 end;
 
-function TFirebirdAPI.GetServiceInfo: TServiceManagerInfo;
+function TFirebirdAPI.GetServiceInfo(aDBInfos: Boolean): TServiceManagerInfo;
 begin
   try
     var a := AttachServiceManager(FConnectionString.Database);
     try
       var r: TQueryBuffer;
-      a.query(Fstatus, 0, nil, TServiceManagerInfo.Size, TServiceManagerInfo.AsPtr, r.Size, r.AsPtr);
+      var N := TServiceManagerInfo.Items(aDBInfos);
+      a.query(Fstatus, 0, nil, Length(N), @N[0], r.Size, r.AsPtr);
 
       var x := util.getXpbBuilder(Fstatus, IXpbBuilder.SPB_RESPONSE, r.AsPtr, r.Size);
       var _util := util;
