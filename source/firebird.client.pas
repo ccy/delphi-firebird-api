@@ -258,8 +258,8 @@ type
     forced_writes: Boolean;
     creation_date: TDateTime;
     db_size_in_pages: Int32;
-    current_memory: Int32;
-    max_memory: Int32;
+    current_memory: Int64;
+    max_memory: Int64;
     firebird_version: string;
     isc_version: string;
     function ODS: TODS;
@@ -2938,8 +2938,8 @@ begin
             isc_info_forced_writes:     Info.forced_writes     := Boolean(Buf.AsInt(Len));
             isc_info_creation_date:     Info.creation_date     := TimeStampToDateTime(ISC_TIMESTAMP(Buf.AsBigInt()));
             isc_info_db_size_in_pages:  Info.db_size_in_pages  := Buf.AsInt(Len);
-            isc_info_current_memory:    Info.current_memory    := Buf.AsInt(Len);
-            isc_info_max_memory:        Info.max_memory        := Buf.AsInt(Len);
+            isc_info_current_memory:    Info.current_memory    := Buf.AsBigInt;
+            isc_info_max_memory:        Info.max_memory        := Buf.AsBigInt;
             isc_info_firebird_version:  Info.firebird_version  := Buf.AsStringFromBytes;
             isc_info_isc_version:       Info.isc_version       := Buf.AsStringFromBytes;
           end;
