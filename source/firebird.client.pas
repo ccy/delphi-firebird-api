@@ -3323,7 +3323,8 @@ begin
       FConnectionString.Protocol := tcp_tra;
     end;
     FConnectionString.Database := aDatabase;
-  end;
+  end else
+    FConnectionString := aDatabase;
 
   Result := @Self;
 end;
