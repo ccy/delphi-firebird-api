@@ -71,6 +71,8 @@ implementation
 uses
   System.DateUtils, System.TimeSpan;
 
+const ONE_DAY = MinsPerDay - 1;
+
 class function ISC_DATE_Helper.Create(Value: TTimeStamp): ISC_DATE;
 begin
   var y, m, d: Word;
@@ -213,22 +215,22 @@ end;
 class operator ISC_TIMESTAMP_TZ_Helper.Implicit(
   Value: TSQLTimeStamp): ISC_TIMESTAMP_TZ;
 begin
-  Result.utc_timestamp := Value;
-  Result.time_zone := Trunc(TTimeZone.Local.UtcOffset.TotalMinutes);
+  Result.utc_timestamp := LocalToUTC(Value);
+  Result.time_zone := Trunc(TTimeZone.Local.UtcOffset.TotalMinutes) + ONE_DAY;
 end;
 
 class operator ISC_TIMESTAMP_TZ_Helper.Implicit(Value: TSQLTimeStampOffset):
     ISC_TIMESTAMP_TZ;
 begin
-  Result.utc_timestamp := Value;
-  Result.time_zone := Value.TimeZoneHour * MinsPerHour + Value.TimeZoneMinute;
+  Result.utc_timestamp := OffsetToUTC(Value);
+  Result.time_zone := Value.TimeZoneHour * MinsPerHour + Value.TimeZoneMinute + ONE_DAY;
 end;
 
 class operator ISC_TIMESTAMP_TZ_Helper.Implicit(
   Value: TTimeStamp): ISC_TIMESTAMP_TZ;
 begin
-  Result.utc_timestamp := Value;
-  Result.time_zone := Trunc(TTimeZone.Local.UtcOffset.TotalMinutes);
+  Result.utc_timestamp := DateTimeToTimeStamp(TTimeZone.Local.ToUniversalTime(TimeStampToDateTime(Value)));
+  Result.time_zone := Trunc(TTimeZone.Local.UtcOffset.TotalMinutes) + ONE_DAY;
 end;
 
 class function TTimeZoneOffset.Default: TTimeZoneOffset;
@@ -248,20 +250,27 @@ end;
 class operator ISC_TIMESTAMP_TZ_IANA.Implicit(
   Value: ISC_TIMESTAMP_TZ_IANA): TSQLTimeStampOffset;
 begin
+  var vUTC := NullSQLTimeStamp;
   var f: Word;
-  ISC_DATE.decode_date(Value.FValue.utc_timestamp.timestamp_date, Result.Year, Result.Month, Result.Day);
-  ISC_TIME.decode_time(Value.FValue.utc_timestamp.timestamp_time, Result.Hour, Result.Minute, Result.Second, f);
-  Result.Fractions := f;
+  ISC_DATE.decode_date(Value.FValue.utc_timestamp.timestamp_date, vUTC.Year, vUTC.Month, vUTC.Day);
+  ISC_TIME.decode_time(Value.FValue.utc_timestamp.timestamp_time, vUTC.Hour, vUTC.Minute, vUTC.Second, f);
+  vUTC.Fractions := f;
+  var D := SQLTimeStampToDateTime(vUTC);
 
-  const ONE_DAY = 24 * 60 - 1;
+  var iHour: SmallInt;
+  var iMinute: SmallInt;
   if Value.FValue.time_zone <= ONE_DAY * 2 then begin
-    Result.TimeZoneHour := Value.FValue.time_zone div 60;
-    Result.TimeZoneMinute := Value.FValue.time_zone mod 60;
+    var V := Value.FValue.time_zone - ONE_DAY;
+    iHour := V div MinsPerHour;
+    iMinute := V - (iHour * MinsPerHour);
   end else begin
     var z := Value.GetTimeZoneOffset(Value.FValue.time_zone);
-    Result.TimeZoneHour := z.TimeZoneHour;
-    Result.TimeZoneMinute := z.TimeZoneMinute;
+    iHour := z.TimeZoneHour;
+    iMinute := z.TimeZoneMinute;
   end;
+  var vMinute := iHour * MinsPerHour + iMinute;
+
+  Result := DateTimeToSQLTimeStampOffset(IncMinute(D, vMinute), iHour, iMinute);
 end;
 
 class function ISC_TIMESTAMP_TZ_IANA.DefaultTimeZoneOffset(
