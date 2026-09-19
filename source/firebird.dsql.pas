@@ -629,13 +629,21 @@ end;
 
 procedure TXSQLVAR.GetTimeStampOffset(aValue: pointer; out aIsNull: boolean);
 begin
-  Assert(Prepared and CheckType(SQL_TIMESTAMP_TZ));
+  Assert(Prepared);
   aIsNull := IsNull;
   if not aIsNull then begin
-    var D: ISC_TIMESTAMP_TZ_IANA := ISC_TIMESTAMP_TZ(sqldata^);
-    D.Setup(FGetTimeZoneOffset);
-    var S: TSQLTimeStampOffset := D;
-    Move(S, aValue^, SizeOf(S));
+    if CheckType(SQL_TIMESTAMP_TZ) then begin
+      var D: ISC_TIMESTAMP_TZ_IANA := ISC_TIMESTAMP_TZ(sqldata^);
+      D.Setup(FGetTimeZoneOffset);
+      var S: TSQLTimeStampOffset := D;
+      Move(S, aValue^, SizeOf(S));
+    end else if CheckType(SQL_TIME_TZ) then begin
+      var D: ISC_TIMESTAMP_TZ_IANA := ISC_TIME_TZ(sqldata^);
+      D.Setup(FGetTimeZoneOffset);
+      var S: TSQLTimeStampOffset := D;
+      Move(S, aValue^, SizeOf(S));
+    end else
+      Assert(False);
   end;
 end;
 

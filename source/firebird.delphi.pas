@@ -52,6 +52,7 @@ type
     class operator Implicit(Value: TSQLTimeStamp): ISC_TIMESTAMP_TZ;
     class operator Implicit(Value: TTimeStamp): ISC_TIMESTAMP_TZ;
     class operator Implicit(Value: TSQLTimeStampOffset): ISC_TIMESTAMP_TZ;
+    class operator Implicit(Value: ISC_TIME_TZ): ISC_TIMESTAMP_TZ;
   end;
 
   ISC_TIMESTAMP_TZ_IANA = record
@@ -63,6 +64,7 @@ type
     class operator Initialize(out Dest: ISC_TIMESTAMP_TZ_IANA);
     class operator Implicit(Value: ISC_TIMESTAMP_TZ_IANA): TSQLTimeStampOffset;
     class operator Implicit(Value: ISC_TIMESTAMP_TZ): ISC_TIMESTAMP_TZ_IANA;
+    class operator Implicit(Value: ISC_TIME_TZ): ISC_TIMESTAMP_TZ_IANA;
     procedure Setup(aGetTimeZoneOffset: TGetTimeZoneOffSet);
   end;
 
@@ -233,6 +235,14 @@ begin
   Result.time_zone := Trunc(TTimeZone.Local.UtcOffset.TotalMinutes) + ONE_DAY;
 end;
 
+class operator ISC_TIMESTAMP_TZ_Helper.Implicit(
+  Value: ISC_TIME_TZ): ISC_TIMESTAMP_TZ;
+begin
+  Result.utc_timestamp.timestamp_date := Low(ISC_DATE);
+  Result.utc_timestamp.timestamp_time := Value.utc_time;
+  Result.time_zone := Value.time_zone;
+end;
+
 class function TTimeZoneOffset.Default: TTimeZoneOffset;
 begin
   var m := Trunc(TTimeZone.Local.UtcOffset.TotalMinutes);
@@ -281,6 +291,12 @@ end;
 
 class operator ISC_TIMESTAMP_TZ_IANA.Implicit(
   Value: ISC_TIMESTAMP_TZ): ISC_TIMESTAMP_TZ_IANA;
+begin
+  Result.FValue := Value;
+end;
+
+class operator ISC_TIMESTAMP_TZ_IANA.Implicit(
+  Value: ISC_TIME_TZ): ISC_TIMESTAMP_TZ_IANA;
 begin
   Result.FValue := Value;
 end;
