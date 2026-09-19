@@ -20,6 +20,7 @@ type
     const MIN_PAGE_BUFFERS = 50;
     const MAX_PAGE_BUFFERS = 131072;
     const isc_spb_res_parallel_workers = isc_spb_bkp_parallel_workers;
+    const isc_dpb_session_time_zone_str = 'isc_dpb_session_time_zone';
   end;
 
   TFirebird_ODS_Major = (ODS_10_And_Below, ODS_11_And_Above);
